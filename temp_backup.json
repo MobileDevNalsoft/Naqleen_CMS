@@ -1,0 +1,616 @@
+{
+    "naqleen_terminal_zones":  {
+                                   "terminal_info":  {
+                                                         "name":  "Naqleen Container Terminal",
+                                                         "location":  "Jeddah, Saudi Arabia",
+                                                         "total_dimensions":  {
+                                                                                  "width":  360,
+                                                                                  "height":  145,
+                                                                                  "unit":  "meters"
+                                                                              },
+                                                         "scale":  "1:100",
+                                                         "drawing_number":  "ASQ012324/160189",
+                                                         "approved_by":  "Nesthubz Infra Solutions"
+                                                     },
+                                   "zone_types":  {
+                                                      "trs_zone":  {
+                                                                       "opacity":  0.2,
+                                                                       "description":  "TRS Zone (Left Side)"
+                                                                   },
+                                                      "trm_zone":  {
+                                                                       "opacity":  0.2,
+                                                                       "description":  "TRM Zone (Right Side)"
+                                                                   },
+                                                      "container_block_a":  {
+                                                                                "color":  "#FF9800",
+                                                                                "opacity":  0.4,
+                                                                                "description":  "Container Block A (20ft)"
+                                                                            },
+                                                      "container_block_b":  {
+                                                                                "color":  "#F44336",
+                                                                                "opacity":  0.4,
+                                                                                "description":  "Container Block B"
+                                                                            },
+                                                      "container_block_c":  {
+                                                                                "color":  "#9C27B0",
+                                                                                "opacity":  0.4,
+                                                                                "description":  "Container Block C"
+                                                                            },
+                                                      "container_block_d":  {
+                                                                                "color":  "#607D8B",
+                                                                                "opacity":  0.4,
+                                                                                "description":  "Container Block D"
+                                                                            },
+                                                      "road":  {
+                                                                   "color":  "#000000",
+                                                                   "opacity":  0.1,
+                                                                   "description":  "Road (17m wide)"
+                                                               },
+                                                      "access":  {
+                                                                     "color":  "#8BC34A",
+                                                                     "opacity":  0.3,
+                                                                     "description":  "Access/Exit Road"
+                                                                 },
+                                                      "customhouse":  {
+                                                                          "color":  "#795548",
+                                                                          "opacity":  0.5,
+                                                                          "description":  "Customhouse"
+                                                                      },
+                                                      "toplift":  {
+                                                                      "color":  "#FFC107",
+                                                                      "opacity":  0.6,
+                                                                      "description":  "Toplift Area"
+                                                                  },
+                                                      "terminal_divider":  {
+                                                                               "color":  "#000000",
+                                                                               "opacity":  0.8,
+                                                                               "description":  "Terminal Divider"
+                                                                           },
+                                                      "custom":  {
+                                                                     "color":  "#9E9E9E",
+                                                                     "opacity":  0.3,
+                                                                     "description":  "Custom Zone"
+                                                                 },
+                                                      "yard_base":  {
+                                                                        "color":  "#27a79a",
+                                                                        "opacity":  1.0,
+                                                                        "description":  "Yard Base - Ground plane"
+                                                                    }
+                                                  },
+                                   "zones":  {
+                                                 "main_operational_zones":  {
+                                                                                "trs_zone":  {
+                                                                                                 "id":  "trs_zone",
+                                                                                                 "type":  "trs_zone",
+                                                                                                 "dimensions":  {
+                                                                                                                    "width":  180,
+                                                                                                                    "height":  145,
+                                                                                                                    "unit":  "meters"
+                                                                                                                },
+                                                                                                 "position":  {
+                                                                                                                  "x":  -90,
+                                                                                                                  "y":  0.1,
+                                                                                                                  "z":  0,
+                                                                                                                  "unit":  "meters"
+                                                                                                              },
+                                                                                                 "rotation":  0,
+                                                                                                 "description":  "TRS Zone (Left Side) - Main operational area",
+                                                                                                 "container_capacity":  "Multiple blocks A, B, C, D",
+                                                                                                 "access_points":  [
+                                                                                                                       "access_road",
+                                                                                                                       "exit_road"
+                                                                                                                   ],
+                                                                                                 "shape":  "rectangle",
+                                                                                                 "opacity":  0.1
+                                                                                             },
+                                                                                "trm_zone":  {
+                                                                                                 "id":  "trm_zone",
+                                                                                                 "type":  "trm_zone",
+                                                                                                 "dimensions":  {
+                                                                                                                    "width":  172,
+                                                                                                                    "height":  145,
+                                                                                                                    "unit":  "meters"
+                                                                                                                },
+                                                                                                 "position":  {
+                                                                                                                  "x":  94,
+                                                                                                                  "y":  0.1,
+                                                                                                                  "z":  0,
+                                                                                                                  "unit":  "meters"
+                                                                                                              },
+                                                                                                 "rotation":  0,
+                                                                                                 "description":  "TRM Zone (Right Side) - Main operational area",
+                                                                                                 "container_capacity":  "Multiple blocks A, B, C, D",
+                                                                                                 "access_points":  [
+                                                                                                                       "main_road_horizontal"
+                                                                                                                   ],
+                                                                                                 "shape":  "rectangle",
+                                                                                                 "opacity":  0.1
+                                                                                             }
+                                                                            },
+                                                 "yard_base":  {
+                                                                   "id":  "yard_base",
+                                                                   "type":  "yard_base",
+                                                                   "position":  {
+                                                                                    "x":  0,
+                                                                                    "y":  -1,
+                                                                                    "z":  0,
+                                                                                    "unit":  "meters"
+                                                                                },
+                                                                   "corner_points":  [
+                                                                                         {
+                                                                                             "x":  -180,
+                                                                                             "z":  -72.5,
+                                                                                             "description":  "Bottom-left corner"
+                                                                                         },
+                                                                                         {
+                                                                                             "x":  180,
+                                                                                             "z":  -72.5,
+                                                                                             "description":  "Bottom-right corner"
+                                                                                         },
+                                                                                         {
+                                                                                             "x":  180,
+                                                                                             "z":  72.5,
+                                                                                             "description":  "Top-right corner"
+                                                                                         },
+                                                                                         {
+                                                                                             "x":  -180,
+                                                                                             "z":  72.5,
+                                                                                             "description":  "Top-left corner"
+                                                                                         }
+                                                                                     ],
+                                                                   "rotation":  0,
+                                                                   "description":  "Main yard base ground plane",
+                                                                   "shape":  "rectangle",
+                                                                   "receive_shadow":  true
+                                                               },
+                                                 "trs_container_blocks":  {
+                                                                              "trs_block_a":  {
+                                                                                                  "id":  "trs_block_a",
+                                                                                                  "type":  "container_block_a",
+                                                                                                  "dimensions":  {
+                                                                                                                     "width":  177.83,
+                                                                                                                     "height":  30,
+                                                                                                                     "unit":  "meters"
+                                                                                                                 },
+                                                                                                  "position":  {
+                                                                                                                   "x":  -88.8,
+                                                                                                                   "y":  0.3,
+                                                                                                                   "z":  -55.75,
+                                                                                                                   "unit":  "meters"
+                                                                                                               },
+                                                                                                  "rotation":  0,
+                                                                                                  "description":  "TRS Block A - 20ft containers",
+                                                                                                  "container_type":  "20ft",
+                                                                                                  "bays":  23,
+                                                                                                  "rows":  11,
+                                                                                                  "row_labels":  [
+                                                                                                                     "A",
+                                                                                                                     "B",
+                                                                                                                     "C",
+                                                                                                                     "D",
+                                                                                                                     "E",
+                                                                                                                     "F",
+                                                                                                                     "G",
+                                                                                                                     "H",
+                                                                                                                     "I",
+                                                                                                                     "J",
+                                                                                                                     "K"
+                                                                                                                 ],
+                                                                                                  "bay_numbers":  [
+                                                                                                                      1,
+                                                                                                                      2,
+                                                                                                                      3,
+                                                                                                                      4,
+                                                                                                                      5,
+                                                                                                                      6,
+                                                                                                                      7,
+                                                                                                                      8,
+                                                                                                                      9,
+                                                                                                                      10,
+                                                                                                                      11,
+                                                                                                                      12,
+                                                                                                                      13,
+                                                                                                                      14,
+                                                                                                                      15,
+                                                                                                                      16,
+                                                                                                                      17,
+                                                                                                                      18,
+                                                                                                                      19,
+                                                                                                                      20,
+                                                                                                                      21,
+                                                                                                                      22,
+                                                                                                                      23
+                                                                                                                  ],
+                                                                                                  "capacity":  "253 containers",
+                                                                                                  "bay_gap":  1.75
+                                                                                              },
+                                                                              "trs_block_b":  {
+                                                                                                  "id":  "trs_block_b",
+                                                                                                  "type":  "container_block_b",
+                                                                                                  "dimensions":  {
+                                                                                                                     "height":  26.82,
+                                                                                                                     "width":  152.47,
+                                                                                                                     "unit":  "meters"
+                                                                                                                 },
+                                                                                                  "position":  {
+                                                                                                                   "x":  -72,
+                                                                                                                   "y":  0.3,
+                                                                                                                   "z":  -10.34,
+                                                                                                                   "unit":  "meters"
+                                                                                                               },
+                                                                                                  "rotation":  0,
+                                                                                                  "description":  "TRS Block B - Container storage",
+                                                                                                  "container_type":  "40ft",
+                                                                                                  "bays":  11,
+                                                                                                  "rows":  11,
+                                                                                                  "bay_gap":  1.75,
+                                                                                                  "row_labels":  [
+                                                                                                                     "A",
+                                                                                                                     "B",
+                                                                                                                     "C",
+                                                                                                                     "D",
+                                                                                                                     "E",
+                                                                                                                     "F",
+                                                                                                                     "G",
+                                                                                                                     "H",
+                                                                                                                     "I",
+                                                                                                                     "J",
+                                                                                                                     "K"
+                                                                                                                 ],
+                                                                                                  "capacity":  "Approximately 90 containers",
+                                                                                                  "bay_numbers":  [
+                                                                                                                      1,
+                                                                                                                      2,
+                                                                                                                      3,
+                                                                                                                      4,
+                                                                                                                      5,
+                                                                                                                      6,
+                                                                                                                      7,
+                                                                                                                      8,
+                                                                                                                      9,
+                                                                                                                      10,
+                                                                                                                      11
+                                                                                                                  ]
+                                                                                              },
+                                                                              "trs_block_c":  {
+                                                                                                  "id":  "trs_block_c",
+                                                                                                  "type":  "container_block_c",
+                                                                                                  "dimensions":  {
+                                                                                                                     "height":  26.82,
+                                                                                                                     "width":  152.47,
+                                                                                                                     "unit":  "meters"
+                                                                                                                 },
+                                                                                                  "position":  {
+                                                                                                                   "x":  -72,
+                                                                                                                   "y":  0.3,
+                                                                                                                   "z":  16.48,
+                                                                                                                   "unit":  "meters"
+                                                                                                               },
+                                                                                                  "rotation":  0,
+                                                                                                  "description":  "TRS Block C - Container storage",
+                                                                                                  "container_type":  "40ft",
+                                                                                                  "bays":  11,
+                                                                                                  "rows":  11,
+                                                                                                  "bay_gap":  1.75,
+                                                                                                  "row_labels":  [
+                                                                                                                     "A",
+                                                                                                                     "B",
+                                                                                                                     "C",
+                                                                                                                     "D",
+                                                                                                                     "E",
+                                                                                                                     "F",
+                                                                                                                     "G",
+                                                                                                                     "H",
+                                                                                                                     "I",
+                                                                                                                     "J",
+                                                                                                                     "K"
+                                                                                                                 ],
+                                                                                                  "capacity":  "Approximately 100 containers",
+                                                                                                  "bay_numbers":  [
+                                                                                                                      1,
+                                                                                                                      2,
+                                                                                                                      3,
+                                                                                                                      4,
+                                                                                                                      5,
+                                                                                                                      6,
+                                                                                                                      7,
+                                                                                                                      8,
+                                                                                                                      9,
+                                                                                                                      10,
+                                                                                                                      11
+                                                                                                                  ]
+                                                                                              },
+                                                                              "trs_block_d":  [
+                                                                                                  {
+                                                                                                      "id":  "trs_block_d_part1",
+                                                                                                      "type":  "container_block_d",
+                                                                                                      "dimensions":  {
+                                                                                                                         "height":  24.38,
+                                                                                                                         "width":  14,
+                                                                                                                         "unit":  "meters"
+                                                                                                                     },
+                                                                                                      "position":  {
+                                                                                                                       "x":  -172,
+                                                                                                                       "y":  0.3,
+                                                                                                                       "z":  59,
+                                                                                                                       "unit":  "meters"
+                                                                                                                   },
+                                                                                                      "rotation":  0,
+                                                                                                      "description":  "TRS Block D Part 1 - Container storage",
+                                                                                                      "container_type":  "40ft",
+                                                                                                      "bays":  1,
+                                                                                                      "rows":  10,
+                                                                                                      "bay_gap":  1.75,
+                                                                                                      "row_labels":  [
+                                                                                                                         "A",
+                                                                                                                         "B",
+                                                                                                                         "C",
+                                                                                                                         "D",
+                                                                                                                         "E",
+                                                                                                                         "F",
+                                                                                                                         "G",
+                                                                                                                         "H",
+                                                                                                                         "I",
+                                                                                                                         "J"
+                                                                                                                     ],
+                                                                                                      "capacity":  "Approximately 48 containers",
+                                                                                                      "bay_numbers":  [
+                                                                                                                          1
+                                                                                                                      ]
+                                                                                                  },
+                                                                                                  {
+                                                                                                      "id":  "trs_block_d_part2",
+                                                                                                      "type":  "container_block_d",
+                                                                                                      "dimensions":  {
+                                                                                                                         "height":  24.38,
+                                                                                                                         "width":  150,
+                                                                                                                         "unit":  "meters"
+                                                                                                                     },
+                                                                                                      "position":  {
+                                                                                                                       "x":  -70,
+                                                                                                                       "y":  0.3,
+                                                                                                                       "z":  59,
+                                                                                                                       "unit":  "meters"
+                                                                                                                   },
+                                                                                                      "rotation":  0,
+                                                                                                      "description":  "TRS Block D Part 2 - Container storage",
+                                                                                                      "container_type":  "40ft",
+                                                                                                      "bays":  11,
+                                                                                                      "rows":  10,
+                                                                                                      "bay_gap":  1.75,
+                                                                                                      "row_labels":  [
+                                                                                                                         "A",
+                                                                                                                         "B",
+                                                                                                                         "C",
+                                                                                                                         "D",
+                                                                                                                         "E",
+                                                                                                                         "F",
+                                                                                                                         "G",
+                                                                                                                         "H",
+                                                                                                                         "I",
+                                                                                                                         "J"
+                                                                                                                     ],
+                                                                                                      "capacity":  "Approximately 48 containers",
+                                                                                                      "bay_numbers":  [
+                                                                                                                          2,
+                                                                                                                          3,
+                                                                                                                          4,
+                                                                                                                          5,
+                                                                                                                          6,
+                                                                                                                          7,
+                                                                                                                          8,
+                                                                                                                          9,
+                                                                                                                          10,
+                                                                                                                          11,
+                                                                                                                          12
+                                                                                                                      ]
+                                                                                                  }
+                                                                                              ]
+                                                                          },
+                                                 "trm_container_blocks":  {
+                                                                              "trm_block_a":  {
+                                                                                                  "id":  "trm_block_a",
+                                                                                                  "type":  "container_block_a",
+                                                                                                  "dimensions":  {
+                                                                                                                     "height":  30,
+                                                                                                                     "width":  170.03,
+                                                                                                                     "unit":  "meters"
+                                                                                                                 },
+                                                                                                  "position":  {
+                                                                                                                   "x":  93,
+                                                                                                                   "y":  0.3,
+                                                                                                                   "z":  -55.75,
+                                                                                                                   "unit":  "meters"
+                                                                                                               },
+                                                                                                  "rotation":  0,
+                                                                                                  "description":  "TRM Block A - 20ft containers",
+                                                                                                  "container_type":  "20ft",
+                                                                                                  "bays":  22,
+                                                                                                  "rows":  11,
+                                                                                                  "bay_gap":  1.75,
+                                                                                                  "row_labels":  [
+                                                                                                                     "A",
+                                                                                                                     "B",
+                                                                                                                     "C",
+                                                                                                                     "D",
+                                                                                                                     "E",
+                                                                                                                     "F",
+                                                                                                                     "G",
+                                                                                                                     "H",
+                                                                                                                     "I",
+                                                                                                                     "J",
+                                                                                                                     "K"
+                                                                                                                 ],
+                                                                                                  "bay_numbers":  [
+                                                                                                                      1,
+                                                                                                                      2,
+                                                                                                                      3,
+                                                                                                                      4,
+                                                                                                                      5,
+                                                                                                                      6,
+                                                                                                                      7,
+                                                                                                                      8,
+                                                                                                                      9,
+                                                                                                                      10,
+                                                                                                                      11,
+                                                                                                                      12,
+                                                                                                                      13,
+                                                                                                                      14,
+                                                                                                                      15,
+                                                                                                                      16,
+                                                                                                                      17,
+                                                                                                                      18,
+                                                                                                                      19,
+                                                                                                                      20,
+                                                                                                                      21,
+                                                                                                                      22
+                                                                                                                  ],
+                                                                                                  "capacity":  "242 containers"
+                                                                                              },
+                                                                              "trm_block_b":  {
+                                                                                                  "id":  "trm_block_b",
+                                                                                                  "type":  "container_block_b",
+                                                                                                  "dimensions":  {
+                                                                                                                     "height":  26.82,
+                                                                                                                     "width":  152.47,
+                                                                                                                     "unit":  "meters"
+                                                                                                                 },
+                                                                                                  "position":  {
+                                                                                                                   "x":  81,
+                                                                                                                   "y":  0.3,
+                                                                                                                   "z":  -10.34,
+                                                                                                                   "unit":  "meters"
+                                                                                                               },
+                                                                                                  "rotation":  0,
+                                                                                                  "description":  "TRM Block B - Container storage",
+                                                                                                  "container_type":  "40ft",
+                                                                                                  "bays":  11,
+                                                                                                  "rows":  11,
+                                                                                                  "bay_gap":  1.75,
+                                                                                                  "row_labels":  [
+                                                                                                                     "A",
+                                                                                                                     "B",
+                                                                                                                     "C",
+                                                                                                                     "D",
+                                                                                                                     "E",
+                                                                                                                     "F",
+                                                                                                                     "G",
+                                                                                                                     "H",
+                                                                                                                     "I",
+                                                                                                                     "J",
+                                                                                                                     "K"
+                                                                                                                 ],
+                                                                                                  "capacity":  "Approximately 90 containers",
+                                                                                                  "bay_numbers":  [
+                                                                                                                      1,
+                                                                                                                      2,
+                                                                                                                      3,
+                                                                                                                      4,
+                                                                                                                      5,
+                                                                                                                      6,
+                                                                                                                      7,
+                                                                                                                      8,
+                                                                                                                      9,
+                                                                                                                      10,
+                                                                                                                      11
+                                                                                                                  ]
+                                                                                              },
+                                                                              "trm_block_c":  {
+                                                                                                  "id":  "trm_block_c",
+                                                                                                  "type":  "container_block_c",
+                                                                                                  "dimensions":  {
+                                                                                                                     "height":  26.82,
+                                                                                                                     "width":  152.47,
+                                                                                                                     "unit":  "meters"
+                                                                                                                 },
+                                                                                                  "position":  {
+                                                                                                                   "x":  81,
+                                                                                                                   "y":  0.3,
+                                                                                                                   "z":  16.48,
+                                                                                                                   "unit":  "meters"
+                                                                                                               },
+                                                                                                  "rotation":  0,
+                                                                                                  "description":  "TRM Block C - Container storage",
+                                                                                                  "container_type":  "40ft",
+                                                                                                  "bays":  11,
+                                                                                                  "rows":  11,
+                                                                                                  "bay_gap":  1.75,
+                                                                                                  "row_labels":  [
+                                                                                                                     "A",
+                                                                                                                     "B",
+                                                                                                                     "C",
+                                                                                                                     "D",
+                                                                                                                     "E",
+                                                                                                                     "F",
+                                                                                                                     "G",
+                                                                                                                     "H",
+                                                                                                                     "I",
+                                                                                                                     "J",
+                                                                                                                     "K"
+                                                                                                                 ],
+                                                                                                  "bay_numbers":  [
+                                                                                                                      1,
+                                                                                                                      2,
+                                                                                                                      3,
+                                                                                                                      4,
+                                                                                                                      5,
+                                                                                                                      6,
+                                                                                                                      7,
+                                                                                                                      8,
+                                                                                                                      9,
+                                                                                                                      10,
+                                                                                                                      11
+                                                                                                                  ]
+                                                                                              },
+                                                                              "trm_block_d":  {
+                                                                                                  "id":  "trm_block_d",
+                                                                                                  "type":  "container_block_d",
+                                                                                                  "dimensions":  {
+                                                                                                                     "height":  24.38,
+                                                                                                                     "width":  165,
+                                                                                                                     "unit":  "meters"
+                                                                                                                 },
+                                                                                                  "position":  {
+                                                                                                                   "x":  97,
+                                                                                                                   "y":  0.3,
+                                                                                                                   "z":  59,
+                                                                                                                   "unit":  "meters"
+                                                                                                               },
+                                                                                                  "rotation":  0,
+                                                                                                  "description":  "TRM Block D - Container storage",
+                                                                                                  "container_type":  "40ft",
+                                                                                                  "bays":  12,
+                                                                                                  "rows":  10,
+                                                                                                  "bay_gap":  1.75,
+                                                                                                  "row_labels":  [
+                                                                                                                     "A",
+                                                                                                                     "B",
+                                                                                                                     "C",
+                                                                                                                     "D",
+                                                                                                                     "E",
+                                                                                                                     "F",
+                                                                                                                     "G",
+                                                                                                                     "H",
+                                                                                                                     "I",
+                                                                                                                     "J"
+                                                                                                                 ],
+                                                                                                  "capacity":  "Approximately 100 containers",
+                                                                                                  "bay_numbers":  [
+                                                                                                                      1,
+                                                                                                                      2,
+                                                                                                                      3,
+                                                                                                                      4,
+                                                                                                                      5,
+                                                                                                                      6,
+                                                                                                                      7,
+                                                                                                                      8,
+                                                                                                                      9,
+                                                                                                                      10,
+                                                                                                                      11,
+                                                                                                                      12
+                                                                                                                  ]
+                                                                                              }
+                                                                          }
+                                             }
+                               }
+}

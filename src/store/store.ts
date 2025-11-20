@@ -1,0 +1,58 @@
+import { create } from 'zustand';
+import type { TerminalLayout } from '../utils/layoutUtils';
+
+export interface ContainerEntity {
+  id: string;
+  x: number;
+  y: number;
+  z: number;
+  status?: string;
+  blockId?: string;
+  bay?: number;
+  row?: number;
+  tier?: number;
+  [key: string]: any;
+}
+
+interface StoreState {
+  entities: Record<string, ContainerEntity>;
+  ids: string[];
+  selectId: string | null;
+  layout: TerminalLayout | null;
+  setEntitiesBatch: (updates: Partial<ContainerEntity> & { id: string }[]) => void;
+  patchPositions: (posUpdates: { id: string; x: number; y: number; z: number }[]) => void;
+  setSelectId: (id: string | null) => void;
+  setLayout: (layout: TerminalLayout) => void;
+}
+
+export const useStore = create<StoreState>((set) => ({
+  entities: {},
+  ids: [],
+  selectId: null,
+  layout: null,
+
+  setEntitiesBatch: (updates) => set((state) => {
+    const entities = { ...state.entities };
+    const ids = new Set(state.ids);
+    updates.forEach((u) => {
+      entities[u.id] = { ...(entities[u.id] || { id: u.id, x: 0, y: 0, z: 0 }), ...u };
+      ids.add(u.id);
+    });
+    return { entities, ids: Array.from(ids) };
+  }),
+
+  patchPositions: (posUpdates) => set((state) => {
+    const entities = { ...state.entities };
+    let changed = false;
+    posUpdates.forEach((p) => {
+      if (entities[p.id]) {
+        entities[p.id] = { ...entities[p.id], x: p.x, y: p.y, z: p.z };
+        changed = true;
+      }
+    });
+    return changed ? { entities } : {};
+  }),
+
+  setSelectId: (id) => set({ selectId: id }),
+  setLayout: (layout) => set({ layout }),
+}));
