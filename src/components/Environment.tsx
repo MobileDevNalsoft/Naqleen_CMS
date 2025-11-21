@@ -212,7 +212,7 @@ export default function Environment() {
                 inclination={0.49} // Creates hemisphere appearance
                 azimuth={0.25}
             />
-            <Stars radius={600} depth={100} count={1200} factor={2.5} saturation={0} fade speed={1} />
+            <Stars radius={50} depth={100} count={1500} factor={5.5} saturation={0} fade speed={1} />
 
             {/* Natural daylight with warm tones */}
             <ambientLight intensity={0.55} color="#F0F8FF" />
