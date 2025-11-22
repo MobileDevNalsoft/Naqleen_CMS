@@ -4,6 +4,7 @@ import {
     Plus, FileText, Bell, Download, Upload, Calendar,
     Truck, ClipboardList, Package, AlertTriangle
 } from 'lucide-react';
+
 import { useStore } from '../store/store';
 import { useTerminalsQuery } from '../api';
 import './Header.css';
@@ -15,12 +16,19 @@ interface HeaderProps {
 
 export default function Header({ onViewModeChange, currentViewMode = 'main' }: HeaderProps) {
     const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState<string[]>([]);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [isViewsOpen, setIsViewsOpen] = useState(false);
     const [isOperationsOpen, setIsOperationsOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [isTerminalMenuOpen, setIsTerminalMenuOpen] = useState(false);
     const [selectedTerminal, setSelectedTerminal] = useState('');
+
+    // Store access
+    const entities = useStore((state) => state.entities);
+    const ids = useStore((state) => state.ids);
+    const setSelectId = useStore((state) => state.setSelectId);
 
     // Fetch terminals from API
     const { data: terminals, isLoading: terminalsLoading } = useTerminalsQuery();
@@ -43,10 +51,32 @@ export default function Header({ onViewModeChange, currentViewMode = 'main' }: H
         { id: 3, type: 'success', message: 'Vessel MV STAR arrived', time: '2 hours ago' }
     ];
 
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const query = e.target.value;
+        setSearchQuery(query);
+
+        if (query.length > 1) {
+            const results = ids.filter(id =>
+                id.toLowerCase().includes(query.toLowerCase())
+            ).slice(0, 10); // Limit to 10 results
+            setSearchResults(results);
+        } else {
+            setSearchResults([]);
+        }
+    };
+
+    const handleResultClick = (containerId: string) => {
+        setSelectId(containerId);
+        setSearchQuery('');
+        setSearchResults([]);
+        // Dispatch event to focus camera if needed, though setSelectId might handle it in other components
+    };
+
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Searching for:', searchQuery);
-        // TODO: Implement search functionality
+        if (searchResults.length > 0) {
+            handleResultClick(searchResults[0]);
+        }
     };
 
     const handleViewModeChange = (mode: 'main' | 'top') => {
@@ -59,6 +89,9 @@ export default function Header({ onViewModeChange, currentViewMode = 'main' }: H
         onViewModeChange?.(mode);
         setIsViewsOpen(false);
     };
+
+    // Find current terminal name
+    const currentTerminalName = terminals?.find(t => t.id === selectedTerminal)?.name || 'Select Terminal';
 
     return (
         <>
@@ -76,84 +109,124 @@ export default function Header({ onViewModeChange, currentViewMode = 'main' }: H
                             </div>
                         </div>
 
-                        <div className="terminal-selector">
-                            <select
-                                value={selectedTerminal}
-                                onChange={(e) => setSelectedTerminal(e.target.value)}
-                                className="terminal-select"
+                        <div
+                            className="terminal-selector"
+                            onMouseEnter={() => setIsTerminalMenuOpen(true)}
+                            onMouseLeave={() => setIsTerminalMenuOpen(false)}
+                        >
+                            <button
+                                className="terminal-dropdown-btn"
                                 disabled={terminalsLoading || !terminals}
                             >
-                                {terminalsLoading ? (
-                                    <option>Loading...</option>
-                                ) : terminals && terminals.length > 0 ? (
-                                    terminals.map(terminal => (
-                                        <option key={terminal.id} value={terminal.id}>
-                                            {terminal.name}
-                                        </option>
-                                    ))
-                                ) : (
-                                    <option>No terminals available</option>
-                                )}
-                            </select>
-                            <ChevronDown size={16} className="select-icon" />
+                                <span className="terminal-name">
+                                    {terminalsLoading ? 'Loading...' : currentTerminalName}
+                                </span>
+                                <ChevronDown size={16} className={`select-icon ${isTerminalMenuOpen ? 'open' : ''}`} />
+                            </button>
+
+                            {isTerminalMenuOpen && terminals && terminals.length > 0 && (
+                                <div className="dropdown-menu terminal-menu">
+                                    {terminals.map(terminal => (
+                                        <button
+                                            key={terminal.id}
+                                            className={`dropdown-item ${selectedTerminal === terminal.id ? 'active' : ''}`}
+                                            onClick={() => {
+                                                setSelectedTerminal(terminal.id);
+                                                setIsTerminalMenuOpen(false);
+                                            }}
+                                        >
+                                            <MapPin size={16} />
+                                            <span>{terminal.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 
                     {/* Center Section: Search */}
                     <div className="header-center">
-                        <form onSubmit={handleSearch} className="search-container">
-                            <Search size={18} className="search-icon" />
-                            <input
-                                type="text"
-                                placeholder="Search containers, blocks, locations..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="search-input"
-                            />
-                            {searchQuery && (
-                                <button
-                                    type="button"
-                                    onClick={() => setSearchQuery('')}
-                                    className="search-clear"
-                                >
-                                    <X size={16} />
-                                </button>
+                        <div className="search-container">
+                            <form onSubmit={handleSearch} className="search-form">
+                                <Search size={18} className="search-icon" />
+                                <input
+                                    type="text"
+                                    placeholder="Search containers..."
+                                    value={searchQuery}
+                                    onChange={handleSearchChange}
+                                    className="search-input"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSearchQuery('');
+                                            setSearchResults([]);
+                                        }}
+                                        className="search-clear"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                )}
+                            </form>
+
+                            {/* Search Results Dropdown */}
+                            {searchResults.length > 0 && (
+                                <div className="search-results-dropdown">
+                                    {searchResults.map(id => (
+                                        <button
+                                            key={id}
+                                            className="search-result-item"
+                                            onClick={() => handleResultClick(id)}
+                                        >
+                                            <Package size={16} />
+                                            <div className="result-info">
+                                                <span className="result-id">{id}</span>
+                                                {entities[id]?.blockId && (
+                                                    <span className="result-location">
+                                                        Block {entities[id].blockId} • Row {entities[id].row} • Tier {entities[id].tier}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
                             )}
-                        </form>
+                        </div>
                     </div>
 
                     {/* Views Dropdown Section */}
                     <div className="header-views">
-                        <div className="dropdown-container">
+                        <div
+                            className="dropdown-container"
+                            onMouseEnter={() => setIsViewsOpen(true)}
+                            onMouseLeave={() => setIsViewsOpen(false)}
+                        >
                             <button
                                 className="header-action-btn"
-                                onClick={() => setIsViewsOpen(!isViewsOpen)}
                                 title="Views"
                             >
                                 <Grid3x3 size={20} />
                                 <span className="btn-label">Views</span>
-                                <ChevronDown size={16} />
+                                <ChevronDown size={16} className={`select-icon ${isViewsOpen ? 'open' : ''}`} />
                             </button>
                             {isViewsOpen && (
-                                <>
-                                    <div className="dropdown-backdrop" onClick={() => setIsViewsOpen(false)} />
-                                    <div className="dropdown-menu views-menu">
-                                        {viewModes.map(mode => {
-                                            const Icon = mode.icon;
-                                            const isActive = currentViewMode === mode.id;
-                                            return (
-                                                <button
-                                                    key={mode.id}
-                                                    className={`dropdown-item ${isActive ? 'active' : ''}`}
-                                                    onClick={() => handleViewModeChange(mode.id)}
-                                                >
-                                                    <Icon size={18} />
-                                                    <span>{mode.label}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </>
+                                <div className="dropdown-menu views-menu">
+                                    {viewModes.map(mode => {
+                                        const Icon = mode.icon;
+                                        const isActive = currentViewMode === mode.id;
+                                        return (
+                                            <button
+                                                key={mode.id}
+                                                className={`dropdown-item ${isActive ? 'active' : ''}`}
+                                                onClick={() => handleViewModeChange(mode.id)}
+                                            >
+                                                <Icon size={18} />
+                                                <span>{mode.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             )}
                         </div>
                     </div>
@@ -161,71 +234,74 @@ export default function Header({ onViewModeChange, currentViewMode = 'main' }: H
                     {/* Right Section: Operations, Notifications & User */}
                     <div className="header-right">
                         {/* Container Operations */}
-                        <div className="dropdown-container">
+                        <div
+                            className="dropdown-container"
+                            onMouseEnter={() => setIsOperationsOpen(true)}
+                            onMouseLeave={() => setIsOperationsOpen(false)}
+                        >
                             <button
                                 className="header-action-btn"
-                                onClick={() => setIsOperationsOpen(!isOperationsOpen)}
                                 title="Operations"
                             >
                                 <Plus size={20} />
                                 <span className="btn-label">Actions</span>
                             </button>
                             {isOperationsOpen && (
-                                <>
-                                    <div className="dropdown-backdrop" onClick={() => setIsOperationsOpen(false)} />
-                                    <div className="dropdown-menu operations-menu">
-                                        <div className="dropdown-header">Container Operations</div>
+                                <div className="dropdown-menu operations-menu">
+                                    <div className="dropdown-header">Container Operations</div>
 
-                                        <button className="dropdown-item">
-                                            <Truck size={18} />
-                                            <span>Schedule Movement</span>
-                                        </button>
-                                        <button className="dropdown-item">
-                                            <Package size={18} />
-                                            <span>Gate In</span>
-                                        </button>
-                                        <button className="dropdown-item">
-                                            <Package size={18} />
-                                            <span>Gate Out</span>
-                                        </button>
-                                        <button className="dropdown-item">
-                                            <ClipboardList size={18} />
-                                            <span>Inspection</span>
-                                        </button>
+                                    <button className="dropdown-item">
+                                        <Truck size={18} />
+                                        <span>Schedule Movement</span>
+                                    </button>
+                                    <button className="dropdown-item">
+                                        <Package size={18} />
+                                        <span>Gate In</span>
+                                    </button>
+                                    <button className="dropdown-item">
+                                        <Package size={18} />
+                                        <span>Gate Out</span>
+                                    </button>
+                                    <button className="dropdown-item">
+                                        <ClipboardList size={18} />
+                                        <span>Inspection</span>
+                                    </button>
 
-                                        <div className="dropdown-divider" />
-                                        <div className="dropdown-section-title">Booking</div>
+                                    <div className="dropdown-divider" />
+                                    <div className="dropdown-section-title">Booking</div>
 
-                                        <button className="dropdown-item">
-                                            <Calendar size={18} />
-                                            <span>New Booking</span>
-                                        </button>
-                                        <button className="dropdown-item">
-                                            <FileText size={18} />
-                                            <span>View Bookings</span>
-                                        </button>
+                                    <button className="dropdown-item">
+                                        <Calendar size={18} />
+                                        <span>New Booking</span>
+                                    </button>
+                                    <button className="dropdown-item">
+                                        <FileText size={18} />
+                                        <span>View Bookings</span>
+                                    </button>
 
-                                        <div className="dropdown-divider" />
-                                        <div className="dropdown-section-title">Data</div>
+                                    <div className="dropdown-divider" />
+                                    <div className="dropdown-section-title">Data</div>
 
-                                        <button className="dropdown-item">
-                                            <Upload size={18} />
-                                            <span>Import Data</span>
-                                        </button>
-                                        <button className="dropdown-item">
-                                            <Download size={18} />
-                                            <span>Export Data</span>
-                                        </button>
-                                    </div>
-                                </>
+                                    <button className="dropdown-item">
+                                        <Upload size={18} />
+                                        <span>Import Data</span>
+                                    </button>
+                                    <button className="dropdown-item">
+                                        <Download size={18} />
+                                        <span>Export Data</span>
+                                    </button>
+                                </div>
                             )}
                         </div>
 
                         {/* Notifications */}
-                        <div className="dropdown-container">
+                        <div
+                            className="dropdown-container"
+                            onMouseEnter={() => setIsNotificationsOpen(true)}
+                            onMouseLeave={() => setIsNotificationsOpen(false)}
+                        >
                             <button
                                 className="icon-btn notification-btn"
-                                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                                 title="Notifications"
                             >
                                 <Bell size={24} />
@@ -234,36 +310,36 @@ export default function Header({ onViewModeChange, currentViewMode = 'main' }: H
                                 )}
                             </button>
                             {isNotificationsOpen && (
-                                <>
-                                    <div className="dropdown-backdrop" onClick={() => setIsNotificationsOpen(false)} />
-                                    <div className="dropdown-menu notifications-menu">
-                                        <div className="dropdown-header">
-                                            Notifications
-                                            <button className="mark-read-btn">Mark all as read</button>
-                                        </div>
-
-                                        {notifications.map(notif => (
-                                            <div key={notif.id} className={`notification-item ${notif.type}`}>
-                                                <div className="notification-icon">
-                                                    {notif.type === 'warning' && <AlertTriangle size={16} />}
-                                                    {notif.type === 'success' && <Package size={16} />}
-                                                    {notif.type === 'info' && <Bell size={16} />}
-                                                </div>
-                                                <div className="notification-content">
-                                                    <div className="notification-message">{notif.message}</div>
-                                                    <div className="notification-time">{notif.time}</div>
-                                                </div>
-                                            </div>
-                                        ))}
+                                <div className="dropdown-menu notifications-menu">
+                                    <div className="dropdown-header">
+                                        Notifications
+                                        <button className="mark-read-btn">Mark all as read</button>
                                     </div>
-                                </>
+
+                                    {notifications.map(notif => (
+                                        <div key={notif.id} className={`notification-item ${notif.type}`}>
+                                            <div className="notification-icon">
+                                                {notif.type === 'warning' && <AlertTriangle size={16} />}
+                                                {notif.type === 'success' && <Package size={16} />}
+                                                {notif.type === 'info' && <Bell size={16} />}
+                                            </div>
+                                            <div className="notification-content">
+                                                <div className="notification-message">{notif.message}</div>
+                                                <div className="notification-time">{notif.time}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                         </div>
 
-                        <div className="dropdown-container">
+                        <div
+                            className="dropdown-container"
+                            onMouseEnter={() => setIsUserMenuOpen(true)}
+                            onMouseLeave={() => setIsUserMenuOpen(false)}
+                        >
                             <button
                                 className="user-btn"
-                                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                                 title="User Profile"
                             >
                                 <div className="user-avatar">
@@ -271,39 +347,36 @@ export default function Header({ onViewModeChange, currentViewMode = 'main' }: H
                                 </div>
                             </button>
                             {isUserMenuOpen && (
-                                <>
-                                    <div className="dropdown-backdrop" onClick={() => setIsUserMenuOpen(false)} />
-                                    <div className="dropdown-menu user-menu">
-                                        <div className="dropdown-user-info">
-                                            <div className="user-avatar large">
-                                                <User size={24} />
-                                            </div>
-                                            <div>
-                                                <div className="user-name">Admin User</div>
-                                                <div className="user-email">admin@naqleen.com</div>
-                                            </div>
+                                <div className="dropdown-menu user-menu">
+                                    <div className="dropdown-user-info">
+                                        <div className="user-avatar large">
+                                            <User size={24} />
                                         </div>
-
-                                        <div className="dropdown-divider" />
-
-                                        <button className="dropdown-item">
-                                            <User size={18} />
-                                            <span>My Profile</span>
-                                        </button>
-
-                                        <button className="dropdown-item">
-                                            <Settings size={18} />
-                                            <span>Preferences</span>
-                                        </button>
-
-                                        <div className="dropdown-divider" />
-
-                                        <button className="dropdown-item danger">
-                                            <LogOut size={18} />
-                                            <span>Logout</span>
-                                        </button>
+                                        <div>
+                                            <div className="user-name">Admin User</div>
+                                            <div className="user-email">admin@naqleen.com</div>
+                                        </div>
                                     </div>
-                                </>
+
+                                    <div className="dropdown-divider" />
+
+                                    <button className="dropdown-item">
+                                        <User size={18} />
+                                        <span>My Profile</span>
+                                    </button>
+
+                                    <button className="dropdown-item">
+                                        <Settings size={18} />
+                                        <span>Preferences</span>
+                                    </button>
+
+                                    <div className="dropdown-divider" />
+
+                                    <button className="dropdown-item danger">
+                                        <LogOut size={18} />
+                                        <span>Logout</span>
+                                    </button>
+                                </div>
                             )}
                         </div>
 
@@ -315,10 +388,6 @@ export default function Header({ onViewModeChange, currentViewMode = 'main' }: H
                         </button>
                     </div>
                 </div>
-
-
-
-
             </header>
         </>
     );

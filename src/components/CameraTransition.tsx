@@ -1,6 +1,8 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
+import { useStore } from '../store/store';
+import { getAllBlocks } from '../utils/layoutUtils';
 
 interface CameraTransitionProps {
     isLoading: boolean;
@@ -11,6 +13,10 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
     const { camera } = useThree();
     const [isAnimating, setIsAnimating] = useState(false);
 
+    // Get selectedBlock from store
+    const selectedBlock = useStore((state) => state.selectedBlock);
+    const layout = useStore((state) => state.layout);
+
     // Target position (standard view as defined in App.tsx)
     const standardPos = new THREE.Vector3(0, 150, 300);
     // Top view position - High up, looking straight down
@@ -18,12 +24,44 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
 
     // Current target we are animating to
     const currentTargetPos = useRef(new THREE.Vector3());
+    const currentTargetLookAt = useRef(new THREE.Vector3(0, 0, 0));
 
     // Center of the terminal - fixed target
     const center = new THREE.Vector3(0, 0, 0);
 
     // Start position (High overhead view - "Middle of terminal")
     const startPos = new THREE.Vector3(0, 500, 10);
+
+    // Watch for selectedBlock changes and move camera to block
+    useEffect(() => {
+        if (selectedBlock && layout && !isLoading) {
+            const blocks = getAllBlocks(layout);
+            const block = blocks.find(b => b.id === selectedBlock);
+
+            if (block) {
+                // Calculate camera position: block position + offset (above and behind)
+                const blockCenter = new THREE.Vector3(
+                    block.position.x,
+                    block.position.y,
+                    block.position.z
+                );
+
+                // Position camera above and at an angle to see the block well
+                const cameraOffset = new THREE.Vector3(0, 80, 100);
+                const cameraPos = blockCenter.clone().add(cameraOffset);
+
+                // Cancel any other animations
+                window.dispatchEvent(new CustomEvent('cancelAnimations', { detail: { source: 'blockView' } }));
+
+                currentTargetPos.current.copy(cameraPos);
+                currentTargetLookAt.current.copy(blockCenter);
+                setIsAnimating(true);
+                if (controlsRef.current) {
+                    controlsRef.current.enabled = false;
+                }
+            }
+        }
+    }, [selectedBlock, layout, isLoading, controlsRef]);
 
     useEffect(() => {
         const handleMoveToTop = () => {
@@ -32,6 +70,7 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
                 window.dispatchEvent(new CustomEvent('cancelAnimations', { detail: { source: 'topView' } }));
 
                 currentTargetPos.current.copy(topViewPos);
+                currentTargetLookAt.current.copy(center);
                 setIsAnimating(true);
                 if (controlsRef.current) {
                     controlsRef.current.enabled = false;
@@ -45,6 +84,7 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
                 window.dispatchEvent(new CustomEvent('cancelAnimations', { detail: { source: 'resetToInitial' } }));
 
                 currentTargetPos.current.copy(standardPos);
+                currentTargetLookAt.current.copy(center);
                 setIsAnimating(true);
                 if (controlsRef.current) {
                     controlsRef.current.enabled = false;
@@ -54,7 +94,7 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
 
         const handleCancelAnimations = (e: any) => {
             // If another animation is starting, cancel this one
-            const validSources = ['topView', 'resetToInitial'];
+            const validSources = ['topView', 'resetToInitial', 'blockView'];
             if (!validSources.includes(e.detail?.source) && isAnimating) {
                 setIsAnimating(false);
                 if (controlsRef.current) {
@@ -110,8 +150,12 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
             // providing simultaneous alignment with the axes.
             const lerpFactor = 3.0 * delta;
 
-            const currentSpherical = new THREE.Spherical().setFromVector3(camera.position);
-            const targetSpherical = new THREE.Spherical().setFromVector3(currentTargetPos.current);
+            // Calculate spherical coords relative to the lookAt target
+            const relativePos = camera.position.clone().sub(currentTargetLookAt.current);
+            const targetRelativePos = currentTargetPos.current.clone().sub(currentTargetLookAt.current);
+
+            const currentSpherical = new THREE.Spherical().setFromVector3(relativePos);
+            const targetSpherical = new THREE.Spherical().setFromVector3(targetRelativePos);
 
             // Handle shortest path for theta (azimuth) to avoid spinning the long way
             let deltaTheta = targetSpherical.theta - currentSpherical.theta;
@@ -123,20 +167,21 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
             currentSpherical.phi = THREE.MathUtils.lerp(currentSpherical.phi, targetSpherical.phi, lerpFactor);
             currentSpherical.radius = THREE.MathUtils.lerp(currentSpherical.radius, targetSpherical.radius, lerpFactor);
 
-            // Apply new position
-            camera.position.setFromSpherical(currentSpherical);
+            // Apply new position (convert back to world space)
+            const newRelativePos = new THREE.Vector3().setFromSpherical(currentSpherical);
+            camera.position.copy(newRelativePos.add(currentTargetLookAt.current));
 
-            // CRITICAL: Force camera to look at center during animation
-            camera.lookAt(center);
+            // CRITICAL: Force camera to look at target during animation
+            camera.lookAt(currentTargetLookAt.current);
 
-            // Keep controls target at center
-            controlsRef.current.target.copy(center);
+            // Keep controls target at lookAt target
+            controlsRef.current.target.copy(currentTargetLookAt.current);
 
             // Check completion
             if (camera.position.distanceTo(currentTargetPos.current) < 0.5) {
                 // Snap to exact position to ensure perfect alignment
                 camera.position.copy(currentTargetPos.current);
-                camera.lookAt(center);
+                camera.lookAt(currentTargetLookAt.current);
 
                 setIsAnimating(false);
 

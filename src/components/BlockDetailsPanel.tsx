@@ -6,12 +6,14 @@ import { getAllBlocks } from '../utils/layoutUtils';
 export default function BlockDetailsPanel() {
     const selectedBlock = useStore(state => state.selectedBlock);
     const setSelectedBlock = useStore(state => state.setSelectedBlock);
+    const selectId = useStore(state => state.selectId);
     const layout = useStore(state => state.layout);
     const entities = useStore(state => state.entities);
     const ids = useStore(state => state.ids);
 
     const [isVisible, setIsVisible] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
+    const [containerSearch, setContainerSearch] = useState('');
 
     useEffect(() => {
         if (selectedBlock) {
@@ -20,6 +22,17 @@ export default function BlockDetailsPanel() {
             setIsVisible(false);
         }
     }, [selectedBlock]);
+
+    // Close block panel when a container is selected
+    useEffect(() => {
+        if (selectId && selectedBlock) {
+            // A container was selected, close the block panel
+            setIsVisible(false);
+            setTimeout(() => {
+                setSelectedBlock(null);
+            }, 300);
+        }
+    }, [selectId, selectedBlock, setSelectedBlock]);
 
     const blockData = useMemo(() => {
         if (!selectedBlock || !layout) return null;
@@ -57,7 +70,12 @@ export default function BlockDetailsPanel() {
 
     if (!selectedBlock && !isVisible) return null;
 
-    const handleClose = () => {
+    const handleClose = (skipCameraReset = false) => {
+        // Reset camera to main view only if not skipping
+        if (!skipCameraReset) {
+            window.dispatchEvent(new CustomEvent('resetCameraToInitial'));
+        }
+
         setIsVisible(false);
         setTimeout(() => {
             setSelectedBlock(null);
@@ -124,7 +142,7 @@ export default function BlockDetailsPanel() {
                     </h2>
                 </div>
                 <button
-                    onClick={handleClose}
+                    onClick={() => handleClose()}
                     style={{
                         background: 'rgba(255, 255, 255, 0.1)',
                         border: '1px solid rgba(255, 255, 255, 0.2)',
@@ -211,7 +229,17 @@ export default function BlockDetailsPanel() {
                             cursor: 'pointer',
                             borderBottom: activeTab === tab ? '2px solid #60a5fa' : '2px solid transparent',
                             textTransform: 'capitalize',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
+                            outline: 'none'
+                        }}
+                        onMouseEnter={e => {
+                            // Prevent global button hover style from adding white border
+                            e.currentTarget.style.border = 'none';
+                            e.currentTarget.style.borderBottom = activeTab === tab ? '2px solid #60a5fa' : '2px solid #94a3b8';
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.border = 'none';
+                            e.currentTarget.style.borderBottom = activeTab === tab ? '2px solid #60a5fa' : '2px solid transparent';
                         }}
                     >
                         {tab}
@@ -247,43 +275,101 @@ export default function BlockDetailsPanel() {
                 )}
 
                 {activeTab === 'containers' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '8px' }}>
-                            {containersInBlock.length} containers in this block
-                        </div>
-                        {containersInBlock.slice(0, 20).map(id => (
-                            <div
-                                key={id}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {/* Search Input */}
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type="text"
+                                placeholder="Search containers..."
+                                value={containerSearch}
+                                onChange={(e) => setContainerSearch(e.target.value)}
                                 style={{
+                                    width: '100%',
                                     padding: '10px 12px',
-                                    background: 'rgba(255, 255, 255, 0.03)',
-                                    borderRadius: '6px',
-                                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                                    fontSize: '13px',
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '8px',
                                     color: 'white',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    cursor: 'pointer',
+                                    fontSize: '13px',
+                                    outline: 'none',
                                     transition: 'all 0.2s'
                                 }}
-                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
-                                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'}
-                                onClick={() => {
-                                    useStore.getState().setSelectId(id);
-                                    handleClose();
+                                onFocus={(e) => {
+                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                                    e.currentTarget.style.borderColor = 'rgba(96, 165, 250, 0.4)';
                                 }}
-                            >
-                                <span>{id}</span>
-                                <span style={{ color: '#64748b', fontSize: '12px' }}>
-                                    {entities[id]?.type || '20ft'}
-                                </span>
-                            </div>
-                        ))}
-                        {containersInBlock.length > 20 && (
-                            <div style={{ fontSize: '12px', color: '#64748b', textAlign: 'center', marginTop: '8px' }}>
-                                +{containersInBlock.length - 20} more containers
-                            </div>
-                        )}
+                                onBlur={(e) => {
+                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                }}
+                            />
+                        </div>
+
+                        {/* Filtered containers list */}
+                        {(() => {
+                            const filteredContainers = containerSearch
+                                ? containersInBlock.filter(id =>
+                                    id.toLowerCase().includes(containerSearch.toLowerCase())
+                                )
+                                : containersInBlock;
+
+                            return (
+                                <>
+                                    <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>
+                                        {filteredContainers.length} container{filteredContainers.length !== 1 ? 's' : ''}
+                                        {containerSearch && ` found (${containersInBlock.length} total)`}
+                                    </div>
+                                    <div style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '8px',
+                                        maxHeight: '400px',
+                                        overflowY: 'auto',
+                                        paddingRight: '4px'
+                                    }}>
+                                        {filteredContainers.length > 0 ? (
+                                            filteredContainers.map(id => (
+                                                <div
+                                                    key={id}
+                                                    style={{
+                                                        padding: '10px 12px',
+                                                        background: 'rgba(255, 255, 255, 0.03)',
+                                                        borderRadius: '6px',
+                                                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                                                        fontSize: '13px',
+                                                        color: 'white',
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s'
+                                                    }}
+                                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'}
+                                                    onClick={() => {
+                                                        useStore.getState().setSelectId(id);
+                                                        handleClose(true); // Skip camera reset to avoid animation conflict
+                                                    }}
+                                                >
+                                                    <span>{id}</span>
+                                                    <span style={{ color: '#64748b', fontSize: '12px' }}>
+                                                        {entities[id]?.type || '20ft'}
+                                                    </span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div style={{
+                                                textAlign: 'center',
+                                                color: '#64748b',
+                                                fontSize: '13px',
+                                                padding: '20px'
+                                            }}>
+                                                No containers found matching "{containerSearch}"
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </div>
                 )}
 

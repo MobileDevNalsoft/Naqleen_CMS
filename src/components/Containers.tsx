@@ -356,20 +356,6 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
                 </lineSegments>
             )}
 
-            {/* Label above topmost container in stack */}
-            {selectedContainerInfo && (
-                <Text
-                    position={selectedContainerInfo.labelPosition}
-                    fontSize={1.2}
-                    color="yellow"
-                    anchorX="center"
-                    anchorY="middle"
-                    outlineWidth={0.1}
-                    outlineColor="#000000"
-                >
-                    {selectedContainerInfo.selected.id}
-                </Text>
-            )}
         </group>
     );
 }

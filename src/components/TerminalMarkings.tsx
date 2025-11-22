@@ -148,8 +148,8 @@ const BlockLabels = ({ block }: { block: TerminalZone }) => {
 
                     {/* Interactive Info Button with Hover Effects */}
                     <group
-                        position={[displayName.length * 1.2, 0, 0]}
-                        scale={isHovered ? 1.3 : 1}
+                        position={[displayName.length * 1.5, 0, 0]}
+                        scale={isHovered ? 2.5 : 1.5}
                     >
                         <mesh
                             onClick={(e) => {
@@ -165,6 +165,8 @@ const BlockLabels = ({ block }: { block: TerminalZone }) => {
                                 document.body.style.cursor = 'auto';
                                 setIsHovered(false);
                             }}
+                            renderOrder={999}
+                            frustumCulled={false}
                         >
                             <circleGeometry args={[1.5, 32]} />
                             <meshBasicMaterial
@@ -177,7 +179,7 @@ const BlockLabels = ({ block }: { block: TerminalZone }) => {
 
                         {/* Bright Yellow Border Ring on Hover */}
                         {isHovered && (
-                            <mesh>
+                            <mesh renderOrder={1000} frustumCulled={false}>
                                 <ringGeometry args={[1.5, 1.9, 32]} />
                                 <meshBasicMaterial
                                     color="#fbbf24"
@@ -189,7 +191,7 @@ const BlockLabels = ({ block }: { block: TerminalZone }) => {
                         )}
 
                         {/* Info icon (i) */}
-                        <mesh position={[0, 0, 0.01]}>
+                        <mesh position={[0, 0, 0.01]} renderOrder={1001} frustumCulled={false}>
                             <planeGeometry args={[0.8, 2]} />
                             <meshBasicMaterial
                                 color="white"

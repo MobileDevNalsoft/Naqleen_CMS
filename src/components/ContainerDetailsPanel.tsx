@@ -170,7 +170,17 @@ export default function ContainerDetailsPanel() {
                             cursor: 'pointer',
                             borderBottom: activeTab === tab ? '2px solid #60a5fa' : '2px solid transparent',
                             textTransform: 'capitalize',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
+                            outline: 'none'
+                        }}
+                        onMouseEnter={e => {
+                            // Prevent global button hover style from adding white border
+                            e.currentTarget.style.border = 'none';
+                            e.currentTarget.style.borderBottom = activeTab === tab ? '2px solid #60a5fa' : '2px solid #94a3b8';
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.border = 'none';
+                            e.currentTarget.style.borderBottom = activeTab === tab ? '2px solid #60a5fa' : '2px solid transparent';
                         }}
                     >
                         {tab}

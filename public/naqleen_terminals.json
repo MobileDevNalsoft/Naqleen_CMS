@@ -426,7 +426,7 @@
               "unit": "meters"
             },
             "rotation": 0,
-            "description": "TRM Block A - 20ft containers",
+            "description": "TRM Block A - 20ft",
             "container_type": "20ft",
             "bays": 22,
             "rows": 11,
