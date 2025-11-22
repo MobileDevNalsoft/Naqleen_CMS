@@ -4,14 +4,14 @@ import { useStore } from '../store/store';
 import { useTexture, Text } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 
-interface InstancedContainersProps {
+interface ContainersProps {
     count?: number;
     controlsRef?: RefObject<any>;
+    onReady?: () => void;
 }
 
-export default function InstancedContainers({ count, controlsRef }: InstancedContainersProps) {
+export function Containers({ count, controlsRef, onReady }: ContainersProps) {
     const meshRef = useRef<THREE.InstancedMesh>(null);
-    const borderRef = useRef<THREE.Mesh>(null);
     const opacityAttribute = useRef<THREE.InstancedBufferAttribute | null>(null);
     const ids = useStore(state => state.ids);
     const entities = useStore(state => state.entities);
@@ -42,7 +42,7 @@ export default function InstancedContainers({ count, controlsRef }: InstancedCon
         0x90A2B7  // Cool Gray
     ], []);
 
-    // Memoize instance data - NO color change on selection
+    // Memoize instance data with scaling for 40ft containers
     const instanceData = useMemo(() => {
         return ids.map(id => {
             const e = entities[id];
@@ -53,10 +53,18 @@ export default function InstancedContainers({ count, controlsRef }: InstancedCon
             const colorIndex = hash % containerColors.length;
             color.setHex(containerColors[colorIndex]);
 
+            // Determine scale based on type (20ft vs 40ft)
+            const type = e?.type || '20ft';
+            // 40ft is roughly 2x 20ft (12.192m vs 6.058m)
+            // Exact ratio: 12.192 / 6.058 = 2.0125
+            const scaleX = type === '40ft' ? 2.0125 : 1;
+
             return {
                 position: [e?.x || 0, e?.y || 0, e?.z || 0] as [number, number, number],
                 color: color,
-                id: id
+                id: id,
+                scale: [scaleX, 1, 1] as [number, number, number],
+                type: type
             };
         });
     }, [ids, entities, containerColors]);
@@ -109,6 +117,8 @@ export default function InstancedContainers({ count, controlsRef }: InstancedCon
         instanceData.forEach((data, i) => {
             const [x, y, z] = data.position;
             dummy.position.set(x, y, z);
+            // Apply scale for 40ft containers
+            dummy.scale.set(data.scale[0], data.scale[1], data.scale[2]);
             dummy.updateMatrix();
             mesh.setMatrixAt(i, dummy.matrix);
 
@@ -137,26 +147,48 @@ export default function InstancedContainers({ count, controlsRef }: InstancedCon
         mesh.instanceMatrix.needsUpdate = true;
         if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
         if (opacityAttribute.current) opacityAttribute.current.needsUpdate = true;
-    }, [instanceData, dummy, selectedContainerInfo, selectId]);
+
+        // Signal that the scene is ready
+        if (onReady) {
+            onReady();
+        }
+    }, [instanceData, dummy, selectedContainerInfo, selectId, onReady]);
 
     // Trigger camera animation when container is selected
     useEffect(() => {
         if (!selectedContainerInfo || !controlsRef?.current) return;
 
+        // Cancel any other animations first
+        window.dispatchEvent(new CustomEvent('cancelAnimations', { detail: { source: 'containerFocus' } }));
+
         const containerPos = selectedContainerInfo.selected.position;
 
-        const offset = 20;
-        const angle = Math.PI / 4;
-
+        const zoffset = 8;
+        const xoffset = 5;
+        // Position camera along Z axis to see the X-Y face (Long side) for clear number visibility
+        // Lower height to be more level with the container
         targetCameraPos.current.set(
-            containerPos[0] + offset * Math.cos(angle),
-            containerPos[1] + 15,
-            containerPos[2] + offset * Math.sin(angle)
+            containerPos[0] + xoffset,
+            containerPos[1] + 8,
+            containerPos[2] + zoffset
         );
 
         targetControlsTarget.current.set(containerPos[0], containerPos[1], containerPos[2]);
         setIsAnimating(true);
     }, [selectedContainerInfo, controlsRef]);
+
+    // Listen for animation cancellations from other sources
+    useEffect(() => {
+        const handleCancelAnimations = (e: any) => {
+            // If another animation is starting, cancel this one
+            if (e.detail?.source !== 'containerFocus' && isAnimating) {
+                setIsAnimating(false);
+            }
+        };
+
+        window.addEventListener('cancelAnimations', handleCancelAnimations);
+        return () => window.removeEventListener('cancelAnimations', handleCancelAnimations);
+    }, [isAnimating]);
 
     // ESC key to deselect
     useEffect(() => {
@@ -171,8 +203,26 @@ export default function InstancedContainers({ count, controlsRef }: InstancedCon
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [selectId]);
 
+    const dragStart = useRef({ x: 0, y: 0 });
+
+    const handlePointerDown = (e: any) => {
+        // Store start position for click vs drag check
+        dragStart.current = { x: e.clientX, y: e.clientY };
+    };
+
     const handleClick = (e: any) => {
         e.stopPropagation();
+
+        // Calculate distance moved
+        const dx = e.clientX - dragStart.current.x;
+        const dy = e.clientY - dragStart.current.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // If moved more than 5 pixels, it's a drag (rotation), not a click
+        if (distance > 5) {
+            return;
+        }
+
         const instanceId = e.instanceId;
         if (instanceId !== undefined && ids[instanceId]) {
             console.log('Container clicked:', ids[instanceId]);
@@ -196,7 +246,9 @@ export default function InstancedContainers({ count, controlsRef }: InstancedCon
         document.body.style.cursor = 'auto';
     };
 
-    // Camera animation and shining dot animation
+    const blinkingMaterialRef = useRef<THREE.MeshStandardMaterial>(null);
+
+    // Camera animation and blinking effect
     useFrame((state) => {
         // Camera animation
         if (isAnimating && controlsRef?.current) {
@@ -214,108 +266,13 @@ export default function InstancedContainers({ count, controlsRef }: InstancedCon
             }
         }
 
-        // Shining dot animation
-        if (!borderRef.current || !selectedContainerInfo || !selectedContainerInfo.selected) {
-            return;
-        }
-
-        try {
-            const w = 6.058 / 2;
-            const h = 2.591 / 2;
-            const d = 2.438 / 2;
-
-            const speed = 0.3;
-            const t = (state.clock.elapsedTime * speed) % 1;
-
-            const bottomPerimeter = (w * 2 + d * 2) * 2;
-            const topPerimeter = (w * 2 + d * 2) * 2;
-            const verticalEdges = h * 2 * 4;
-            const totalPerimeter = bottomPerimeter + verticalEdges + topPerimeter;
-
-            const distance = t * totalPerimeter;
-
-            let x = 0, y = 0, z = 0;
-
-            const edge1 = w * 2;
-            const edge2 = edge1 + d * 2;
-            const edge3 = edge2 + w * 2;
-            const edge4 = edge3 + d * 2;
-            const edge5 = edge4 + h * 2;
-            const edge6 = edge5 + h * 2;
-            const edge7 = edge6 + h * 2;
-            const edge8 = edge7 + h * 2;
-            const edge9 = edge8 + w * 2;
-            const edge10 = edge9 + d * 2;
-            const edge11 = edge10 + w * 2;
-
-            if (distance < edge1) {
-                const progress = distance / (w * 2);
-                x = -w + progress * w * 2;
-                y = -h;
-                z = d;
-            } else if (distance < edge2) {
-                const progress = (distance - edge1) / (d * 2);
-                x = w;
-                y = -h;
-                z = d - progress * d * 2;
-            } else if (distance < edge3) {
-                const progress = (distance - edge2) / (w * 2);
-                x = w - progress * w * 2;
-                y = -h;
-                z = -d;
-            } else if (distance < edge4) {
-                const progress = (distance - edge3) / (d * 2);
-                x = -w;
-                y = -h;
-                z = -d + progress * d * 2;
-            } else if (distance < edge5) {
-                const progress = (distance - edge4) / (h * 2);
-                x = -w;
-                y = -h + progress * h * 2;
-                z = d;
-            } else if (distance < edge6) {
-                const progress = (distance - edge5) / (h * 2);
-                x = w;
-                y = -h + progress * h * 2;
-                z = d;
-            } else if (distance < edge7) {
-                const progress = (distance - edge6) / (h * 2);
-                x = w;
-                y = -h + progress * h * 2;
-                z = -d;
-            } else if (distance < edge8) {
-                const progress = (distance - edge7) / (h * 2);
-                x = -w;
-                y = -h + progress * h * 2;
-                z = -d;
-            } else if (distance < edge9) {
-                const progress = (distance - edge8) / (w * 2);
-                x = -w + progress * w * 2;
-                y = h;
-                z = d;
-            } else if (distance < edge10) {
-                const progress = (distance - edge9) / (d * 2);
-                x = w;
-                y = h;
-                z = d - progress * d * 2;
-            } else if (distance < edge11) {
-                const progress = (distance - edge10) / (w * 2);
-                x = w - progress * w * 2;
-                y = h;
-                z = -d;
-            } else {
-                const progress = (distance - edge11) / (d * 2);
-                x = -w;
-                y = h;
-                z = -d + progress * d * 2;
-            }
-
-            const basePos = selectedContainerInfo.selected.position;
-            if (basePos && basePos.length === 3) {
-                borderRef.current.position.set(basePos[0] + x, basePos[1] + y, basePos[2] + z);
-            }
-        } catch (error) {
-            console.error('Error in shining dot animation:', error);
+        // Blinking effect for selected container
+        if (blinkingMaterialRef.current) {
+            const time = state.clock.elapsedTime;
+            // Pulse opacity between 0.3 and 0.6
+            const blink = 0.5 + 0.5 * Math.sin(time * 3);
+            blinkingMaterialRef.current.opacity = 0.1 + 0.3 * blink;
+            blinkingMaterialRef.current.emissiveIntensity = 0.2 + 0.5 * blink;
         }
     });
 
@@ -329,6 +286,7 @@ export default function InstancedContainers({ count, controlsRef }: InstancedCon
                 ref={meshRef}
                 args={[undefined, undefined, Math.max(count || 0, ids.length)]}
                 onClick={handleClick}
+                onPointerDown={handlePointerDown}
                 onPointerOver={handlePointerOver}
                 onPointerOut={handlePointerOut}
                 frustumCulled={true}
@@ -368,28 +326,34 @@ export default function InstancedContainers({ count, controlsRef }: InstancedCon
                 />
             </instancedMesh>
 
-            {/* Static border outline for selected container */}
+            {/* Blinking overlay for selected container */}
             {selectedContainerInfo && (
-                <mesh position={selectedContainerInfo.selected.position}>
-                    <boxGeometry args={[6.2, 2.7, 2.55]} />
-                    <meshBasicMaterial
+                <mesh
+                    position={selectedContainerInfo.selected.position}
+                    scale={selectedContainerInfo.selected.scale}
+                >
+                    <boxGeometry args={[6.07, 2.61, 2.45]} /> {/* Slightly larger than container */}
+                    <meshStandardMaterial
+                        ref={blinkingMaterialRef}
                         color="#ffff00"
-                        wireframe={true}
                         transparent={true}
-                        opacity={0.6}
+                        opacity={0.3}
+                        emissive="#ffff00"
+                        emissiveIntensity={0.5}
+                        depthWrite={false} // Don't occlude internal details
                     />
                 </mesh>
             )}
 
-            {/* Shining dot moving around selected container border */}
+            {/* Highlight 8 edges of selected container */}
             {selectedContainerInfo && (
-                <mesh ref={borderRef}>
-                    <sphereGeometry args={[0.15, 16, 16]} />
-                    <meshBasicMaterial
-                        color="#ffff00"
-                        toneMapped={false}
-                    />
-                </mesh>
+                <lineSegments
+                    position={selectedContainerInfo.selected.position}
+                    scale={selectedContainerInfo.selected.scale}
+                >
+                    <edgesGeometry args={[new THREE.BoxGeometry(6.058, 2.591, 2.438)]} />
+                    <lineBasicMaterial color="#ffff00" linewidth={2} />
+                </lineSegments>
             )}
 
             {/* Label above topmost container in stack */}

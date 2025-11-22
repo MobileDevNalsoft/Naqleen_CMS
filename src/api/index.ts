@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useStore } from '../store/store';
 import { useEffect } from 'react';
-import { parseTerminals, getAvailableTerminals, getAllBlocks, getContainerPosition } from '../utils/layoutUtils';
-import type { TerminalLayout, TerminalsData } from '../utils/layoutUtils';
+import { parseTerminals, getAvailableTerminals, getContainerPosition, getAllBlocks } from '../utils/layoutUtils';
+import type { TerminalLayout, TerminalsData, TerminalZone } from '../utils/layoutUtils';
 import apiClient from './apiClient';
 
 export interface ContainerData {
@@ -15,11 +15,11 @@ export interface ContainerData {
     bay: number;
     row: number;
     tier: number;
+    type?: string;
 }
 
 /**
- * Fetch all terminals data from the new multi-terminal JSON structure
- * @returns All terminals data
+ * Fetch all terminals data
  */
 export async function getAllTerminals(): Promise<TerminalsData> {
     const response = await apiClient.get('/naqleen_terminals.json');
@@ -27,9 +27,7 @@ export async function getAllTerminals(): Promise<TerminalsData> {
 }
 
 /**
- * Fetch a specific terminal layout (or first terminal if no ID provided)
- * @param terminalId - Optional terminal ID (defaults to first terminal in the list)
- * @returns Single terminal layout ready for 3D visualization
+ * Fetch a specific terminal layout
  */
 export async function getLayout(terminalId?: string): Promise<TerminalLayout> {
     const terminalsData = await getAllTerminals();
@@ -37,23 +35,34 @@ export async function getLayout(terminalId?: string): Promise<TerminalLayout> {
 }
 
 /**
- * Hook to fetch list of available terminals
- * 
- * @returns Array of terminals with id, name, and location
- * 
- * @example
- * // Future use when you have multiple terminals:
- * const { data: terminals } = useTerminalsQuery();
- * 
- * <select onChange={(e) => setSelectedTerminal(e.target.value)}>
- *   {terminals?.map(t => (
- *     <option key={t.id} value={t.id}>{t.name}</option>
- *   ))}
- * </select>
- * 
- * @note Currently unused - only one terminal exists
- * Will be needed when adding terminal selector UI
+ * Fetch containers data and calculate positions based on layout
  */
+export async function getContainers(layout: TerminalLayout): Promise<ContainerData[]> {
+    const response = await apiClient.get('/containers.json');
+    const rawContainers = response.data;
+
+    // Calculate positions
+    const blocks = getAllBlocks(layout);
+    const blockMap = new Map<string, TerminalZone>();
+    blocks.forEach(b => blockMap.set(b.id, b));
+
+    return rawContainers.map((c: any) => {
+        const block = blockMap.get(c.blockId);
+        if (!block) {
+            console.warn(`Block not found for container ${c.id}`);
+            return { ...c, x: 0, y: 0, z: 0 };
+        }
+
+        const pos = getContainerPosition(block, c.bay, c.row, c.tier);
+        return {
+            ...c,
+            x: pos.x,
+            y: pos.y,
+            z: pos.z
+        };
+    });
+}
+
 export const useTerminalsQuery = () => {
     return useQuery({
         queryKey: ['terminals-list'],
@@ -64,62 +73,14 @@ export const useTerminalsQuery = () => {
     });
 };
 
-// Generate containers based on the layout
-const generateContainersFromLayout = (layout: TerminalLayout): ContainerData[] => {
-    const containers: ContainerData[] = [];
-    const blocks = getAllBlocks(layout);
-
-    blocks.forEach(block => {
-        const bays = block.bays || 1;
-        const rows = block.rows || 1;
-        const tiers = 3; // Assume max 3 tiers for now
-
-        // Fill about 60% of the slots
-        for (let b = 0; b < bays; b++) {
-            for (let r = 0; r < rows; r++) {
-                for (let t = 0; t < tiers; t++) {
-                    if (Math.random() > 0.4) {
-                        // Ensure we don't have floating containers
-                        if (t > 0) {
-                            // Check if there is a container below
-                            const below = containers.find(c => c.blockId === block.id && c.bay === b && c.row === r && c.tier === t - 1);
-                            if (!below) continue;
-                        }
-
-                        const pos = getContainerPosition(block, b, r, t);
-
-                        containers.push({
-                            id: `${block.id}-b${b}-r${r}-t${t}`,
-                            x: pos.x,
-                            y: pos.y,
-                            z: pos.z,
-                            status: Math.random() > 0.9 ? 'maintenance' : Math.random() > 0.7 ? 'active' : 'inactive',
-                            blockId: block.id,
-                            bay: b,
-                            row: r,
-                            tier: t
-                        });
-                    }
-                }
-            }
-        }
-    });
-
-    return containers;
-};
-
-/**
- * Hook to fetch the terminal layout
- * Currently configured for "naqleen-jeddah" terminal
- * To switch terminals, change the terminalId in the queryFn
- */
 export const useLayoutQuery = () => {
     const setLayout = useStore((state) => state.setLayout);
 
     const query = useQuery({
         queryKey: ['layout', 'naqleen-jeddah'],
         queryFn: async () => {
-            // Explicitly fetch "naqleen-jeddah" terminal
+            // Simulate loading delay for effect
+            await new Promise(resolve => setTimeout(resolve, 1000));
             return getLayout('naqleen-jeddah');
         },
     });
@@ -140,8 +101,9 @@ export const useContainersQuery = (layout: TerminalLayout | null) => {
         queryKey: ['containers', layout?.terminal_info?.name || 'no-layout'],
         queryFn: async () => {
             if (!layout) return [];
-            await new Promise(resolve => setTimeout(resolve, 500));
-            return generateContainersFromLayout(layout);
+            // Simulate loading delay for effect
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            return getContainers(layout);
         },
         enabled: !!layout,
         staleTime: Infinity,

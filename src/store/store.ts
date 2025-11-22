@@ -18,10 +18,12 @@ interface StoreState {
   entities: Record<string, ContainerEntity>;
   ids: string[];
   selectId: string | null;
+  selectedBlock: string | null;
   layout: TerminalLayout | null;
   setEntitiesBatch: (updates: Partial<ContainerEntity> & { id: string }[]) => void;
   patchPositions: (posUpdates: { id: string; x: number; y: number; z: number }[]) => void;
   setSelectId: (id: string | null) => void;
+  setSelectedBlock: (blockId: string | null) => void;
   setLayout: (layout: TerminalLayout) => void;
 }
 
@@ -29,6 +31,7 @@ export const useStore = create<StoreState>((set) => ({
   entities: {},
   ids: [],
   selectId: null,
+  selectedBlock: null,
   layout: null,
 
   setEntitiesBatch: (updates) => set((state) => {
@@ -54,5 +57,6 @@ export const useStore = create<StoreState>((set) => ({
   }),
 
   setSelectId: (id) => set({ selectId: id }),
+  setSelectedBlock: (blockId) => set({ selectedBlock: blockId }),
   setLayout: (layout) => set({ layout }),
 }));

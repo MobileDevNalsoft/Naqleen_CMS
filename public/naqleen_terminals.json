@@ -4,7 +4,7 @@
     "naqleen-jeddah": {
       "id": "naqleen-jeddah",
       "terminal_info": {
-        "name": "Naqleen Container Terminal",
+        "name": "Naqleen Jeddah",
         "location": "Jeddah, Saudi Arabia",
         "total_dimensions": {
           "width": 360,
@@ -339,7 +339,7 @@
                 "unit": "meters"
               },
               "rotation": 0,
-              "description": "TRS Block D Part 1",
+              "description": "TRS Block D",
               "container_type": "40ft",
               "bays": 1,
               "rows": 10,
@@ -376,7 +376,7 @@
                 "unit": "meters"
               },
               "rotation": 0,
-              "description": "TRS Block D Part 2",
+              "description": "TRS Block D",
               "container_type": "40ft",
               "bays": 11,
               "rows": 10,

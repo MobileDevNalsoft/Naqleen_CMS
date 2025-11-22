@@ -1,6 +1,6 @@
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
-import { Text } from '@react-three/drei';
+import { Text, Billboard } from '@react-three/drei';
 import { useStore } from '../store/store';
 import { type TerminalZone, getAllBlocks } from '../utils/layoutUtils';
 
@@ -127,19 +127,80 @@ const BlockLabels = ({ block }: { block: TerminalZone }) => {
         });
     }
 
+    const setSelectedBlock = useStore(state => state.setSelectedBlock);
+    const [isHovered, setIsHovered] = useState(false);
+
     return (
         <group>
-            {/* Zone Name - Show for all blocks with cleaned name */}
-            <Text
-                position={[zoneLabelPos.x, 0.1, zoneLabelPos.z]}
-                rotation={[-Math.PI / 2, 0, (block.rotation * Math.PI) / 180]}
-                fontSize={3}
-                color="white"
-                anchorX="center"
-                anchorY="middle"
-            >
-                {displayName}
-            </Text>
+            {/* Zone Name - Billboard at center of block (always facing camera) */}
+            <Billboard position={[zoneLabelPos.x, zoneLabelPos.y + 15, zoneLabelPos.z]}>
+                <group>
+                    <Text
+                        fontSize={4}
+                        color="white"
+                        anchorX="center"
+                        anchorY="middle"
+                        outlineWidth={0.1}
+                        outlineColor="#000000"
+                    >
+                        {displayName}
+                    </Text>
+
+                    {/* Interactive Info Button with Hover Effects */}
+                    <group
+                        position={[displayName.length * 1.2, 0, 0]}
+                        scale={isHovered ? 1.3 : 1}
+                    >
+                        <mesh
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedBlock(block.id);
+                            }}
+                            onPointerOver={(e) => {
+                                e.stopPropagation();
+                                document.body.style.cursor = 'pointer';
+                                setIsHovered(true);
+                            }}
+                            onPointerOut={() => {
+                                document.body.style.cursor = 'auto';
+                                setIsHovered(false);
+                            }}
+                        >
+                            <circleGeometry args={[1.5, 32]} />
+                            <meshBasicMaterial
+                                color={isHovered ? "#60a5fa" : "#3b82f6"}
+                                transparent
+                                opacity={isHovered ? 1 : 0.9}
+                                depthTest={false}
+                            />
+                        </mesh>
+
+                        {/* Bright Yellow Border Ring on Hover */}
+                        {isHovered && (
+                            <mesh>
+                                <ringGeometry args={[1.5, 1.9, 32]} />
+                                <meshBasicMaterial
+                                    color="#fbbf24"
+                                    transparent
+                                    opacity={1}
+                                    depthTest={false}
+                                />
+                            </mesh>
+                        )}
+
+                        {/* Info icon (i) */}
+                        <mesh position={[0, 0, 0.01]}>
+                            <planeGeometry args={[0.8, 2]} />
+                            <meshBasicMaterial
+                                color="white"
+                                transparent
+                                opacity={1}
+                                depthTest={false}
+                            />
+                        </mesh>
+                    </group>
+                </group>
+            </Billboard>
 
             {/* Row Labels */}
             {rowLabels.map((label, i) => (

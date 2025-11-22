@@ -1,140 +1,214 @@
-import { Sky, Stars } from '@react-three/drei';
-import { useStore } from '../store/store';
+import { Sky } from '@react-three/drei';
 import { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { useThree } from '@react-three/fiber';
+import { useThree, useFrame } from '@react-three/fiber';
+import { useStore } from '../store/store';
 
-// More realistic tree with better proportions
+// --- Shared Geometries ---
+const trunkGeometry = new THREE.CylinderGeometry(0.15, 0.25, 2.4, 8);
+const foliage1Geometry = new THREE.ConeGeometry(1.8, 3.5, 8);
+const foliage2Geometry = new THREE.ConeGeometry(1.4, 2.8, 8);
+const foliage3Geometry = new THREE.ConeGeometry(1, 2, 8);
+const foliage4Geometry = new THREE.ConeGeometry(0.6, 1.2, 8);
+
+const warehouseBodyGeometry = new THREE.BoxGeometry(15, 8, 25);
+const warehouseDoorGeometry = new THREE.PlaneGeometry(6, 4);
+
+// Warehouse Roof Shape
+const roofShape = new THREE.Shape();
+roofShape.moveTo(-9, 0);
+roofShape.lineTo(9, 0);
+roofShape.lineTo(0, 5);
+roofShape.lineTo(-9, 0);
+const warehouseRoofGeometry = new THREE.ExtrudeGeometry(roofShape, {
+    depth: 25,
+    bevelEnabled: false
+});
+
+const hillGeometry = new THREE.SphereGeometry(10, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+
+// --- Shared Materials ---
+const trunkMaterial = new THREE.MeshStandardMaterial({ color: "#4A3728", roughness: 0.95 });
+const foliageDarkMaterial = new THREE.MeshStandardMaterial({ color: "#1B4D0E", roughness: 0.8, flatShading: true });
+const foliageLightMaterial = new THREE.MeshStandardMaterial({ color: "#2A5A1C", roughness: 0.8, flatShading: true });
+const foliage2Material = new THREE.MeshStandardMaterial({ color: "#3D6B2E", roughness: 0.75, flatShading: true });
+const foliage3Material = new THREE.MeshStandardMaterial({ color: "#4F7D3A", roughness: 0.7, flatShading: true });
+const foliage4Material = new THREE.MeshStandardMaterial({ color: "#628F46", roughness: 0.65, flatShading: true });
+
+const warehouseRoofMaterial = new THREE.MeshStandardMaterial({ color: "#4A5568", roughness: 0.4, metalness: 0.4 });
+const warehouseDoorMaterial = new THREE.MeshStandardMaterial({ color: "#2D3748", roughness: 0.7 });
+
+// Pre-create warehouse body materials
+const warehouseColors = ['#6B7280', '#8B95A0', '#9CA3AF', '#B0B7BE', '#7B8794'];
+const warehouseMaterials = warehouseColors.map(color =>
+    new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.15 })
+);
+
+// Pre-create hill materials
+const hillColors = ['#E6D5AC', '#D2B48C', '#C2B280', '#BDB76B', '#8B4513', '#A0522D'];
+const hillMaterials = hillColors.map(color =>
+    new THREE.MeshStandardMaterial({ color, roughness: 0.8 })
+);
+
+
+// More realistic tree with better proportions and wind animation
 const Tree = ({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) => {
-    const foliageVariation = Math.random();
+    const groupRef = useRef<THREE.Group>(null);
+    const foliageRef = useRef<THREE.Group>(null);
+    const foliageVariation = useMemo(() => Math.random(), []);
+    const offset = useMemo(() => Math.random() * 100, []); // Random phase for wind
+
+    useFrame((state) => {
+        const time = state.clock.elapsedTime;
+        const swaySpeed = 0.8;
+        const swayAmount = 0.05;
+
+        // Base sway (trunk moves slightly)
+        if (groupRef.current) {
+            groupRef.current.rotation.z = Math.sin(time * swaySpeed + offset) * swayAmount;
+            groupRef.current.rotation.x = Math.cos(time * (swaySpeed * 0.7) + offset) * swayAmount;
+        }
+
+        // Foliage sway (moves MORE than trunk, creating a curve effect)
+        if (foliageRef.current) {
+            foliageRef.current.rotation.z = Math.sin(time * swaySpeed + offset) * (swayAmount * 2);
+            foliageRef.current.rotation.x = Math.cos(time * (swaySpeed * 0.7) + offset) * (swayAmount * 2);
+        }
+    });
+
     return (
-        <group position={position} scale={[scale, scale, scale]}>
+        <group ref={groupRef} position={position} scale={[scale, scale, scale]}>
             {/* Trunk - Natural bark brown with slight taper */}
-            <mesh position={[0, 1.2, 0]} castShadow receiveShadow>
-                <cylinderGeometry args={[0.15, 0.25, 2.4, 8]} />
-                <meshStandardMaterial
-                    color="#4A3728"
-                    roughness={0.95}
+            <mesh position={[0, 1.2, 0]} castShadow receiveShadow geometry={trunkGeometry} material={trunkMaterial} />
+
+            {/* Foliage Group - Pivoted at top of trunk (y=2.4) for curved bending */}
+            <group ref={foliageRef} position={[0, 2.4, 0]}>
+                {/* Main foliage - Dense, realistic green */}
+                <mesh
+                    position={[0, 1.1, 0]}
+                    castShadow
+                    receiveShadow
+                    geometry={foliage1Geometry}
+                    material={foliageVariation > 0.5 ? foliageDarkMaterial : foliageLightMaterial}
                 />
-            </mesh>
-            {/* Main foliage - Dense, realistic green */}
-            <mesh position={[0, 3.5, 0]} castShadow receiveShadow>
-                <coneGeometry args={[1.8, 3.5, 8]} />
-                <meshStandardMaterial
-                    color={foliageVariation > 0.5 ? "#1B4D0E" : "#2A5A1C"}
-                    roughness={0.8}
-                    flatShading
-                />
-            </mesh>
-            <mesh position={[0, 5.2, 0]} castShadow receiveShadow>
-                <coneGeometry args={[1.4, 2.8, 8]} />
-                <meshStandardMaterial
-                    color="#3D6B2E"
-                    roughness={0.75}
-                    flatShading
-                />
-            </mesh>
-            <mesh position={[0, 6.5, 0]} castShadow receiveShadow>
-                <coneGeometry args={[1, 2, 8]} />
-                <meshStandardMaterial
-                    color="#4F7D3A"
-                    roughness={0.7}
-                    flatShading
-                />
-            </mesh>
-            <mesh position={[0, 7.5, 0]} castShadow receiveShadow>
-                <coneGeometry args={[0.6, 1.2, 8]} />
-                <meshStandardMaterial
-                    color="#628F46"
-                    roughness={0.65}
-                    flatShading
-                />
-            </mesh>
+                <mesh position={[0, 2.8, 0]} castShadow receiveShadow geometry={foliage2Geometry} material={foliage2Material} />
+                <mesh position={[0, 4.1, 0]} castShadow receiveShadow geometry={foliage3Geometry} material={foliage3Material} />
+                <mesh position={[0, 5.1, 0]} castShadow receiveShadow geometry={foliage4Geometry} material={foliage4Material} />
+            </group>
         </group>
     );
 };
 
 // Enhanced warehouse with more detail
-const Warehouse = ({ position, rotation = 0, color = '#78909C' }: { position: [number, number, number]; rotation?: number; color?: string }) => (
-    <group position={position} rotation={[0, rotation, 0]}>
-        {/* Main Building */}
-        <mesh position={[0, 4, 0]} castShadow receiveShadow>
-            <boxGeometry args={[15, 8, 25]} />
-            <meshStandardMaterial
-                color={color}
-                roughness={0.6}
-                metalness={0.15}
+const Warehouse = ({ position, rotation = 0, colorIndex = 0 }: { position: [number, number, number]; rotation?: number; colorIndex?: number }) => {
+    return (
+        <group position={position} rotation={[0, rotation, 0]} frustumCulled={false}>
+            {/* Main Building */}
+            <mesh
+                position={[0, 4, 0]}
+                castShadow
+                receiveShadow
+                geometry={warehouseBodyGeometry}
+                material={warehouseMaterials[colorIndex % warehouseMaterials.length]}
+                renderOrder={1}
             />
-        </mesh>
-        {/* Roof */}
-        <mesh position={[0, 8.5, 0]} rotation={[0, 0, Math.PI / 4]} castShadow receiveShadow>
-            <boxGeometry args={[6, 6, 25]} />
-            <meshStandardMaterial
-                color="#4A5568"
-                roughness={0.4}
-                metalness={0.4}
+            {/* Roof - Triangular Prism */}
+            <mesh
+                position={[0, 8, -12.5]}
+                castShadow
+                receiveShadow
+                geometry={warehouseRoofGeometry}
+                material={warehouseRoofMaterial}
+                renderOrder={1}
             />
-        </mesh>
-        {/* Door */}
-        <mesh position={[0, 2, 12.6]}>
-            <planeGeometry args={[6, 4]} />
-            <meshStandardMaterial color="#2D3748" roughness={0.7} />
-        </mesh>
-    </group>
-);
+            {/* Door - moved further out to prevent z-fighting */}
+            <mesh
+                position={[0, 2, 13]}
+                geometry={warehouseDoorGeometry}
+                material={warehouseDoorMaterial}
+                renderOrder={2}
+            />
+        </group>
+    );
+};
 
-// More realistic hills/mountains with organic shapes
-const Hill = ({ position, scale = 1, color = '#81C784' }: { position: [number, number, number]; scale?: number; color?: string }) => (
-    <mesh position={position} scale={[scale, scale * 0.6, scale]} receiveShadow castShadow>
-        <icosahedronGeometry args={[10, 1]} />
-        <meshStandardMaterial
-            color={color}
-            roughness={0.98}
-            flatShading
+// Smooth rolling hill matching reference
+const Hill = ({ position, scale = 1, colorIndex = 0 }: { position: [number, number, number]; scale?: number; colorIndex?: number }) => {
+    return (
+        <mesh
+            position={position}
+            scale={[scale, scale * 0.4, scale]}
+            receiveShadow
+            castShadow
+            geometry={hillGeometry}
+            material={hillMaterials[colorIndex % hillMaterials.length]}
         />
-    </mesh>
-);
+    );
+};
+
+// Helper function to calculate terrain height at a given x, z position
+// This ensures that objects (trees, warehouses) are placed on the ground
+const getTerrainHeight = (x: number, z: number) => {
+    const centerFlatRadius = 250; // Radius of flat area for terminal
+    const blendDistance = 150;    // Distance to blend from flat to hills
+    const distance = Math.sqrt(x * x + z * z);
+
+    if (distance <= centerFlatRadius) return 0;
+
+    const blend = Math.min(1, (distance - centerFlatRadius) / blendDistance);
+    const smoothBlend = blend * blend * (3 - 2 * blend);
+
+    // Organic noise simulation using multiple sine waves (FBM-like)
+    // Layer 1: Large rolling hills
+    const h1 = Math.sin(x * 0.005) * Math.cos(z * 0.005) * 20;
+    // Layer 2: Medium details
+    const h2 = Math.sin(x * 0.01 + 1.5) * Math.cos(z * 0.01 + 2.3) * 8;
+    // Layer 3: Small variations
+    const h3 = Math.sin(x * 0.03) * Math.sin(z * 0.03) * 2;
+
+    let height = (h1 + h2 + h3) * smoothBlend;
+
+    // Ensure terrain doesn't go below ground level too much
+    return Math.max(-5, height);
+};
 
 export default function Environment() {
-    const layout = useStore((state) => state.layout);
     const { scene } = useThree();
     const terrainRef = useRef<THREE.Mesh>(null);
+    const dragStart = useRef({ x: 0, y: 0 });
 
-    // Enhanced fog - adjusted for larger circular terrain
+    const handlePointerDown = (e: any) => {
+        // Store start position for click vs drag check
+        dragStart.current = { x: e.clientX, y: e.clientY };
+    };
+
+    // Enhanced fog - Linear fog to keep terminal clear but hide horizon
     useEffect(() => {
-        // Fog adjusted for larger terrain size
         scene.fog = new THREE.Fog(
-            '#C0DAEB', // Lighter sky-matching blue
-            250,       // Starts at mid-distance on larger terrain
-            750        // Extends to far distance for smooth horizon fade
+            '#E6F4F1', // Matches sky/background
+            300,       // Start fog further away (clear terminal)
+            800        // End fog at edge of terrain
         );
-
-        return () => {
-            scene.fog = null;
-        };
+        return () => { scene.fog = null; };
     }, [scene]);
 
     // Add subtle, realistic terrain undulation for circular terrain
     useEffect(() => {
         if (terrainRef.current) {
-            const geometry = terrainRef.current.geometry as THREE.CircleGeometry;
+            // Access the geometry position attribute
+            const geometry = terrainRef.current.geometry;
             const positions = geometry.attributes.position;
+            const count = positions.count;
 
-            // Add gentle, natural rolling hills using radial coordinates
-            for (let i = 0; i < positions.count; i++) {
+            for (let i = 0; i < count; i++) {
                 const x = positions.getX(i);
-                const y = positions.getY(i);
-                const distance = Math.sqrt(x * x + y * y);
-                const angle = Math.atan2(y, x);
+                const y = positions.getY(i); // Plane is initially flat on XY, we modify Z for height
 
-                // Gentle rolling terrain with radial variation
-                const wave1 = Math.sin(distance * 0.008 + angle * 3) * 0.6;
-                const wave2 = Math.sin(distance * 0.012 - angle * 2) * 0.4;
-                const radialWave = Math.sin(angle * 8) * 0.3;
-                const noise = (Math.random() - 0.5) * 0.1;
-                const fadeOut = Math.max(0, 1 - distance / 1200);
+                // In the rotated plane, 'y' corresponds to world 'z'
+                const height = getTerrainHeight(x, y);
 
-                positions.setZ(i, (wave1 + wave2 + radialWave + noise) * fadeOut);
+                // Set the Z coordinate (which is Up in our rotated mesh)
+                positions.setZ(i, height);
             }
 
             positions.needsUpdate = true;
@@ -149,51 +223,58 @@ export default function Environment() {
         // Trees with more natural distribution across larger area
         for (let i = 0; i < 80; i++) {
             const angle = (Math.random() * Math.PI * 2);
-            const radius = 200 + Math.random() * 250;
+            // Increased min radius to 240 to ensure trees don't spawn inside the 400x185 terminal fencing
+            const radius = 240 + Math.random() * 250;
             // Cluster some trees together for realism
             const clusterOffset = Math.random() < 0.3 ? {
                 x: (Math.random() - 0.5) * 15,
                 z: (Math.random() - 0.5) * 15
             } : { x: 0, z: 0 };
 
+            const x = Math.cos(angle) * radius + clusterOffset.x;
+            const z = Math.sin(angle) * radius + clusterOffset.z;
+            const y = getTerrainHeight(x, z);
+
             items.push({
                 type: 'tree',
-                position: [
-                    Math.cos(angle) * radius + clusterOffset.x,
-                    0,
-                    Math.sin(angle) * radius + clusterOffset.z
-                ] as [number, number, number],
-                scale: 0.65 + Math.random() * 0.7,
+                position: [x, y, z] as [number, number, number],
+                // Increased scale for bigger trees (1.5x - 2.5x)
+                scale: 1.5 + Math.random() * 1.0,
             });
         }
 
         // Warehouses with realistic variety
-        const warehouseColors = ['#6B7280', '#8B95A0', '#9CA3AF', '#B0B7BE', '#7B8794'];
         for (let i = 0; i < 15; i++) {
             const angle = (Math.random() * Math.PI * 2);
             const radius = 280 + Math.random() * 120;
+
+            const x = Math.cos(angle) * radius;
+            const z = Math.sin(angle) * radius;
+            const y = getTerrainHeight(x, z);
+
             items.push({
                 type: 'warehouse',
-                position: [Math.cos(angle) * radius, 0, Math.sin(angle) * radius] as [number, number, number],
+                position: [x, y, z] as [number, number, number],
                 rotation: Math.random() * Math.PI,
-                color: warehouseColors[Math.floor(Math.random() * warehouseColors.length)],
+                colorIndex: Math.floor(Math.random() * warehouseColors.length),
             });
         }
 
-        // Hills with natural grass tones - more organic placement
-        const hillColors = ['#6B9940', '#7CAA42', '#8DBB54', '#9ECC66', '#6FA842'];
+        // Hills with natural sand and desert tones
         for (let i = 0; i < 35; i++) {
             const angle = (Math.random() * Math.PI * 2);
             const radius = 350 + Math.random() * 350;
+
+            const x = Math.cos(angle) * radius;
+            const z = Math.sin(angle) * radius;
+            // Sink hills slightly into the terrain so they look like peaks emerging
+            const y = getTerrainHeight(x, z) - 2;
+
             items.push({
                 type: 'hill',
-                position: [
-                    Math.cos(angle) * radius,
-                    -3,
-                    Math.sin(angle) * radius
-                ] as [number, number, number],
+                position: [x, y, z] as [number, number, number],
                 scale: 2.5 + Math.random() * 5,
-                color: hillColors[Math.floor(Math.random() * hillColors.length)],
+                colorIndex: Math.floor(Math.random() * hillColors.length),
             });
         }
 
@@ -202,23 +283,25 @@ export default function Environment() {
 
     return (
         <group>
-            {/* Hemisphere sky dome with realistic appearance */}
+            {/* Force background color to match fog/sky for seamless bright look */}
+            <color attach="background" args={['#E6F4F1']} />
+
+            {/* Hemisphere sky dome with realistic appearance - Day Mode */}
             <Sky
-                sunPosition={[100, 80, 100]}
-                turbidity={1.2}
-                rayleigh={0.2}
-                mieCoefficient={0.002}
-                mieDirectionalG={0.85}
-                inclination={0.49} // Creates hemisphere appearance
+                sunPosition={[100, 100, 100]} // High noon sun for maximum brightness
+                turbidity={0.6}               // Low turbidity = clear air, less muddy
+                rayleigh={0.6}                // Balanced rayleigh for realistic blue
+                mieCoefficient={0.005}
+                mieDirectionalG={0.7}
+                inclination={0.5}
                 azimuth={0.25}
             />
-            <Stars radius={50} depth={100} count={1500} factor={5.5} saturation={0} fade speed={1} />
 
             {/* Natural daylight with warm tones */}
-            <ambientLight intensity={0.55} color="#F0F8FF" />
+            <ambientLight intensity={1.5} color="#FFFFFF" />
             <directionalLight
                 position={[120, 120, 60]}
-                intensity={2.5}
+                intensity={3}
                 color="#FFFACD"
                 castShadow
                 shadow-mapSize={[2048, 2048]}
@@ -231,7 +314,7 @@ export default function Environment() {
             {/* Soft fill light */}
             <directionalLight
                 position={[-60, 60, -60]}
-                intensity={0.6}
+                intensity={0.8}
                 color="#C8E6FF"
             />
 
@@ -242,19 +325,21 @@ export default function Environment() {
                 position={[0, -1.0, 0]}
                 receiveShadow
             >
-                <circleGeometry args={[1200, 128]} />
+                {/* High resolution plane for smooth organic terrain */}
+                <planeGeometry args={[2000, 2000, 128, 128]} />
                 <meshStandardMaterial
                     color="#86BD5E"
-                    roughness={0.94}
-                    metalness={0.02}
+                    roughness={0.9}
+                    metalness={0.05}
+                // flatShading={false} // Ensure smooth shading
                 />
             </mesh>
 
             {/* Render Generated Surroundings */}
             {surroundings.map((item, idx) => {
                 if (item.type === 'tree') return <Tree key={idx} position={item.position} scale={item.scale} />;
-                if (item.type === 'warehouse') return <Warehouse key={idx} position={item.position} rotation={item.rotation} color={item.color} />;
-                if (item.type === 'hill') return <Hill key={idx} position={item.position} scale={item.scale} color={item.color} />;
+                if (item.type === 'warehouse') return <Warehouse key={idx} position={item.position} rotation={item.rotation} colorIndex={item.colorIndex} />;
+                if (item.type === 'hill') return <Hill key={idx} position={item.position} scale={item.scale} colorIndex={item.colorIndex} />;
                 return null;
             })}
 
@@ -263,6 +348,29 @@ export default function Environment() {
                 rotation={[-Math.PI / 2, 0, 0]}
                 position={[0, -0.4, 0]}
                 receiveShadow
+                onPointerDown={handlePointerDown}
+                onClick={(e) => {
+                    e.stopPropagation();
+
+                    // If a container is selected, do NOT trigger top view
+                    // The user must press ESC or click ground elsewhere to deselect first
+                    if (useStore.getState().selectId) {
+                        return;
+                    }
+
+                    // Calculate distance moved
+                    const dx = e.clientX - dragStart.current.x;
+                    const dy = e.clientY - dragStart.current.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    // If moved more than 5 pixels, it's a drag (rotation), not a click
+                    if (distance > 5) {
+                        return;
+                    }
+
+                    // Dispatch custom event for camera transition
+                    window.dispatchEvent(new CustomEvent('moveCameraToTop'));
+                }}
             >
                 {/* Matches fence dimensions: Width 400, Depth 185 */}
                 <planeGeometry args={[400, 185]} />
