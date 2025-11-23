@@ -1,7 +1,7 @@
 import { useRef, useEffect, useMemo, useState, type RefObject } from 'react';
 import * as THREE from 'three';
 import { useStore } from '../store/store';
-import { useTexture, Text } from '@react-three/drei';
+import { useTexture } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 
 interface ContainersProps {
