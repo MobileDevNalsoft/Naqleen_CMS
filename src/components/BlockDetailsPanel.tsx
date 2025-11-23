@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Truck, MapPin, Box, Activity, Package, Grid3x3, TrendingUp, Users } from 'lucide-react';
+import { Truck, MapPin, Box, Activity, Package, Grid3x3, TrendingUp } from 'lucide-react';
 import { useStore } from '../store/store';
 import { getAllBlocks } from '../utils/layoutUtils';
 
