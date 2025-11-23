@@ -1,6 +1,7 @@
 import { useRef, useEffect, useMemo, useState, type RefObject } from 'react';
 import * as THREE from 'three';
 import { useStore } from '../store/store';
+import { useTexture, Text } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 
 interface ContainersProps {
@@ -20,27 +21,14 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
     const [isAnimating, setIsAnimating] = useState(false);
     const targetCameraPos = useRef(new THREE.Vector3());
     const targetControlsTarget = useRef(new THREE.Vector3());
-    const [texture, setTexture] = useState<THREE.Texture | null>(null);
 
-    // Load texture with error handling - containers will render even if texture fails
-    useEffect(() => {
-        const loader = new THREE.TextureLoader();
-        loader.load(
-            '/textures/container_side.png',
-            (tex) => {
-                tex.wrapS = THREE.RepeatWrapping;
-                tex.wrapT = THREE.RepeatWrapping;
-                tex.anisotropy = 4;
-                tex.generateMipmaps = true;
-                setTexture(tex);
-            },
-            undefined,
-            (error) => {
-                console.warn('Failed to load container texture, using solid color fallback:', error);
-                // Containers will still render without texture
-            }
-        );
-    }, []);
+    // Load texture once with optimization
+    const texture = useTexture('/textures/container_side.png', (tex) => {
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.anisotropy = 4;
+        tex.generateMipmaps = true;
+    });
 
     // Realistic Industrial Color Palette (Mid-bright tones)
     const containerColors = useMemo(() => [
@@ -305,7 +293,7 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
             >
                 <boxGeometry args={[6.058, 2.591, 2.438]} />
                 <meshStandardMaterial
-                    map={texture || undefined}
+                    map={texture}
                     metalness={0.4}
                     roughness={0.6}
                     color="#ffffff"

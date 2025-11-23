@@ -354,7 +354,7 @@ export default function Header({ onViewModeChange, currentViewMode = 'main' }: H
                                         </div>
                                         <div>
                                             <div className="user-name">Admin User</div>
-                                            <div className="user-email">admin@naqleen.com</div>
+                                            <div className="user-email">admin@nalsoft.net</div>
                                         </div>
                                     </div>
 
