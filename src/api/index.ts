@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useStore } from '../store/store';
 import { useEffect } from 'react';
-import { parseTerminals, getAvailableTerminals, getContainerPosition, getAllBlocks } from '../utils/layoutUtils';
-import type { TerminalLayout, TerminalsData, TerminalZone } from '../utils/layoutUtils';
+import { parseIcds, getAvailableIcds, getContainerPosition, getAllBlocks } from '../utils/layoutUtils';
+import type { IcdLayout, IcdsData, IcdTerminal } from '../utils/layoutUtils';
 import apiClient from './apiClient';
 
 export interface ContainerData {
@@ -12,38 +12,38 @@ export interface ContainerData {
     z: number;
     status: 'active' | 'inactive' | 'maintenance';
     blockId: string;
-    bay: number;
+    lot: number;
     row: number;
-    tier: number;
+    level: number;
     type?: string;
 }
 
 /**
- * Fetch all terminals data
+ * Fetch all icds data
  */
-export async function getAllTerminals(): Promise<TerminalsData> {
-    const response = await apiClient.get('/naqleen_terminals.json');
+export async function getAllIcds(): Promise<IcdsData> {
+    const response = await apiClient.get('/naqleen_icds.json');
     return response.data;
 }
 
 /**
- * Fetch a specific terminal layout
+ * Fetch a specific icd layout
  */
-export async function getLayout(terminalId?: string): Promise<TerminalLayout> {
-    const terminalsData = await getAllTerminals();
-    return parseTerminals(terminalsData, terminalId);
+export async function getLayout(icdId?: string): Promise<IcdLayout> {
+    const icdsData = await getAllIcds();
+    return parseIcds(icdsData, icdId);
 }
 
 /**
  * Fetch containers data and calculate positions based on layout
  */
-export async function getContainers(layout: TerminalLayout): Promise<ContainerData[]> {
+export async function getContainers(layout: IcdLayout): Promise<ContainerData[]> {
     const response = await apiClient.get('/containers.json');
     const rawContainers = response.data;
 
     // Calculate positions
     const blocks = getAllBlocks(layout);
-    const blockMap = new Map<string, TerminalZone>();
+    const blockMap = new Map<string, IcdTerminal>();
     blocks.forEach(b => blockMap.set(b.id, b));
 
     return rawContainers.map((c: any) => {
@@ -53,7 +53,7 @@ export async function getContainers(layout: TerminalLayout): Promise<ContainerDa
             return { ...c, x: 0, y: 0, z: 0 };
         }
 
-        const pos = getContainerPosition(block, c.bay, c.row, c.tier);
+        const pos = getContainerPosition(block, c.lot, c.row, c.level);
         return {
             ...c,
             x: pos.x,
@@ -63,12 +63,12 @@ export async function getContainers(layout: TerminalLayout): Promise<ContainerDa
     });
 }
 
-export const useTerminalsQuery = () => {
+export const useIcdsQuery = () => {
     return useQuery({
-        queryKey: ['terminals-list'],
+        queryKey: ['icds-list'],
         queryFn: async () => {
-            const data = await getAllTerminals();
-            return getAvailableTerminals(data);
+            const data = await getAllIcds();
+            return getAvailableIcds(data);
         },
     });
 };
@@ -94,11 +94,11 @@ export const useLayoutQuery = () => {
     return query;
 };
 
-export const useContainersQuery = (layout: TerminalLayout | null) => {
+export const useContainersQuery = (layout: IcdLayout | null) => {
     const setEntitiesBatch = useStore((state) => state.setEntitiesBatch);
 
     const query = useQuery({
-        queryKey: ['containers', layout?.terminal_info?.name || 'no-layout'],
+        queryKey: ['containers', layout?.icd_info?.name || 'no-layout'],
         queryFn: async () => {
             if (!layout) return [];
             // Simulate loading delay for effect

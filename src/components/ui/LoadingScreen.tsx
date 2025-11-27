@@ -45,7 +45,7 @@ export default function LoadingScreen({ isLoading, onComplete }: LoadingScreenPr
             left: 0,
             width: '100%',
             height: '100%',
-            backgroundColor: '#0f172a', // Dark slate
+            backgroundColor: '#4B686C', // Solid primary color
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
@@ -58,13 +58,13 @@ export default function LoadingScreen({ isLoading, onComplete }: LoadingScreenPr
                 width: '60px',
                 height: '60px',
                 border: '4px solid rgba(255, 255, 255, 0.1)',
-                borderTop: '4px solid #3b82f6', // Blue
+                borderTop: '4px solid var(--secondary-color)', // Blue
                 borderRadius: '50%',
                 animation: 'spin 1s linear infinite',
                 marginBottom: '20px'
             }} />
-            <h1 style={{ fontSize: '24px', fontWeight: 'bold', letterSpacing: '1px' }}>NAQLEEN TERMINAL</h1>
-            <p style={{ color: '#94a3b8', marginTop: '10px' }}>Building Terminal... {progress}%</p>
+            <h1 style={{ fontSize: '24px', fontWeight: 'bold', letterSpacing: '1px' }}>NAQLEEN ICD</h1>
+            <p style={{ color: 'rgba(255, 255, 255, 0.7)', marginTop: '10px' }}>Building Icd... {progress}%</p>
 
             {/* Progress Bar */}
             <div style={{
@@ -78,7 +78,7 @@ export default function LoadingScreen({ isLoading, onComplete }: LoadingScreenPr
                 <div style={{
                     width: `${progress}%`,
                     height: '100%',
-                    backgroundColor: '#3b82f6',
+                    backgroundColor: 'var(--secondary-color)',
                     transition: 'width 0.1s ease-out'
                 }} />
             </div>

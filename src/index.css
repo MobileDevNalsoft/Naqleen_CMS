@@ -3,9 +3,20 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  /* Theme Colors */
+  --primary-color: #4B686C;
+  --secondary-color: #F7CF9B;
+  --primary-gradient: linear-gradient(135deg, #4B686C 0%, #3A5255 100%);
+  --secondary-gradient: linear-gradient(135deg, #F7CF9B 0%, #E5B070 100%);
+  --background-color: #F5F7F7;
+  --text-color: #2C3E50;
+  --glass-bg: rgba(75, 104, 108, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.15);
+  --card-bg: #ffffff;
+  
+  color-scheme: light;
+  color: var(--text-color);
+  background-color: var(--background-color);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -15,11 +26,12 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: var(--primary-color);
   text-decoration: inherit;
+  transition: color 0.25s;
 }
 a:hover {
-  color: #535bf2;
+  color: var(--secondary-color);
 }
 
 body {
@@ -27,6 +39,8 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  background-color: var(--background-color);
+  color: var(--text-color);
 }
 
 #root {
@@ -46,27 +60,53 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: var(--card-bg);
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.25s, background-color 0.25s;
+  color: var(--text-color);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 button:hover {
-  border-color: #646cff;
+  border-color: var(--primary-color);
+  background-color: #fff;
 }
 button:focus,
 button:focus-visible {
-  outline: none;
+  outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(75, 104, 108, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(75, 104, 108, 0.5);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
 }

@@ -2,7 +2,7 @@ import { Sky } from '@react-three/drei';
 import { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useThree, useFrame } from '@react-three/fiber';
-import { useStore } from '../store/store';
+import { useStore } from '../../store/store';
 
 // --- Shared Geometries ---
 const trunkGeometry = new THREE.CylinderGeometry(0.15, 0.25, 2.4, 8);
@@ -149,7 +149,7 @@ const Hill = ({ position, scale = 1, colorIndex = 0 }: { position: [number, numb
 // Helper function to calculate terrain height at a given x, z position
 // This ensures that objects (trees, warehouses) are placed on the ground
 const getTerrainHeight = (x: number, z: number) => {
-    const centerFlatRadius = 250; // Radius of flat area for terminal
+    const centerFlatRadius = 250; // Radius of flat area for icd
     const blendDistance = 150;    // Distance to blend from flat to hills
     const distance = Math.sqrt(x * x + z * z);
 
@@ -182,11 +182,11 @@ export default function Environment() {
         dragStart.current = { x: e.clientX, y: e.clientY };
     };
 
-    // Enhanced fog - Linear fog to keep terminal clear but hide horizon
+    // Enhanced fog - Linear fog to keep icd clear but hide horizon
     useEffect(() => {
         scene.fog = new THREE.Fog(
             '#E6F4F1', // Matches sky/background
-            300,       // Start fog further away (clear terminal)
+            300,       // Start fog further away (clear icd)
             800        // End fog at edge of terrain
         );
         return () => { scene.fog = null; };
@@ -223,7 +223,7 @@ export default function Environment() {
         // Trees with more natural distribution across larger area
         for (let i = 0; i < 80; i++) {
             const angle = (Math.random() * Math.PI * 2);
-            // Increased min radius to 240 to ensure trees don't spawn inside the 400x185 terminal fencing
+            // Increased min radius to 240 to ensure trees don't spawn inside the 400x185 icd fencing
             const radius = 240 + Math.random() * 250;
             // Cluster some trees together for realism
             const clusterOffset = Math.random() < 0.3 ? {
@@ -319,31 +319,31 @@ export default function Environment() {
             />
 
             {/* Large circular terrain with subtle rolling hills */}
-            <mesh
+            {/* <mesh
                 ref={terrainRef}
                 rotation={[-Math.PI / 2, 0, 0]}
                 position={[0, -1.0, 0]}
                 receiveShadow
-            >
-                {/* High resolution plane for smooth organic terrain */}
-                <planeGeometry args={[2000, 2000, 128, 128]} />
+            > */}
+            {/* High resolution plane for smooth organic terrain */}
+            {/* <planeGeometry args={[2000, 2000, 128, 128]} />
                 <meshStandardMaterial
                     color="#86BD5E"
                     roughness={0.9}
                     metalness={0.05}
+                /> */}
                 // flatShading={false} // Ensure smooth shading
-                />
-            </mesh>
+            {/* </mesh> */}
 
             {/* Render Generated Surroundings */}
-            {surroundings.map((item, idx) => {
+            {/* {surroundings.map((item, idx) => {
                 if (item.type === 'tree') return <Tree key={idx} position={item.position} scale={item.scale} />;
                 if (item.type === 'warehouse') return <Warehouse key={idx} position={item.position} rotation={item.rotation} colorIndex={item.colorIndex} />;
                 if (item.type === 'hill') return <Hill key={idx} position={item.position} scale={item.scale} colorIndex={item.colorIndex} />;
                 return null;
-            })}
+            })} */}
 
-            {/* Unified Terminal Base Plane */}
+            {/* Unified Icd Base Plane */}
             <mesh
                 rotation={[-Math.PI / 2, 0, 0]}
                 position={[0, -0.4, 0]}

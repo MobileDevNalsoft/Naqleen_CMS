@@ -1,6 +1,6 @@
 import { Vector3, Euler } from 'three';
 
-export interface TerminalZone {
+export interface IcdTerminal {
     id: string;
     type: string;
     dimensions: { width: number; height: number; unit: string };
@@ -8,104 +8,104 @@ export interface TerminalZone {
     rotation: number;
     description: string;
     container_type?: string;
-    bays?: number;
+    lots?: number;
     rows?: number;
-    bay_gap?: number;
+    lot_gap?: number;
     row_labels?: string[];
-    bay_numbers?: number[];
+    lot_numbers?: number[];
     capacity?: string;
 }
 
-export interface TerminalLayout {
+export interface IcdLayout {
     id: string;
-    terminal_info: any;
-    zone_types: any;
-    zones: {
-        main_operational_zones: Record<string, TerminalZone>;
-        yard_base: TerminalZone;
-        trs_container_blocks: Record<string, TerminalZone | TerminalZone[]>;
-        trm_container_blocks: Record<string, TerminalZone>;
+    icd_info: any;
+    terminal_types: any;
+    terminals: {
+        main_operational_terminals: Record<string, IcdTerminal>;
+        yard_base: IcdTerminal;
+        trs_container_blocks: Record<string, IcdTerminal | IcdTerminal[]>;
+        trm_container_blocks: Record<string, IcdTerminal>;
     };
 }
 
 /**
- * New multi-terminal structure (v2.0)
- * Supports multiple terminals with easy switching
+ * New multi-icd structure (v2.0)
+ * Supports multiple icds with easy switching
  */
-export interface TerminalsData {
+export interface IcdsData {
     version: string;
-    terminals: Record<string, TerminalLayout>;
+    icds: Record<string, IcdLayout>;
 }
 
 /**
- * Parse the multi-terminal JSON structure
- * @param json - Raw JSON data from naqleen_terminals.json
- * @param terminalId - Optional terminal ID (defaults to first terminal)
- * @returns Single terminal layout
+ * Parse the multi-icd JSON structure
+ * @param json - Raw JSON data from naqleen_icds.json
+ * @param icdId - Optional icd ID (defaults to first icd)
+ * @returns Single icd layout
  */
-export const parseTerminals = (json: TerminalsData, terminalId?: string): TerminalLayout => {
-    const selectedTerminalId = terminalId || Object.keys(json.terminals)[0];
-    return json.terminals[selectedTerminalId];
+export const parseIcds = (json: IcdsData, icdId?: string): IcdLayout => {
+    const selectedIcdId = icdId || Object.keys(json.icds)[0];
+    return json.icds[selectedIcdId];
 };
 
 /**
- * Get list of all available terminals
+ * Get list of all available icds
  */
-export const getAvailableTerminals = (json: TerminalsData): Array<{ id: string; name: string; location: string }> => {
-    return Object.entries(json.terminals).map(([id, terminal]) => ({
+export const getAvailableIcds = (json: IcdsData): Array<{ id: string; name: string; location: string }> => {
+    return Object.entries(json.icds).map(([id, icd]) => ({
         id,
-        name: terminal.terminal_info.name,
-        location: terminal.terminal_info.location,
+        name: icd.icd_info.name,
+        location: icd.icd_info.location,
     }));
 };
 
 export const getContainerPosition = (
-    zone: TerminalZone,
-    bayIndex: number,
+    terminal: IcdTerminal,
+    lotIndex: number,
     rowIndex: number,
-    tierIndex: number
+    levelIndex: number
 ): Vector3 => {
     // Container dimensions (approximate for 20ft and 40ft)
-    const is20ft = zone.container_type === '20ft';
+    const is20ft = terminal.container_type === '20ft';
     const containerLength = is20ft ? 6.058 : 12.192;
     const containerWidth = 2.438;
     const containerHeight = 2.591;
 
-    const gapX = zone.bay_gap || 0.5; // Gap between bays
+    const gapX = terminal.lot_gap || 0.5; // Gap between lots
     const gapZ = 0.3; // Gap between rows
 
     // Calculate local position within the block
-    // Assuming bays are along X and rows are along Z
+    // Assuming lots are along X and rows are along Z
     // Center the block
 
-    const totalWidth = (zone.bays || 1) * (containerLength + gapX);
-    const totalDepth = (zone.rows || 1) * (containerWidth + gapZ);
+    const totalWidth = (terminal.lots || 1) * (containerLength + gapX);
+    const totalDepth = (terminal.rows || 1) * (containerWidth + gapZ);
 
     const startX = -totalWidth / 2 + containerLength / 2;
     const startZ = -totalDepth / 2 + containerWidth / 2;
 
-    const x = startX + bayIndex * (containerLength + gapX);
-    const y = zone.position.y + containerHeight / 2 + tierIndex * containerHeight;
+    const x = startX + lotIndex * (containerLength + gapX);
+    const y = terminal.position.y + containerHeight / 2 + levelIndex * containerHeight;
     const z = startZ + rowIndex * (containerWidth + gapZ);
 
-    // Apply zone position and rotation
+    // Apply terminal position and rotation
     const position = new Vector3(x, y, z);
 
     // Simple rotation around Y axis if needed (assuming rotation is in degrees)
-    if (zone.rotation) {
-        const euler = new Euler(0, (zone.rotation * Math.PI) / 180, 0);
+    if (terminal.rotation) {
+        const euler = new Euler(0, (terminal.rotation * Math.PI) / 180, 0);
         position.applyEuler(euler);
     }
 
-    position.add(new Vector3(zone.position.x, 0, zone.position.z));
+    position.add(new Vector3(terminal.position.x, 0, terminal.position.z));
 
     return position;
 };
 
-export const getAllBlocks = (layout: TerminalLayout): TerminalZone[] => {
-    const blocks: TerminalZone[] = [];
+export const getAllBlocks = (layout: IcdLayout): IcdTerminal[] => {
+    const blocks: IcdTerminal[] = [];
 
-    Object.values(layout.zones.trs_container_blocks).forEach(block => {
+    Object.values(layout.terminals.trs_container_blocks).forEach(block => {
         if (Array.isArray(block)) {
             blocks.push(...block);
         } else {
@@ -113,7 +113,7 @@ export const getAllBlocks = (layout: TerminalLayout): TerminalZone[] => {
         }
     });
 
-    Object.values(layout.zones.trm_container_blocks).forEach(block => {
+    Object.values(layout.terminals.trm_container_blocks).forEach(block => {
         blocks.push(block);
     });
 

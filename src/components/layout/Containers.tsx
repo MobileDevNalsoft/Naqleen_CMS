@@ -1,8 +1,9 @@
 import { useRef, useEffect, useMemo, useState, type RefObject } from 'react';
 import * as THREE from 'three';
-import { useStore } from '../store/store';
-import { useTexture } from '@react-three/drei';
+import { useStore } from '../../store/store';
+import { useTexture, Outlines } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
+import gsap from 'gsap';
 
 interface ContainersProps {
     count?: number;
@@ -16,11 +17,9 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
     const ids = useStore(state => state.ids);
     const entities = useStore(state => state.entities);
     const selectId = useStore(state => state.selectId);
+    const selectedBlock = useStore(state => state.selectedBlock);
 
     const { camera } = useThree();
-    const [isAnimating, setIsAnimating] = useState(false);
-    const targetCameraPos = useRef(new THREE.Vector3());
-    const targetControlsTarget = useRef(new THREE.Vector3());
 
     // Load texture once with optimization
     const texture = useTexture('/textures/container_side.png', (tex) => {
@@ -64,7 +63,8 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
                 color: color,
                 id: id,
                 scale: [scaleX, 1, 1] as [number, number, number],
-                type: type
+                type: type,
+                blockId: e?.blockId
             };
         });
     }, [ids, entities, containerColors]);
@@ -100,12 +100,10 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
         };
     }, [selectId, instanceData]);
 
-    // Update instance matrices and TRUE transparency
+    // Initial Setup & Static Updates
     useEffect(() => {
         const mesh = meshRef.current;
         if (!mesh || instanceData.length === 0) return;
-
-        const selectedPos = selectedContainerInfo?.selected?.position;
 
         // Create or update opacity attribute
         if (!opacityAttribute.current) {
@@ -117,30 +115,13 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
         instanceData.forEach((data, i) => {
             const [x, y, z] = data.position;
             dummy.position.set(x, y, z);
-            // Apply scale for 40ft containers
             dummy.scale.set(data.scale[0], data.scale[1], data.scale[2]);
             dummy.updateMatrix();
             mesh.setMatrixAt(i, dummy.matrix);
-
-            // Calculate TRUE opacity based on distance
-            let opacity = 1.0;
-            if (selectedPos && data.id !== selectId) {
-                const dx = x - selectedPos[0];
-                const dz = z - selectedPos[2];
-                const distance = Math.sqrt(dx * dx + dz * dz);
-
-                // Make nearby containers truly transparent (within 15m)
-                if (distance < 15) {
-                    opacity = 0.2; // 20% opacity (80% see-through)
-                }
-            }
-
-            // Keep original colors
             mesh.setColorAt(i, data.color);
 
-            // Set per-instance opacity
             if (opacityAttribute.current) {
-                opacityAttribute.current.setX(i, opacity);
+                opacityAttribute.current.setX(i, 1.0);
             }
         });
 
@@ -148,137 +129,164 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
         if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
         if (opacityAttribute.current) opacityAttribute.current.needsUpdate = true;
 
-        // Signal that the scene is ready
-        if (onReady) {
-            onReady();
+        if (onReady) onReady();
+    }, [instanceData, dummy, onReady]);
+
+    // Animation State
+    const liftHeight = useRef(0);
+    const lotLiftHeight = useRef(0);
+    const prevHasSelection = useRef(false);
+    const highlightMeshRef = useRef<THREE.Mesh>(null);
+
+    // Main Animation Loop (Lift & Opacity)
+    useFrame((state, delta) => {
+        const mesh = meshRef.current;
+        if (!mesh || instanceData.length === 0) return;
+
+        // --- Handle Block Lift Animation ---
+        const targetLift = selectedBlock ? 16 : 0;
+        const lerpSpeed = delta * 2;
+
+        const diff = targetLift - liftHeight.current;
+        const isLifting = Math.abs(diff) > 0.01;
+
+        if (isLifting) {
+            liftHeight.current = THREE.MathUtils.lerp(liftHeight.current, targetLift, lerpSpeed);
+        } else {
+            liftHeight.current = targetLift;
         }
-    }, [instanceData, dummy, selectedContainerInfo, selectId, onReady]);
 
-    // Trigger camera animation when container is selected
-    useEffect(() => {
-        if (!selectedContainerInfo || !controlsRef?.current) return;
+        // --- Handle Lot Lift Animation (Selected Stack) ---
+        const targetLotLift = selectId ? 10 : 0;
+        const lotDiff = targetLotLift - lotLiftHeight.current;
+        const isLotLifting = Math.abs(lotDiff) > 0.01;
 
-        // Cancel any other animations first
-        window.dispatchEvent(new CustomEvent('cancelAnimations', { detail: { source: 'containerFocus' } }));
+        if (isLotLifting) {
+            lotLiftHeight.current = THREE.MathUtils.lerp(lotLiftHeight.current, targetLotLift, lerpSpeed);
+        } else {
+            lotLiftHeight.current = targetLotLift;
+        }
 
-        const containerPos = selectedContainerInfo.selected.position;
+        const selectedPos = selectedContainerInfo?.selected?.position;
+        let needsMatrixUpdate = false;
 
-        const zoffset = 8;
-        const xoffset = 5;
-        // Position camera along Z axis to see the X-Y face (Long side) for clear number visibility
-        // Lower height to be more level with the container
-        targetCameraPos.current.set(
-            containerPos[0] + xoffset,
-            containerPos[1] + 8,
-            containerPos[2] + zoffset
-        );
+        if (isLifting || isLotLifting || (selectedBlock && liftHeight.current !== 0) || (selectId && lotLiftHeight.current !== 0) || (!selectedBlock && liftHeight.current !== 0)) {
+            needsMatrixUpdate = true;
+        }
 
-        targetControlsTarget.current.set(containerPos[0], containerPos[1], containerPos[2]);
-        setIsAnimating(true);
-    }, [selectedContainerInfo, controlsRef]);
+        const hasSelection = !!selectedBlock || !!selectId;
+        const selectionCleared = prevHasSelection.current && !hasSelection;
+        prevHasSelection.current = hasSelection;
 
-    // Listen for animation cancellations from other sources
+        if (needsMatrixUpdate || hasSelection || selectionCleared) {
+            instanceData.forEach((data, i) => {
+                // 1. Position (Lift)
+                const [x, y, z] = data.position;
+                const isInDataBlock = data.blockId === selectedBlock;
+
+                // Check if this container is in the selected stack/lot
+                let isInSelectedStack = false;
+                if (selectedPos) {
+                    isInSelectedStack = Math.abs(x - selectedPos[0]) < 0.1 && Math.abs(z - selectedPos[2]) < 0.1;
+                }
+
+                // Base Y + Block Lift + Lot Lift
+                const currentY = y + (isInDataBlock ? liftHeight.current : 0) + (isInSelectedStack ? lotLiftHeight.current : 0);
+
+                dummy.position.set(x, currentY, z);
+                dummy.scale.set(data.scale[0], data.scale[1], data.scale[2]);
+                dummy.updateMatrix();
+                mesh.setMatrixAt(i, dummy.matrix);
+
+                // 2. Opacity (Dimming)
+                let opacity = 1.0;
+
+                if (selectedBlock) {
+                    if (data.blockId === selectedBlock) {
+                        opacity = 1.0;
+                    } else {
+                        opacity = 0.1;
+                    }
+                } else if (selectId && selectedPos) {
+                    if (data.id !== selectId) {
+                        const dx = x - selectedPos[0];
+                        const dz = z - selectedPos[2];
+                        const distance = Math.sqrt(dx * dx + dz * dz);
+                        if (distance < 15) {
+                            opacity = 0.2;
+                        }
+                    }
+                }
+
+                if (opacityAttribute.current) {
+                    opacityAttribute.current.setX(i, opacity);
+                }
+            });
+
+            mesh.instanceMatrix.needsUpdate = true;
+            if (opacityAttribute.current) opacityAttribute.current.needsUpdate = true;
+        }
+
+        // Update Highlight Mesh Position
+        if (highlightMeshRef.current && selectedContainerInfo) {
+            const [x, y, z] = selectedContainerInfo.selected.position;
+            // Always apply full lift to highlight (Block + Lot)
+            // Note: We use the animated values for smooth tracking
+            const currentLift = liftHeight.current + lotLiftHeight.current;
+            highlightMeshRef.current.position.set(x, y + currentLift, z);
+        }
+    });
+
+    // Listen for animation cancellations
     useEffect(() => {
         const handleCancelAnimations = (e: any) => {
-            // If another animation is starting, cancel this one
-            if (e.detail?.source !== 'containerFocus' && isAnimating) {
-                setIsAnimating(false);
+            if (e.detail?.source !== 'containerFocus') {
+                gsap.killTweensOf(camera.position);
+                gsap.killTweensOf(controlsRef?.current?.target);
             }
         };
-
         window.addEventListener('cancelAnimations', handleCancelAnimations);
         return () => window.removeEventListener('cancelAnimations', handleCancelAnimations);
-    }, [isAnimating]);
-
-    // ESC key to deselect
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && selectId) {
-                useStore.getState().setSelectId(null);
-                setIsAnimating(false); // Stop camera animation
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [selectId]);
+    }, []);
 
     const dragStart = useRef({ x: 0, y: 0 });
 
     const handlePointerDown = (e: any) => {
-        // Store start position for click vs drag check
         dragStart.current = { x: e.clientX, y: e.clientY };
     };
 
     const handleClick = (e: any) => {
         e.stopPropagation();
-
-        // Calculate distance moved
         const dx = e.clientX - dragStart.current.x;
         const dy = e.clientY - dragStart.current.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        // If moved more than 5 pixels, it's a drag (rotation), not a click
-        if (distance > 5) {
-            return;
-        }
+        if (Math.sqrt(dx * dx + dy * dy) > 5) return;
 
         const instanceId = e.instanceId;
         if (instanceId !== undefined && ids[instanceId]) {
-            console.log('Container clicked:', ids[instanceId]);
-            useStore.getState().setSelectId(ids[instanceId]);
-        }
-    };
+            const clickedId = ids[instanceId];
+            const clickedEntity = entities[clickedId];
 
-    const handlePointerOver = (e: any) => {
-        e.stopPropagation();
-        document.body.style.cursor = 'pointer';
+            // If a block is selected, only allow selecting containers within that block
+            if (selectedBlock) {
+                if (clickedEntity?.blockId === selectedBlock) {
+                    useStore.getState().setSelectId(clickedId);
+                }
+            } else {
+                // No block selected, allow selecting any container
+                useStore.getState().setSelectId(clickedId);
+            }
+        }
     };
 
     const handleGroundClick = () => {
         if (selectId) {
+            // Only clear container selection to support backtracking to block view
             useStore.getState().setSelectId(null);
-            setIsAnimating(false); // Stop camera animation
+            // Camera reset is handled by CameraTransition now
         }
     };
 
-    const handlePointerOut = () => {
-        document.body.style.cursor = 'auto';
-    };
-
-    const blinkingMaterialRef = useRef<THREE.MeshStandardMaterial>(null);
-
-    // Camera animation and blinking effect
-    useFrame((state) => {
-        // Camera animation
-        if (isAnimating && controlsRef?.current) {
-            const lerpFactor = 0.05;
-
-            camera.position.lerp(targetCameraPos.current, lerpFactor);
-            const currentTarget = controlsRef.current.target;
-            currentTarget.lerp(targetControlsTarget.current, lerpFactor);
-
-            const camDistance = camera.position.distanceTo(targetCameraPos.current);
-            const targetDistance = currentTarget.distanceTo(targetControlsTarget.current);
-
-            if (camDistance < 0.1 && targetDistance < 0.1) {
-                setIsAnimating(false);
-            }
-        }
-
-        // Blinking effect for selected container
-        if (blinkingMaterialRef.current) {
-            const time = state.clock.elapsedTime;
-            // Pulse opacity between 0.3 and 0.6
-            const blink = 0.5 + 0.5 * Math.sin(time * 3);
-            blinkingMaterialRef.current.opacity = 0.1 + 0.3 * blink;
-            blinkingMaterialRef.current.emissiveIntensity = 0.2 + 0.5 * blink;
-        }
-    });
-
-    if (ids.length === 0) {
-        return null;
-    }
+    if (ids.length === 0) return null;
 
     return (
         <group onClick={handleGroundClick}>
@@ -287,8 +295,8 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
                 args={[undefined, undefined, Math.max(count || 0, ids.length)]}
                 onClick={handleClick}
                 onPointerDown={handlePointerDown}
-                onPointerOver={handlePointerOver}
-                onPointerOut={handlePointerOut}
+                onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; }}
+                onPointerOut={() => { document.body.style.cursor = 'auto'; }}
                 frustumCulled={true}
             >
                 <boxGeometry args={[6.058, 2.591, 2.438]} />
@@ -300,7 +308,6 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
                     transparent={true}
                     depthWrite={true}
                     onBeforeCompile={(shader) => {
-                        // Inject instance opacity attribute into shader
                         shader.vertexShader = shader.vertexShader.replace(
                             '#include <common>',
                             `#include <common>
@@ -326,36 +333,18 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
                 />
             </instancedMesh>
 
-            {/* Blinking overlay for selected container */}
+            {/* Thick Highlight for selected container */}
             {selectedContainerInfo && (
                 <mesh
+                    ref={highlightMeshRef}
                     position={selectedContainerInfo.selected.position}
                     scale={selectedContainerInfo.selected.scale}
                 >
-                    <boxGeometry args={[6.07, 2.61, 2.45]} /> {/* Slightly larger than container */}
-                    <meshStandardMaterial
-                        ref={blinkingMaterialRef}
-                        color="#ffff00"
-                        transparent={true}
-                        opacity={0.3}
-                        emissive="#ffff00"
-                        emissiveIntensity={0.5}
-                        depthWrite={false} // Don't occlude internal details
-                    />
+                    <boxGeometry args={[6.058, 2.591, 2.438]} />
+                    <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+                    <Outlines thickness={5} color="#FFD700" />
                 </mesh>
             )}
-
-            {/* Highlight 8 edges of selected container */}
-            {selectedContainerInfo && (
-                <lineSegments
-                    position={selectedContainerInfo.selected.position}
-                    scale={selectedContainerInfo.selected.scale}
-                >
-                    <edgesGeometry args={[new THREE.BoxGeometry(6.058, 2.591, 2.438)]} />
-                    <lineBasicMaterial color="#ffff00" linewidth={2} />
-                </lineSegments>
-            )}
-
         </group>
     );
 }

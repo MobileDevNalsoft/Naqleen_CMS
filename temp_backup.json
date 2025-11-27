@@ -1,7 +1,7 @@
 {
-    "naqleen_terminal_zones":  {
-                                   "terminal_info":  {
-                                                         "name":  "Naqleen Container Terminal",
+    "naqleen_icd_terminals":  {
+                                   "icd_info":  {
+                                                         "name":  "Naqleen Container Icd",
                                                          "location":  "Jeddah, Saudi Arabia",
                                                          "total_dimensions":  {
                                                                                   "width":  360,
@@ -12,14 +12,14 @@
                                                          "drawing_number":  "ASQ012324/160189",
                                                          "approved_by":  "Nesthubz Infra Solutions"
                                                      },
-                                   "zone_types":  {
-                                                      "trs_zone":  {
+                                   "terminal_types":  {
+                                                      "trs_terminal":  {
                                                                        "opacity":  0.2,
-                                                                       "description":  "TRS Zone (Left Side)"
+                                                                       "description":  "TRS Terminal (Left Side)"
                                                                    },
-                                                      "trm_zone":  {
+                                                      "trm_terminal":  {
                                                                        "opacity":  0.2,
-                                                                       "description":  "TRM Zone (Right Side)"
+                                                                       "description":  "TRM Terminal (Right Side)"
                                                                    },
                                                       "container_block_a":  {
                                                                                 "color":  "#FF9800",
@@ -61,15 +61,15 @@
                                                                       "opacity":  0.6,
                                                                       "description":  "Toplift Area"
                                                                   },
-                                                      "terminal_divider":  {
+                                                      "icd_divider":  {
                                                                                "color":  "#000000",
                                                                                "opacity":  0.8,
-                                                                               "description":  "Terminal Divider"
+                                                                               "description":  "Icd Divider"
                                                                            },
                                                       "custom":  {
                                                                      "color":  "#9E9E9E",
                                                                      "opacity":  0.3,
-                                                                     "description":  "Custom Zone"
+                                                                     "description":  "Custom Terminal"
                                                                  },
                                                       "yard_base":  {
                                                                         "color":  "#27a79a",
@@ -77,11 +77,11 @@
                                                                         "description":  "Yard Base - Ground plane"
                                                                     }
                                                   },
-                                   "zones":  {
-                                                 "main_operational_zones":  {
-                                                                                "trs_zone":  {
-                                                                                                 "id":  "trs_zone",
-                                                                                                 "type":  "trs_zone",
+                                   "terminals":  {
+                                                 "main_operational_terminals":  {
+                                                                                "trs_terminal":  {
+                                                                                                 "id":  "trs_terminal",
+                                                                                                 "type":  "trs_terminal",
                                                                                                  "dimensions":  {
                                                                                                                     "width":  180,
                                                                                                                     "height":  145,
@@ -94,7 +94,7 @@
                                                                                                                   "unit":  "meters"
                                                                                                               },
                                                                                                  "rotation":  0,
-                                                                                                 "description":  "TRS Zone (Left Side) - Main operational area",
+                                                                                                 "description":  "TRS Terminal (Left Side) - Main operational area",
                                                                                                  "container_capacity":  "Multiple blocks A, B, C, D",
                                                                                                  "access_points":  [
                                                                                                                        "access_road",
@@ -103,9 +103,9 @@
                                                                                                  "shape":  "rectangle",
                                                                                                  "opacity":  0.1
                                                                                              },
-                                                                                "trm_zone":  {
-                                                                                                 "id":  "trm_zone",
-                                                                                                 "type":  "trm_zone",
+                                                                                "trm_terminal":  {
+                                                                                                 "id":  "trm_terminal",
+                                                                                                 "type":  "trm_terminal",
                                                                                                  "dimensions":  {
                                                                                                                     "width":  172,
                                                                                                                     "height":  145,
@@ -118,7 +118,7 @@
                                                                                                                   "unit":  "meters"
                                                                                                               },
                                                                                                  "rotation":  0,
-                                                                                                 "description":  "TRM Zone (Right Side) - Main operational area",
+                                                                                                 "description":  "TRM Terminal (Right Side) - Main operational area",
                                                                                                  "container_capacity":  "Multiple blocks A, B, C, D",
                                                                                                  "access_points":  [
                                                                                                                        "main_road_horizontal"
@@ -181,7 +181,7 @@
                                                                                                   "rotation":  0,
                                                                                                   "description":  "TRS Block A - 20ft containers",
                                                                                                   "container_type":  "20ft",
-                                                                                                  "bays":  23,
+                                                                                                  "lots":  23,
                                                                                                   "rows":  11,
                                                                                                   "row_labels":  [
                                                                                                                      "A",
@@ -196,7 +196,7 @@
                                                                                                                      "J",
                                                                                                                      "K"
                                                                                                                  ],
-                                                                                                  "bay_numbers":  [
+                                                                                                  "lot_numbers":  [
                                                                                                                       1,
                                                                                                                       2,
                                                                                                                       3,
@@ -222,7 +222,7 @@
                                                                                                                       23
                                                                                                                   ],
                                                                                                   "capacity":  "253 containers",
-                                                                                                  "bay_gap":  1.75
+                                                                                                  "lot_gap":  1.75
                                                                                               },
                                                                               "trs_block_b":  {
                                                                                                   "id":  "trs_block_b",
@@ -241,9 +241,9 @@
                                                                                                   "rotation":  0,
                                                                                                   "description":  "TRS Block B - Container storage",
                                                                                                   "container_type":  "40ft",
-                                                                                                  "bays":  11,
+                                                                                                  "lots":  11,
                                                                                                   "rows":  11,
-                                                                                                  "bay_gap":  1.75,
+                                                                                                  "lot_gap":  1.75,
                                                                                                   "row_labels":  [
                                                                                                                      "A",
                                                                                                                      "B",
@@ -258,7 +258,7 @@
                                                                                                                      "K"
                                                                                                                  ],
                                                                                                   "capacity":  "Approximately 90 containers",
-                                                                                                  "bay_numbers":  [
+                                                                                                  "lot_numbers":  [
                                                                                                                       1,
                                                                                                                       2,
                                                                                                                       3,
@@ -289,9 +289,9 @@
                                                                                                   "rotation":  0,
                                                                                                   "description":  "TRS Block C - Container storage",
                                                                                                   "container_type":  "40ft",
-                                                                                                  "bays":  11,
+                                                                                                  "lots":  11,
                                                                                                   "rows":  11,
-                                                                                                  "bay_gap":  1.75,
+                                                                                                  "lot_gap":  1.75,
                                                                                                   "row_labels":  [
                                                                                                                      "A",
                                                                                                                      "B",
@@ -306,7 +306,7 @@
                                                                                                                      "K"
                                                                                                                  ],
                                                                                                   "capacity":  "Approximately 100 containers",
-                                                                                                  "bay_numbers":  [
+                                                                                                  "lot_numbers":  [
                                                                                                                       1,
                                                                                                                       2,
                                                                                                                       3,
@@ -338,9 +338,9 @@
                                                                                                       "rotation":  0,
                                                                                                       "description":  "TRS Block D Part 1 - Container storage",
                                                                                                       "container_type":  "40ft",
-                                                                                                      "bays":  1,
+                                                                                                      "lots":  1,
                                                                                                       "rows":  10,
-                                                                                                      "bay_gap":  1.75,
+                                                                                                      "lot_gap":  1.75,
                                                                                                       "row_labels":  [
                                                                                                                          "A",
                                                                                                                          "B",
@@ -354,7 +354,7 @@
                                                                                                                          "J"
                                                                                                                      ],
                                                                                                       "capacity":  "Approximately 48 containers",
-                                                                                                      "bay_numbers":  [
+                                                                                                      "lot_numbers":  [
                                                                                                                           1
                                                                                                                       ]
                                                                                                   },
@@ -375,9 +375,9 @@
                                                                                                       "rotation":  0,
                                                                                                       "description":  "TRS Block D Part 2 - Container storage",
                                                                                                       "container_type":  "40ft",
-                                                                                                      "bays":  11,
+                                                                                                      "lots":  11,
                                                                                                       "rows":  10,
-                                                                                                      "bay_gap":  1.75,
+                                                                                                      "lot_gap":  1.75,
                                                                                                       "row_labels":  [
                                                                                                                          "A",
                                                                                                                          "B",
@@ -391,7 +391,7 @@
                                                                                                                          "J"
                                                                                                                      ],
                                                                                                       "capacity":  "Approximately 48 containers",
-                                                                                                      "bay_numbers":  [
+                                                                                                      "lot_numbers":  [
                                                                                                                           2,
                                                                                                                           3,
                                                                                                                           4,
@@ -425,9 +425,9 @@
                                                                                                   "rotation":  0,
                                                                                                   "description":  "TRM Block A - 20ft containers",
                                                                                                   "container_type":  "20ft",
-                                                                                                  "bays":  22,
+                                                                                                  "lots":  22,
                                                                                                   "rows":  11,
-                                                                                                  "bay_gap":  1.75,
+                                                                                                  "lot_gap":  1.75,
                                                                                                   "row_labels":  [
                                                                                                                      "A",
                                                                                                                      "B",
@@ -441,7 +441,7 @@
                                                                                                                      "J",
                                                                                                                      "K"
                                                                                                                  ],
-                                                                                                  "bay_numbers":  [
+                                                                                                  "lot_numbers":  [
                                                                                                                       1,
                                                                                                                       2,
                                                                                                                       3,
@@ -484,9 +484,9 @@
                                                                                                   "rotation":  0,
                                                                                                   "description":  "TRM Block B - Container storage",
                                                                                                   "container_type":  "40ft",
-                                                                                                  "bays":  11,
+                                                                                                  "lots":  11,
                                                                                                   "rows":  11,
-                                                                                                  "bay_gap":  1.75,
+                                                                                                  "lot_gap":  1.75,
                                                                                                   "row_labels":  [
                                                                                                                      "A",
                                                                                                                      "B",
@@ -501,7 +501,7 @@
                                                                                                                      "K"
                                                                                                                  ],
                                                                                                   "capacity":  "Approximately 90 containers",
-                                                                                                  "bay_numbers":  [
+                                                                                                  "lot_numbers":  [
                                                                                                                       1,
                                                                                                                       2,
                                                                                                                       3,
@@ -532,9 +532,9 @@
                                                                                                   "rotation":  0,
                                                                                                   "description":  "TRM Block C - Container storage",
                                                                                                   "container_type":  "40ft",
-                                                                                                  "bays":  11,
+                                                                                                  "lots":  11,
                                                                                                   "rows":  11,
-                                                                                                  "bay_gap":  1.75,
+                                                                                                  "lot_gap":  1.75,
                                                                                                   "row_labels":  [
                                                                                                                      "A",
                                                                                                                      "B",
@@ -548,7 +548,7 @@
                                                                                                                      "J",
                                                                                                                      "K"
                                                                                                                  ],
-                                                                                                  "bay_numbers":  [
+                                                                                                  "lot_numbers":  [
                                                                                                                       1,
                                                                                                                       2,
                                                                                                                       3,
@@ -579,9 +579,9 @@
                                                                                                   "rotation":  0,
                                                                                                   "description":  "TRM Block D - Container storage",
                                                                                                   "container_type":  "40ft",
-                                                                                                  "bays":  12,
+                                                                                                  "lots":  12,
                                                                                                   "rows":  10,
-                                                                                                  "bay_gap":  1.75,
+                                                                                                  "lot_gap":  1.75,
                                                                                                   "row_labels":  [
                                                                                                                      "A",
                                                                                                                      "B",
@@ -595,7 +595,7 @@
                                                                                                                      "J"
                                                                                                                  ],
                                                                                                   "capacity":  "Approximately 100 containers",
-                                                                                                  "bay_numbers":  [
+                                                                                                  "lot_numbers":  [
                                                                                                                       1,
                                                                                                                       2,
                                                                                                                       3,

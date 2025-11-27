@@ -1,5 +1,5 @@
-import { useContainersQuery } from '../api';
-import { useStore } from '../store/store';
+import { useContainersQuery } from '../../api';
+import { useStore } from '../../store/store';
 
 export default function ContainerList() {
     const layout = useStore((state) => state.layout);
