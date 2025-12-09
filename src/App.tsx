@@ -8,7 +8,7 @@ import BlockDetailsPanel from './components/panels/BlockDetailsPanel';
 import ModernHeader from './components/ui/ModernHeader';
 import { CameraTransition } from './components/camera/CameraTransition';
 import { useLayoutQuery, useContainersQuery } from './api';
-import LayoutBuilder from './components/layout/LayoutBuilder';
+import DynamicLayoutEngine from './components/layout/dynamic/DynamicLayoutEngine';
 import Fencing from './components/layout/Fencing';
 import Gates from './components/layout/Gates';
 import { Containers } from './components/layout/Containers';
@@ -110,15 +110,15 @@ function App() {
         <color attach="background" args={['#E6F4F1']} />
 
         <Environment />
-        <LayoutBuilder />
+        <DynamicLayoutEngine />
         <IcdMarkings />
-        {/* <Fencing />
+        <Fencing />
         <Gates />
         <Containers
           count={2000}
           controlsRef={controlsRef}
           onReady={() => setSceneReady(true)}
-        /> */}
+        />
 
         <CameraTransition isLoading={isDataLoading} controlsRef={controlsRef} />
 

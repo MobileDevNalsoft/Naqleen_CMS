@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Package, Grid3x3 } from 'lucide-react';
 import { useStore } from '../../store/store';
-import { getAllBlocks } from '../../utils/layoutUtils';
+import { getAllDynamicBlocks } from '../../utils/layoutUtils';
 
 export default function BlockDetailsPanel() {
     const selectedBlock = useStore(state => state.selectedBlock);
@@ -88,7 +88,7 @@ export default function BlockDetailsPanel() {
     const blockData = useMemo(() => {
         if (!selectedBlock || !layout) return null;
 
-        const blocks = getAllBlocks(layout);
+        const blocks = getAllDynamicBlocks(layout);
         const block = blocks.find(b => b.id === selectedBlock);
         if (!block) return null;
 
@@ -98,7 +98,8 @@ export default function BlockDetailsPanel() {
             return entity && entity.blockId === selectedBlock;
         });
 
-        const totalCapacity = (block.lots || 1) * (block.rows || 1) * 6; // Assuming 6-high stacks
+        const props = block.props || {};
+        const totalCapacity = (props.lots || 1) * (props.rows || 1) * 6; // Assuming 6-high stacks
         const currentCount = containersInBlock.length;
         const occupancyPercent = Math.round((currentCount / totalCapacity) * 100);
 
@@ -130,8 +131,9 @@ export default function BlockDetailsPanel() {
     if (!blockData) return null;
 
     const { block, containersInBlock, currentCount, totalCapacity, occupancyPercent } = blockData;
+    const props = block.props || {};
 
-    const containerTypeLabel = block.container_type || '40ft';
+    const containerTypeLabel = props.container_type || '40ft';
     const availableSlots = Math.max(totalCapacity - currentCount, 0);
     const occupiedSlots = currentCount;
 
@@ -194,7 +196,7 @@ export default function BlockDetailsPanel() {
                             textTransform: 'uppercase',
                             letterSpacing: '-0.5px'
                         }}>
-                            {block.description || block.id}
+                            {props.description || block.id}
                         </h2>
                     </div>
                     <button
@@ -323,7 +325,7 @@ export default function BlockDetailsPanel() {
                         <MetricCard
                             icon={<Grid3x3 size={18} />}
                             label="Dimensions"
-                            value={`${block.lots} lots × ${block.rows} rows`}
+                            value={`${props.lots} lots × ${props.rows} rows`}
                         />
 
                         <div style={{

@@ -1,8 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { useStore } from '../store/store';
 import { useEffect } from 'react';
-import { parseIcds, getAvailableIcds, getContainerPosition, getAllBlocks } from '../utils/layoutUtils';
-import type { IcdLayout, IcdsData, IcdTerminal } from '../utils/layoutUtils';
+import {
+    parseDynamicIcds,
+    getAvailableIcds,
+    getDynamicContainerPosition,
+    getAllDynamicBlocks
+} from '../utils/layoutUtils';
+import type { DynamicIcdLayout, DynamicEntity, DynamicIcdsData } from '../utils/layoutUtils';
 import apiClient from './apiClient';
 
 export interface ContainerData {
@@ -21,29 +26,29 @@ export interface ContainerData {
 /**
  * Fetch all icds data
  */
-export async function getAllIcds(): Promise<IcdsData> {
-    const response = await apiClient.get('/naqleen_icds.json');
+export async function getAllIcds(): Promise<any> {
+    const response = await apiClient.get('/dynamic_icds.json');
     return response.data;
 }
 
 /**
  * Fetch a specific icd layout
  */
-export async function getLayout(icdId?: string): Promise<IcdLayout> {
+export async function getLayout(icdId?: string): Promise<DynamicIcdLayout> {
     const icdsData = await getAllIcds();
-    return parseIcds(icdsData, icdId);
+    return parseDynamicIcds(icdsData, icdId);
 }
 
 /**
  * Fetch containers data and calculate positions based on layout
  */
-export async function getContainers(layout: IcdLayout): Promise<ContainerData[]> {
+export async function getContainers(layout: DynamicIcdLayout): Promise<ContainerData[]> {
     const response = await apiClient.get('/containers.json');
     const rawContainers = response.data;
 
     // Calculate positions
-    const blocks = getAllBlocks(layout);
-    const blockMap = new Map<string, IcdTerminal>();
+    const blocks = getAllDynamicBlocks(layout);
+    const blockMap = new Map<string, DynamicEntity>();
     blocks.forEach(b => blockMap.set(b.id, b));
 
     return rawContainers.map((c: any) => {
@@ -53,7 +58,7 @@ export async function getContainers(layout: IcdLayout): Promise<ContainerData[]>
             return { ...c, x: 0, y: 0, z: 0 };
         }
 
-        const pos = getContainerPosition(block, c.lot, c.row, c.level);
+        const pos = getDynamicContainerPosition(block, c.lot, c.row, c.level);
         return {
             ...c,
             x: pos.x,
@@ -94,11 +99,11 @@ export const useLayoutQuery = () => {
     return query;
 };
 
-export const useContainersQuery = (layout: IcdLayout | null) => {
+export const useContainersQuery = (layout: DynamicIcdLayout | null) => {
     const setEntitiesBatch = useStore((state) => state.setEntitiesBatch);
 
     const query = useQuery({
-        queryKey: ['containers', layout?.icd_info?.name || 'no-layout'],
+        queryKey: ['containers', layout?.name || 'no-layout'],
         queryFn: async () => {
             if (!layout) return [];
             // Simulate loading delay for effect

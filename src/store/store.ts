@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { IcdLayout } from '../utils/layoutUtils';
+import type { DynamicIcdLayout } from '../utils/layoutUtils';
 
 export interface ContainerEntity {
   id: string;
@@ -19,12 +19,12 @@ interface StoreState {
   ids: string[];
   selectId: string | null;
   selectedBlock: string | null;
-  layout: IcdLayout | null;
+  layout: DynamicIcdLayout | null;
   setEntitiesBatch: (updates: Partial<ContainerEntity> & { id: string }[]) => void;
   patchPositions: (posUpdates: { id: string; x: number; y: number; z: number }[]) => void;
   setSelectId: (id: string | null) => void;
   setSelectedBlock: (blockId: string | null) => void;
-  setLayout: (layout: IcdLayout) => void;
+  setLayout: (layout: DynamicIcdLayout) => void;
 }
 
 export const useStore = create<StoreState>((set) => ({

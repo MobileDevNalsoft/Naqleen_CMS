@@ -23,8 +23,8 @@ export interface IcdLayout {
     terminals: {
         main_operational_terminals: Record<string, IcdTerminal>;
         yard_base: IcdTerminal;
-        trs_container_blocks: Record<string, IcdTerminal | IcdTerminal[]>;
-        trm_container_blocks: Record<string, IcdTerminal>;
+        trs_blocks: Record<string, IcdTerminal | IcdTerminal[]>;
+        trm_blocks: Record<string, IcdTerminal>;
     };
 }
 
@@ -105,7 +105,7 @@ export const getContainerPosition = (
 export const getAllBlocks = (layout: IcdLayout): IcdTerminal[] => {
     const blocks: IcdTerminal[] = [];
 
-    Object.values(layout.terminals.trs_container_blocks).forEach(block => {
+    Object.values(layout.terminals.trs_blocks).forEach(block => {
         if (Array.isArray(block)) {
             blocks.push(...block);
         } else {
@@ -113,9 +113,89 @@ export const getAllBlocks = (layout: IcdLayout): IcdTerminal[] => {
         }
     });
 
-    Object.values(layout.terminals.trm_container_blocks).forEach(block => {
+    Object.values(layout.terminals.trm_blocks).forEach(block => {
         blocks.push(block);
     });
 
     return blocks;
+};
+
+// --- Dynamic Engine Types ---
+
+export interface DynamicEntity {
+    id: string;
+    type: string;
+    position: { x: number; y: number; z: number };
+    rotation?: number;
+    dimensions?: { width: number; height: number }; // Optional base dimensions
+    corner_points?: Array<{ x: number; z: number }>; // For irregular shapes
+    props?: Record<string, any>; // Flexible props for specific components
+}
+
+export interface DynamicIcdLayout {
+    id: string;
+    name: string;
+    location: string;
+    entities: DynamicEntity[];
+}
+
+export interface DynamicIcdsData {
+    version: string;
+    icds: Record<string, DynamicIcdLayout>;
+}
+
+export const parseDynamicIcds = (json: DynamicIcdsData, icdId?: string): DynamicIcdLayout => {
+    const selectedIcdId = icdId || Object.keys(json.icds)[0];
+    return json.icds[selectedIcdId];
+};
+
+export const getAllDynamicBlocks = (layout: DynamicIcdLayout): DynamicEntity[] => {
+    if (!layout || !layout.entities) return [];
+    return layout.entities.filter(e => e && e.type && e.type.includes('block'));
+};
+
+export const getDynamicContainerPosition = (
+    entity: DynamicEntity,
+    lotIndex: number,
+    rowIndex: number,
+    levelIndex: number
+): Vector3 => {
+    const props = entity.props || {};
+
+    // Container dimensions (approximate for 20ft and 40ft)
+    const containerType = props.container_type || '20ft';
+    const is20ft = containerType === '20ft';
+    const containerLength = is20ft ? 6.058 : 12.192;
+    const containerWidth = 2.438;
+    const containerHeight = 2.591;
+
+    const gapX = props.lot_gap || 0.5; // Gap between lots
+    const gapZ = 0.3; // Gap between rows
+
+    // Calculate local position within the block
+    const lots = props.lots || 1;
+    const rows = props.rows || 1;
+
+    const totalWidth = lots * (containerLength + gapX);
+    const totalDepth = rows * (containerWidth + gapZ);
+
+    const startX = -totalWidth / 2 + containerLength / 2;
+    const startZ = -totalDepth / 2 + containerWidth / 2;
+
+    const x = startX + lotIndex * (containerLength + gapX);
+    const y = entity.position.y + containerHeight / 2 + levelIndex * containerHeight;
+    const z = startZ + rowIndex * (containerWidth + gapZ);
+
+    // Apply terminal position and rotation
+    const position = new Vector3(x, y, z);
+
+    // Simple rotation around Y axis
+    if (entity.rotation) {
+        const euler = new Euler(0, (entity.rotation * Math.PI) / 180, 0);
+        position.applyEuler(euler);
+    }
+
+    position.add(new Vector3(entity.position.x, 0, entity.position.z));
+
+    return position;
 };

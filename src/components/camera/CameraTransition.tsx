@@ -2,7 +2,7 @@ import { useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useStore } from '../../store/store';
-import { getAllBlocks } from '../../utils/layoutUtils';
+import { getAllDynamicBlocks } from '../../utils/layoutUtils';
 import gsap from 'gsap';
 
 interface CameraTransitionProps {
@@ -113,7 +113,7 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
 
         } else if (selectedBlock && layout) {
             // --- Block Selection ---
-            const blocks = getAllBlocks(layout);
+            const blocks = getAllDynamicBlocks(layout);
             const block = blocks.find(b => b.id === selectedBlock);
 
             if (block) {

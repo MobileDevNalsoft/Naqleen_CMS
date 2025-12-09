@@ -12,9 +12,9 @@ const containers = [];
 function getAllBlocks(layout) {
     const blocks = [];
     const terminals = layout.terminals;
-    
-    if (terminals.trs_container_blocks) {
-        Object.values(terminals.trs_container_blocks).forEach(block => {
+
+    if (terminals.trs_blocks) {
+        Object.values(terminals.trs_blocks).forEach(block => {
             if (Array.isArray(block)) {
                 block.forEach(b => blocks.push(b));
             } else {
@@ -22,9 +22,9 @@ function getAllBlocks(layout) {
             }
         });
     }
-    if (terminals.trm_container_blocks) {
-        Object.values(terminals.trm_container_blocks).forEach(block => {
-             blocks.push(block);
+    if (terminals.trm_blocks) {
+        Object.values(terminals.trm_blocks).forEach(block => {
+            blocks.push(block);
         });
     }
 
@@ -73,7 +73,7 @@ blocks.forEach(block => {
                     // Rotate
                     const cos = Math.cos(blockRot);
                     const sin = Math.sin(blockRot);
-                    
+
                     const rx = lx * cos - lz * sin;
                     const rz = lx * sin + lz * cos;
 
@@ -85,12 +85,12 @@ blocks.forEach(block => {
                     // Extract terminal type and block letter from block ID
                     const terminalType = block.id.includes('trs') ? 'trs' : 'trm';
                     const blockLetter = block.id.match(/_([a-d])$/)?.[1] || 'a';
-                    
+
                     // Convert to new naming convention
                     const rowLetter = String.fromCharCode(97 + r); // a, b, c...
                     const lotLetter = String.fromCharCode(97 + b); // a, b, c...
                     const levelNumber = t + 1; // 1-6
-                    
+
                     containers.push({
                         id: `${terminalType}_block_${blockLetter}_r${r + 1}_b${lotLetter}_l${levelNumber}`,
                         status: Math.random() > 0.9 ? 'maintenance' : Math.random() > 0.7 ? 'active' : 'inactive',
