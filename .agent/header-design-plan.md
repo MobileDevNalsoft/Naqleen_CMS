@@ -3,7 +3,7 @@
 ## Header Layout Structure
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ [Logo] [Terminal ▼] │ [Search] [Filter] │ [Views] [Actions] │ [User] [⚙️] │
+│ [Logo] [Icd ▼] │ [Search] [Filter] │ [Views] [Actions] │ [User] [⚙️] │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -13,13 +13,13 @@
 - **Naqleen CMS Logo** (clickable - returns to home/default view)
 - App version indicator (small text below logo)
 
-### Terminal Selector Dropdown
-- **Current Terminal**: Displays selected terminal name
+### Icd Selector Dropdown
+- **Current Icd**: Displays selected icd name
 - **Dropdown Options**:
-  - List of all available terminals
-  - "Manage Terminals" option
-  - Recently accessed terminals (quick access)
-  - Terminal status indicator (Active/Inactive)
+  - List of all available icds
+  - "Manage Icds" option
+  - Recently accessed icds (quick access)
+  - Icd status indicator (Active/Inactive)
 
 ---
 
@@ -28,8 +28,8 @@
 ### Global Search Bar
 - **Search Input**: Autocomplete search across:
   - Container numbers
-  - Block names (TRS, TRM zones)
-  - Bay/Row locations (e.g., "A-03", "B-12")
+  - Block names (TRS, TRM terminals)
+  - Lot/Row locations (e.g., "A-03", "B-12")
   - Vessel names
   - Booking numbers
   - Customer names
@@ -45,9 +45,9 @@
 - **Quick Filters Panel** (slide-out):
   - Container Status: Empty, Full, Damaged, Under Repair
   - Container Type: 20ft, 40ft, 45ft, Reefer, Open Top, Flat Rack
-  - Block/Zone: TRS Block A, TRS Block B, TRM Block C, etc.
-  - Ownership: Client-owned, Leased, Terminal-owned
-  - Days in Terminal: 0-7, 8-14, 15-30, 30+
+  - Block/Terminal: TRS Block A, TRS Block B, TRM Block C, etc.
+  - Ownership: Client-owned, Leased, Icd-owned
+  - Days in Icd: 0-7, 8-14, 15-30, 30+
   - Customs Status: Cleared, Pending, Hold
   - Hazmat: Yes/No
   - Condition: Good, Fair, Poor
@@ -68,7 +68,7 @@
 - **Layer Toggle**:
   - Show/Hide Container Labels
   - Show/Hide Block Names
-  - Show/Hide Bay/Row Numbers
+  - Show/Hide Lot/Row Numbers
   - Show/Hide Fences
   - Show/Hide Environment (trees, warehouses)
   - Show/Hide Shadows
@@ -123,11 +123,11 @@
 
 ### Reports Dropdown
 - **Operational Reports**:
-  - Daily Terminal Report
+  - Daily Icd Report
   - Container Inventory Report
   - Movement Summary
   - Dwell Time Analysis
-  - Utilization Report (by block/zone)
+  - Utilization Report (by block/terminal)
   - Gate Activity Report
   
 - **Financial Reports**:
@@ -179,10 +179,10 @@
   - Keyboard Shortcuts
   - Notification Preferences
 
-- **Terminal Configuration**:
+- **Icd Configuration**:
   - Edit Layout
   - Manage Blocks
-  - Configure Bay/Row Numbering
+  - Configure Lot/Row Numbering
   - Set Business Rules
   - Working Hours
 
@@ -195,7 +195,7 @@
 - **User Info**:
   - [Avatar] Username
   - Role: Admin/Operator/Viewer
-  - Terminal: Current terminal name
+  - Icd: Current icd name
   
 - **Menu Options**:
   - My Profile
@@ -212,10 +212,10 @@
 ## Section 6: Context Bar (Optional Second Row)
 
 ### Breadcrumb Navigation
-- Home > Terminal Name > Selected Block/Container
+- Home > Icd Name > Selected Block/Container
 
 ### Status Indicators (Right of breadcrumb)
-- **Terminal Occupancy**: 
+- **Icd Occupancy**: 
   - "1,234 / 2,000 TEU (61.7%)"
   - Color-coded: Green (<70%), Yellow (70-90%), Red (>90%)
 
@@ -227,9 +227,9 @@
 ### Selection Info (When container selected)
 - **Container**: ABCU1234567
 - **Type**: 40ft High Cube
-- **Location**: Block TRS-A, Bay 03, Row B, Tier 2
+- **Location**: Block TRS-A, Lot 03, Row B, level 2
 - **Status**: Full/Export
-- **Days in Terminal**: 5 days
+- **Days in Icd**: 5 days
 - **Actions**: [📍 Locate] [📝 Details] [🚚 Move] [❌ Deselect]
 
 ---
@@ -299,7 +299,7 @@
 ## Implementation Priority
 
 ### Phase 1 (MVP - Immediate)
-1. Logo & Terminal Selector
+1. Logo & Icd Selector
 2. Global Search
 3. View Mode Switcher (3D, Top, List)
 4. User Profile & Logout
@@ -327,7 +327,7 @@
 ### Global State (Zustand Store)
 ```typescript
 interface HeaderState {
-  selectedTerminal: string;
+  selectedIcd: string;
   searchQuery: string;
   activeFilters: FilterConfig;
   viewMode: '3d' | 'top' | 'list' | 'heatmap' | 'timeline';
@@ -361,7 +361,7 @@ interface HeaderState {
 ## Integration Points
 
 ### API Endpoints Required
-- `GET /api/terminals` - List of terminals
+- `GET /api/icds` - List of icds
 - `GET /api/search?q={query}` - Global search
 - `GET /api/containers?filters={...}` - Filtered containers
 - `GET /api/reports/{type}` - Generate reports
@@ -371,7 +371,7 @@ interface HeaderState {
 - `GET /api/users/me` - Current user info
 
 ### Event System
-- `onTerminalChange`
+- `onIcdChange`
 - `onSearchSubmit`
 - `onFilterChange`
 - `onViewModeChange`

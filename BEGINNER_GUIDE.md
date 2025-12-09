@@ -143,14 +143,14 @@ export const useLayoutQuery = () => {
 ```
 
 **What's happening?**
-1. **Fetch**: `getLayout()` fetches `naqleen_terminal_zones.json`
+1. **Fetch**: `getLayout()` fetches `naqleen_icd_terminals.json`
 2. **Parse**: Converts JSON into a structured format
 3. **Store**: Saves the layout to Zustand store (global state)
 
 **The Layout JSON** contains:
-- Terminal dimensions (360m x 145m)
+- Icd dimensions (360m x 145m)
 - Container blocks (A, B, C, D)
-- Each block's position, size, number of bays, rows
+- Each block's position, size, number of lots, rows
 
 ---
 
@@ -159,18 +159,18 @@ export const useLayoutQuery = () => {
 Once we have the layout, we generate containers:
 
 ```typescript
-const generateContainersFromLayout = (layout: TerminalLayout) => {
+const generateContainersFromLayout = (layout: IcdLayout) => {
   const containers = [];
   const blocks = getAllBlocks(layout);
   
   blocks.forEach(block => {
-    const bays = block.bays || 1;
+    const lots = block.lots || 1;
     const rows = block.rows || 1;
-    const tiers = 3;  // Stack up to 3 high
+    const levels = 3;  // Stack up to 3 high
     
-    for (let b = 0; b < bays; b++) {
+    for (let b = 0; b < lots; b++) {
       for (let r = 0; r < rows; r++) {
-        for (let t = 0; t < tiers; t++) {
+        for (let t = 0; t < levels; t++) {
           if (Math.random() > 0.4) {  // 60% fill rate
             const pos = getContainerPosition(block, b, r, t);
             containers.push({
@@ -178,7 +178,7 @@ const generateContainersFromLayout = (layout: TerminalLayout) => {
               x: pos.x, y: pos.y, z: pos.z,
               status: randomStatus(),
               blockId: block.id,
-              bay: b, row: r, tier: t
+              lot: b, row: r, level: t
             });
           }
         }
@@ -192,14 +192,14 @@ const generateContainersFromLayout = (layout: TerminalLayout) => {
 
 **What's happening?**
 1. **Loop through blocks**: For each block (A, B, C, D)
-2. **Loop through positions**: For each bay, row, and tier
+2. **Loop through positions**: For each lot, row, and level
 3. **Calculate position**: Use `getContainerPosition()` to get 3D coordinates
 4. **Create container**: Add to array with ID, position, status
 
 **Why the loops?** 
-- **Bay**: Position along the length of the block
+- **Lot**: Position along the length of the block
 - **Row**: Position across the width
-- **Tier**: Height (stacking)
+- **level**: Height (stacking)
 
 ---
 
@@ -396,7 +396,7 @@ startSimulation() {
 ## 🔄 How Data Flows Through the App
 
 ```
-JSON File (naqleen_terminal_zones.json)
+JSON File (naqleen_icd_terminals.json)
     ↓
 TanStack Query (useLayoutQuery)
     ↓
