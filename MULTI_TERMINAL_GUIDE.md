@@ -1,76 +1,76 @@
-# 🏗️ Multi-Terminal Scalable Structure
+# 🏗️ Multi-Icd Scalable Structure
 
 ## Overview
 
-The JSON structure has been upgraded from **single-terminal** to **multi-terminal** architecture, making it easy to add more terminals in the future.
+The JSON structure has been upgraded from **single-icd** to **multi-icd** architecture, making it easy to add more icds in the future.
 
 ---
 
 ## 📊 Structure Comparison
 
-### ❌ Old Structure (Single Terminal)
+### ❌ Old Structure (Single Icd)
 
 ```json
 {
-  "naqleen_terminal_zones": {
-    "terminal_info": { "name": "Naqleen Container Terminal", ... },
-    "zones": { ... }
+  "naqleen_icd_terminals": {
+    "icd_info": { "name": "Naqleen Container Icd", ... },
+    "terminals": { ... }
   }
 }
 ```
 
 **Problems:**
-- Hard-coded to one terminal
-- Adding another terminal requires major restructuring
-- No way to switch between terminals
+- Hard-coded to one icd
+- Adding another icd requires major restructuring
+- No way to switch between icds
 
 ---
 
-### ✅ New Structure (Multi-Terminal)
+### ✅ New Structure (Multi-Icd)
 
 ```json
 {
   "version": "2.0",
-  "terminals": {
+  "icds": {
     "naqleen-jeddah": {
       "id": "naqleen-jeddah",
-      "terminal_info": { "name": "Naqleen Container Terminal", ... },
-      "zones": { ... }
+      "icd_info": { "name": "Naqleen Container Icd", ... },
+      "terminals": { ... }
     },
-    "terminal-dubai": {
-      "id": "terminal-dubai",
-      "terminal_info": { "name": "Dubai Container Terminal", ... },
-      "zones": { ... }
+    "icd-dubai": {
+      "id": "icd-dubai",
+      "icd_info": { "name": "Dubai Container Icd", ... },
+      "terminals": { ... }
     }
   }
 }
 ```
 
 **Benefits:**
-- ✅ Multiple terminals in one file
-- ✅ Easy to add new terminals
-- ✅ O(1) lookup by terminal ID
+- ✅ Multiple icds in one file
+- ✅ Easy to add new icds
+- ✅ O(1) lookup by icd ID
 - ✅ Future-proof and scalable
 
 ---
 
-## 🎯 How to Add a New Terminal
+## 🎯 How to Add a New Icd
 
-Simply add another entry to the `terminals` object:
+Simply add another entry to the `icds` object:
 
 ```json
 {
   "version": "2.0",
-  "terminals": {
+  "icds": {
     "naqleen-jeddah": { ... },
-    "riyadh-terminal": {
-      "id": "riyadh-terminal",
-      "terminal_info": {
-        "name": "Riyadh Container Terminal",
+    "riyadh-icd": {
+      "id": "riyadh-icd",
+      "icd_info": {
+        "name": "Riyadh Container Icd",
         "location": "Riyadh, Saudi Arabia",
         ...
       },
-      "zones": { ... }
+      "terminals": { ... }
     }
   }
 }
@@ -85,41 +85,41 @@ That's it! No code changes needed.
 ### 1. **New TypeScript Interfaces**
 
 ```typescript
-// Single terminal (unchanged)
-export interface TerminalLayout {
-  id: string;  // ← NEW: Terminal ID
-  terminal_info: any;
-  zone_types: any;
-  zones: { ... };
+// Single icd (unchanged)
+export interface IcdLayout {
+  id: string;  // ← NEW: Icd ID
+  icd_info: any;
+  terminal_types: any;
+  terminals: { ... };
 }
 
-// Multi-terminal container (NEW)
-export interface TerminalsData {
+// Multi-icd container (NEW)
+export interface IcdsData {
   version: string;
-  terminals: Record<string, TerminalLayout>;
+  icds: Record<string, IcdLayout>;
 }
 ```
 
 ### 2. **New Helper Functions**
 
 ```typescript
-// Parse and get a specific terminal
-export const parseTerminals = (
-  json: TerminalsData, 
-  terminalId?: string
-): TerminalLayout => {
-  const firstTerminalId = terminalId || Object.keys(json.terminals)[0];
-  return json.terminals[firstTerminalId];
+// Parse and get a specific icd
+export const parseIcds = (
+  json: IcdsData, 
+  icdId?: string
+): IcdLayout => {
+  const firstIcdId = icdId || Object.keys(json.icds)[0];
+  return json.icds[firstIcdId];
 };
 
-// Get list of all available terminals
-export const getAvailableTerminals = (
-  json: TerminalsData
+// Get list of all available icds
+export const getAvailableIcds = (
+  json: IcdsData
 ): Array<{ id: string; name: string; location: string }> => {
-  return Object.entries(json.terminals).map(([id, terminal]) => ({
+  return Object.entries(json.icds).map(([id, icd]) => ({
     id,
-    name: terminal.terminal_info.name,
-    location: terminal.terminal_info.location,
+    name: icd.icd_info.name,
+    location: icd.icd_info.location,
   }));
 };
 ```
@@ -127,25 +127,25 @@ export const getAvailableTerminals = (
 ### 3. **Updated API Functions**
 
 ```typescript
-// Fetch all terminals
-export async function getAllTerminals(): Promise<TerminalsData> {
-  const response = await apiClient.get('/naqleen_terminals.json');
+// Fetch all icds
+export async function getAllIcds(): Promise<IcdsData> {
+  const response = await apiClient.get('/naqleen_icds.json');
   return response.data;
 }
 
-// Fetch specific terminal (defaults to first)
-export async function getLayout(terminalId?: string): Promise<TerminalLayout> {
-  const terminalsData = await getAllTerminals();
-  return parseTerminals(terminalsData, terminalId);
+// Fetch specific icd (defaults to first)
+export async function getLayout(icdId?: string): Promise<IcdLayout> {
+  const icdsData = await getAllIcds();
+  return parseIcds(icdsData, icdId);
 }
 
-// NEW: Get list of terminals for dropdown
-export const useTerminalsQuery = () => {
+// NEW: Get list of icds for dropdown
+export const useIcdsQuery = () => {
   return useQuery({
-    queryKey: ['terminals-list'],
+    queryKey: ['icds-list'],
     queryFn: async () => {
-      const data = await getAllTerminals();
-      return getAvailableTerminals(data);
+      const data = await getAllIcds();
+      return getAvailableIcds(data);
     },
   });
 };
@@ -154,13 +154,13 @@ export const useTerminalsQuery = () => {
 ### 4. **Updated useLayoutQuery**
 
 ```typescript
-// Now accepts optional terminalId
-export const useLayoutQuery = (terminalId?: string) => {
+// Now accepts optional icdId
+export const useLayoutQuery = (icdId?: string) => {
   const setLayout = useStore((state) => state.setLayout);
 
   const query = useQuery({
-    queryKey: ['layout', terminalId || 'default'],
-    queryFn: () => getLayout(terminalId),
+    queryKey: ['layout', icdId || 'default'],
+    queryFn: () => getLayout(icdId),
   });
 
   useEffect(() => {
@@ -175,30 +175,30 @@ export const useLayoutQuery = (terminalId?: string) => {
 
 ---
 
-## 🎨 How to Add Terminal Switcher (Future)
+## 🎨 How to Add Icd Switcher (Future)
 
-When you want to let users switch terminals:
+When you want to let users switch icds:
 
 ```tsx
 function App() {
-  const [selectedTerminalId, setSelectedTerminalId] = useState<string>('naqleen-jeddah');
+  const [selectedIcdId, setSelectedIcdId] = useState<string>('naqleen-jeddah');
   
-  // Get list of terminals
-  const { data: terminals } = useTerminalsQuery();
+  // Get list of icds
+  const { data: icds } = useIcdsQuery();
   
-  // Load selected terminal
-  const { data: layout } = useLayoutQuery(selectedTerminalId);
+  // Load selected icd
+  const { data: layout } = useLayoutQuery(selectedIcdId);
   
   return (
     <div>
-      {/* Terminal Selector Dropdown */}
+      {/* Icd Selector Dropdown */}
       <select 
-        value={selectedTerminalId} 
-        onChange={(e) => setSelectedTerminalId(e.target.value)}
+        value={selectedIcdId} 
+        onChange={(e) => setSelectedIcdId(e.target.value)}
       >
-        {terminals?.map(terminal => (
-          <option key={terminal.id} value={terminal.id}>
-            {terminal.name} - {terminal.location}
+        {icds?.map(icd => (
+          <option key={icd.id} value={icd.id}>
+            {icd.name} - {icd.location}
           </option>
         ))}
       </select>
@@ -216,18 +216,18 @@ function App() {
 
 ## 📝 Current State
 
-**Currently:** Only Naqleen Jeddah terminal is in the JSON file.
+**Currently:** Only Naqleen Jeddah icd is in the JSON file.
 
-**Future:** Just add more terminals to `naqleen_terminals.json`:
+**Future:** Just add more icds to `naqleen_icds.json`:
 
 ```json
 {
   "version": "2.0",
-  "terminals": {
+  "icds": {
     "naqleen-jeddah": { ... },     // ← Already exists
-    "dubai-terminal": { ... },      // ← Add this
-    "riyadh-terminal": { ... },     // ← Add this
-    "dammam-terminal": { ... }      // ← Add this
+    "dubai-icd": { ... },      // ← Add this
+    "riyadh-icd": { ... },     // ← Add this
+    "dammam-icd": { ... }      // ← Add this
   }
 }
 ```
@@ -241,15 +241,15 @@ function App() {
 The old `parseLayout` function is still available for legacy JSON:
 
 ```typescript
-// Old JSON (naqleen_terminal_zones.json)
-export const parseLayout = (json: any): TerminalLayout => {
-  return json.naqleen_terminal_zones;
+// Old JSON (naqleen_icd_terminals.json)
+export const parseLayout = (json: any): IcdLayout => {
+  return json.naqleen_icd_terminals;
 };
 
-// New JSON (naqleen_terminals.json)
-export const parseTerminals = (json: TerminalsData, terminalId?: string): TerminalLayout => {
-  const firstTerminalId = terminalId || Object.keys(json.terminals)[0];
-  return json.terminals[firstTerminalId];
+// New JSON (naqleen_icds.json)
+export const parseIcds = (json: IcdsData, icdId?: string): IcdLayout => {
+  const firstIcdId = icdId || Object.keys(json.icds)[0];
+  return json.icds[firstIcdId];
 };
 ```
 
@@ -259,10 +259,10 @@ export const parseTerminals = (json: TerminalsData, terminalId?: string): Termin
 
 | Feature | Old Structure | New Structure |
 |---------|--------------|---------------|
-| **Multiple Terminals** | ❌ Not possible | ✅ Unlimited terminals |
-| **Terminal Switching** | ❌ Requires code changes | ✅ Just change ID in hook |
+| **Multiple Icds** | ❌ Not possible | ✅ Unlimited icds |
+| **Icd Switching** | ❌ Requires code changes | ✅ Just change ID in hook |
 | **Scalability** | ❌ Hard-coded | ✅ Fully scalable |
-| **Caching** | Single cache entry | Per-terminal caching |
+| **Caching** | Single cache entry | Per-icd caching |
 | **Lookup Speed** | N/A | O(1) by ID |
 
 ---
@@ -275,20 +275,20 @@ export const parseTerminals = (json: TerminalsData, terminalId?: string): Termin
 // Works exactly as before
 function App() {
   const { data: layout } = useLayoutQuery();
-  // Uses default terminal (first in list)
+  // Uses default icd (first in list)
 }
 ```
 
-### Future App (Multi-Terminal)
+### Future App (Multi-Icd)
 
 ```tsx
-// With terminal selection
+// With icd selection
 function App() {
-  const [terminalId, setTerminalId] = useState('naqleen-jeddah');
-  const { data: layout } = useLayoutQuery(terminalId);
+  const [icdId, setIcdId] = useState('naqleen-jeddah');
+  const { data: layout } = useLayoutQuery(icdId);
   
-  // Switch terminals
-  <button onClick={() => setTerminalId('dubai-terminal')}>
+  // Switch icds
+  <button onClick={() => setIcdId('dubai-icd')}>
     Switch to Dubai
   </button>
 }
@@ -300,14 +300,14 @@ function App() {
 
 ```
 public/
-├── naqleen_terminal_zones.json  ← OLD (kept for reference)
-└── naqleen_terminals.json       ← NEW (scalable structure)
+├── naqleen_icd_terminals.json  ← OLD (kept for reference)
+└── naqleen_icds.json       ← NEW (scalable structure)
 
 src/
 ├── utils/
 │   └── layoutUtils.ts           ← Updated with new interfaces
 ├── api/
-│   └── index.ts                 ← Updated with terminal selection
+│   └── index.ts                 ← Updated with icd selection
 └── store/
     └── store.ts                 ← No changes needed
 ```
@@ -320,32 +320,32 @@ If this were Flutter:
 
 ```dart
 // Old approach
-final terminal = terminalData.naqleenTerminalZones;
+final icd = icdData.naqleenIcdTerminals;
 
 // New approach
-final terminals = {
-  'naqleen-jeddah': Terminal(...),
-  'dubai-terminal': Terminal(...),
+final icds = {
+  'naqleen-jeddah': Icd(...),
+  'dubai-icd': Icd(...),
 };
 
-// Get specific terminal
-final terminal = terminals['naqleen-jeddah'];
+// Get specific icd
+final icd = icds['naqleen-jeddah'];
 
 // Or get first
-final terminal = terminals.values.first;
+final icd = icds.values.first;
 ```
 
-Similar to having a `Map<String, Terminal>` instead of a single `Terminal` object.
+Similar to having a `Map<String, Icd>` instead of a single `Icd` object.
 
 ---
 
 ## ✅ Summary
 
 **What Changed:**
-1. JSON structure now supports multiple terminals
-2. Added `id` field to `TerminalLayout`
-3. Added helper functions for parsing and listing terminals
-4. Updated `useLayoutQuery` to accept optional `terminalId`
+1. JSON structure now supports multiple icds
+2. Added `id` field to `IcdLayout`
+3. Added helper functions for parsing and listing icds
+4. Updated `useLayoutQuery` to accept optional `icdId`
 
 **What Stayed the Same:**
 1. Component code (no breaking changes)
@@ -354,10 +354,10 @@ Similar to having a `Map<String, Terminal>` instead of a single `Terminal` objec
 4. 3D rendering
 
 **Future Steps:**
-1. Add more terminals to `naqleen_terminals.json`
-2. Add terminal selector UI
-3. Implement terminal-specific features
+1. Add more icds to `naqleen_icds.json`
+2. Add icd selector UI
+3. Implement icd-specific features
 
 ---
 
-🎉 **You now have a production-ready, scalable multi-terminal architecture!**
+🎉 **You now have a production-ready, scalable multi-icd architecture!**

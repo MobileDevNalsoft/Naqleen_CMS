@@ -9,8 +9,8 @@ We replaced the native `fetch` API with **Axios** for better developer experienc
 ## Before (fetch)
 
 ```typescript
-export async function getLayout(): Promise<TerminalLayout> {
-    const r = await fetch('/naqleen_terminal_zones.json');
+export async function getLayout(): Promise<IcdLayout> {
+    const r = await fetch('/naqleen_icd_terminals.json');
     if (!r.ok) throw new Error('Failed to fetch layout');
     return parseLayout(await r.json());
 }
@@ -19,8 +19,8 @@ export async function getLayout(): Promise<TerminalLayout> {
 ## After (axios)
 
 ```typescript
-export async function getLayout(): Promise<TerminalLayout> {
-    const response = await apiClient.get('/naqleen_terminal_zones.json');
+export async function getLayout(): Promise<IcdLayout> {
+    const response = await apiClient.get('/naqleen_icd_terminals.json');
     return parseLayout(response.data);
 }
 ```
@@ -224,7 +224,7 @@ src/
 - Interceptors (logging, auth, error handling)
 
 ### `index.ts` (API Functions)
-- `getLayout()` - Fetch terminal layout
+- `getLayout()` - Fetch icd layout
 - Future functions for containers, users, etc.
 
 ---
