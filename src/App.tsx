@@ -6,6 +6,7 @@ import LoadingScreen from './components/ui/LoadingScreen';
 import ContainerDetailsPanel from './components/panels/ContainerDetailsPanel';
 import BlockDetailsPanel from './components/panels/BlockDetailsPanel';
 import ModernHeader from './components/ui/ModernHeader';
+import HoverInfoPanel from './components/ui/HoverInfoPanel';
 import { CameraTransition } from './components/camera/CameraTransition';
 import { useLayoutQuery, useContainersQuery } from './api';
 import DynamicLayoutEngine from './components/layout/dynamic/DynamicLayoutEngine';
@@ -23,13 +24,112 @@ import DestuffingPanel from './components/panels/DestuffingPanel';
 import PlugInOutPanel from './components/panels/PlugInOutPanel';
 import CFSTaskAssignmentPanel from './components/panels/CFSTaskAssignmentPanel';
 import PositionContainerPanel from './components/panels/PositionContainerPanel';
+import Dashboard from './components/ui/Dashboard';
 
 function App() {
   const { data: layout, isLoading: layoutLoading } = useLayoutQuery();
   const { isLoading: containersLoading } = useContainersQuery(layout || null);
   const [sceneReady, setSceneReady] = useState(false);
+  const [activeNav, setActiveNav] = useState('3D View');
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasSectionRef = useRef<HTMLElement>(null);
+  const dashboardSectionRef = useRef<HTMLElement>(null);
   const controlsRef = useRef<any>(null);
+  const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastScrollTop = useRef<number>(0);
+  const scrollDirection = useRef<'down' | 'up'>('down');
+
+  // Scroll Handling & Snap Logic
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      // Direction Detection
+      const currentScroll = container.scrollTop;
+      if (currentScroll > lastScrollTop.current) {
+        scrollDirection.current = 'down';
+      } else if (currentScroll < lastScrollTop.current) {
+        scrollDirection.current = 'up';
+      }
+      lastScrollTop.current = currentScroll;
+
+      // Clear existing timeout
+      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+
+      const height = container.clientHeight;
+      const threshold = height * 0.10; // 10% threshold
+
+      // Update Active Nav based on position (Visual only, doesn't affect snap logic)
+      if (currentScroll > height / 2) {
+        if (activeNav !== 'Dashboard') setActiveNav('Dashboard');
+      } else {
+        if (activeNav !== '3D View') setActiveNav('3D View');
+      }
+
+      // Snap Logic on scroll end
+      scrollTimeout.current = setTimeout(() => {
+        // Evaluate based on Direction
+        const direction = scrollDirection.current;
+        const snapScroll = container.scrollTop;
+
+        if (snapScroll > 0 && snapScroll < height) {
+          if (direction === 'down') {
+            // Moving Down: Snap to Bottom if moved > 10% (i.e. > threshold)
+            // If moved < 10% (i.e. < threshold), snap back Top
+            if (snapScroll > threshold) {
+              container.scrollTo({ top: height, behavior: 'smooth' });
+            } else {
+              container.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          } else {
+            // Moving Up: Snap to Top if moved > 10% from bottom (i.e. < 90% or < height - threshold)
+            // If moved < 10% from bottom (i.e. > height - threshold), snap back Bottom
+            const bottomThreshold = height - threshold;
+            if (snapScroll < bottomThreshold) {
+              container.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+              container.scrollTo({ top: height, behavior: 'smooth' });
+            }
+          }
+        }
+      }, 150); // Wait for scroll to stop
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+    };
+  }, [activeNav]);
+
+  const handleNavChange = (nav: string) => {
+    setActiveNav(nav);
+    if (!containerRef.current) return;
+
+    const height = containerRef.current.clientHeight;
+    if (nav === 'Dashboard') {
+      containerRef.current.scrollTo({ top: height, behavior: 'smooth' });
+    } else {
+      containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // Handle Wheel Event to pass scroll from Canvas to Page when zoomed out
+  const handleCanvasWheel = (e: React.WheelEvent) => {
+    if (!controlsRef.current || !containerRef.current) return;
+    const controls = controlsRef.current;
+
+    const distance = controls.object.position.distanceTo(controls.target);
+    const output = e.deltaY;
+
+    // If zooming out (deltaY > 0) and at max distance
+    // Using 599 as threshold (max is 600)
+    if (output > 0 && distance >= controls.maxDistance - 1) {
+      containerRef.current.scrollBy({ top: output, behavior: 'auto' });
+    }
+  };
 
   // Prevent panning outside environment boundaries
   const handleControlsChange = () => {
@@ -85,91 +185,111 @@ function App() {
   }, [selectId, selectedBlock, closePanel]);
 
   return (
-    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', margin: 0, padding: 0, position: 'relative' }}>
+    <div
+      ref={containerRef}
+      style={{
+        width: '100vw',
+        height: '100vh',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        margin: 0,
+        padding: 0,
+        position: 'relative',
+        scrollBehavior: 'smooth'
+      }}
+    >
 
-      {/* Modern Branding Header */}
-      <ModernHeader />
+      {/* Modern Branding Header - Fixed on top of container */}
+      <div style={{ position: 'sticky', top: 0, left: 0, right: 0, zIndex: 1000, height: 0 }}>
+        <ModernHeader activeNav={activeNav} onNavChange={handleNavChange} />
+        <HoverInfoPanel />
+      </div>
 
-      {/* Side Panels */}
-      <ContainerDetailsPanel />
-      <BlockDetailsPanel />
-
-      {/* Loading Screen */}
-      {showLoadingScreen && (
-        <LoadingScreen
-          isLoading={isDataLoading}
-          onComplete={() => setShowLoadingScreen(false)}
-        />
-      )}
-
-      <Canvas
-        style={{ width: '100%', height: '100%', display: 'block' }}
-        camera={{ position: [0, 150, 300], fov: 45 }}
-        shadows
+      {/* 3D View Section */}
+      <section
+        ref={canvasSectionRef}
+        onWheel={handleCanvasWheel}
+        style={{
+          width: '100%',
+          height: '100vh',
+          position: 'relative',
+          // Ensure overlays work
+        }}
       >
-        <color attach="background" args={['#E6F4F1']} />
+        {/* Side Panels */}
+        <ContainerDetailsPanel />
+        <BlockDetailsPanel />
 
-        <Environment />
-        <DynamicLayoutEngine />
-        <IcdMarkings />
-        <Fencing />
-        <Gates />
-        <Containers
-          count={2000}
-          controlsRef={controlsRef}
-          onReady={() => setSceneReady(true)}
-        />
+        {/* Loading Screen */}
+        {showLoadingScreen && (
+          <LoadingScreen
+            isLoading={isDataLoading}
+            onComplete={() => setShowLoadingScreen(false)}
+          />
+        )}
 
-        <CameraTransition isLoading={isDataLoading} controlsRef={controlsRef} />
+        <Canvas
+          style={{ width: '100%', height: '100%', display: 'block' }}
+          camera={{ position: [0, 150, 300], fov: 45 }}
+          shadows
+        >
+          <color attach="background" args={['#E6F4F1']} />
 
-        <OrbitControls
-          ref={controlsRef}
-          makeDefault
-          enableDamping
-          dampingFactor={0.05}
-          minPolarAngle={0}                    // Prevent looking straight down
-          maxPolarAngle={Math.PI / 2 - 0.05}     // Prevent going below horizontal
-          minDistance={0}                        // Minimum zoom distance
-          maxDistance={600}                       // Maximum zoom distance (Restricted)
-          enablePan={true}                        // Allow panning
-          panSpeed={1}                            // Pan speed
-          rotateSpeed={0.8}                       // Rotation speed
-          onChange={handleControlsChange}         // Clamp target position
-        />
-      </Canvas>
+          <Environment />
+          <DynamicLayoutEngine />
+          <IcdMarkings />
+          <Fencing />
+          <Gates />
+          <Containers
+            controlsRef={controlsRef}
+            onReady={() => setSceneReady(true)}
+          />
 
-      {/* Quick Actions Button */}
-      <QuickActionsButton />
+          <CameraTransition isLoading={isDataLoading} controlsRef={controlsRef} />
 
-      {/* Action Panels - Always render but control via isOpen for smooth animations */}
-      <PositionContainerPanel
-        isOpen={activePanel === 'position'}
-        onClose={closePanel}
-      />
-      <GateInPanel
-        isOpen={activePanel === 'gateIn'}
-        onClose={closePanel}
-      />
-      <GateOutPanel
-        isOpen={activePanel === 'gateOut'}
-        onClose={closePanel}
-      />
-      <StuffingPanel
-        isOpen={activePanel === 'stuffing'}
-        onClose={closePanel}
-      />
-      <DestuffingPanel
-        isOpen={activePanel === 'destuffing'}
-        onClose={closePanel}
-      />
-      <PlugInOutPanel
-        isOpen={activePanel === 'plugInOut'}
-        onClose={closePanel}
-      />
-      <CFSTaskAssignmentPanel
-        isOpen={activePanel === 'cfsTask'}
-        onClose={closePanel}
-      />
+          <OrbitControls
+            ref={controlsRef}
+            makeDefault
+            enableDamping
+            dampingFactor={0.05}
+            minPolarAngle={0}                    // Prevent looking straight down
+            maxPolarAngle={Math.PI / 2 - 0.05}     // Prevent going below horizontal
+            minDistance={0}                        // Minimum zoom distance
+            maxDistance={600}                       // Maximum zoom distance (Restricted)
+            enablePan={true}                        // Allow panning
+            panSpeed={1}                            // Pan speed
+            rotateSpeed={0.8}                       // Rotation speed
+            onChange={handleControlsChange}         // Clamp target position
+            enableZoom={true}
+          />
+        </Canvas>
+
+        {/* Quick Actions Button */}
+        <QuickActionsButton />
+
+        {/* Action Panels */}
+        <PositionContainerPanel isOpen={activePanel === 'position'} onClose={closePanel} />
+        <GateInPanel isOpen={activePanel === 'gateIn'} onClose={closePanel} />
+        <GateOutPanel isOpen={activePanel === 'gateOut'} onClose={closePanel} />
+        <StuffingPanel isOpen={activePanel === 'stuffing'} onClose={closePanel} />
+        <DestuffingPanel isOpen={activePanel === 'destuffing'} onClose={closePanel} />
+        <PlugInOutPanel isOpen={activePanel === 'plugInOut'} onClose={closePanel} />
+        <CFSTaskAssignmentPanel isOpen={activePanel === 'cfsTask'} onClose={closePanel} />
+      </section>
+
+      {/* Dashboard Section */}
+      <section
+        ref={dashboardSectionRef}
+        style={{
+          width: '100%',
+          minHeight: '100vh',
+          position: 'relative',
+          background: '#F5F7F7',
+          zIndex: 10
+        }}
+      >
+        <Dashboard />
+      </section>
     </div>
   );
 }

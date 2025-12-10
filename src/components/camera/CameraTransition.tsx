@@ -1,5 +1,5 @@
 import { useThree } from '@react-three/fiber';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import * as THREE from 'three';
 import { useStore } from '../../store/store';
 import { getAllDynamicBlocks } from '../../utils/layoutUtils';
@@ -142,7 +142,12 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
         };
 
         const handleResetToInitial = () => {
-            if (!isLoading) animateCamera(standardPos, center);
+            // Only reset to global view if no block is selected
+            // If block is selected, the main useEffect will handle "returning" to block view
+            const currentSelectedBlock = useStore.getState().selectedBlock;
+            if (!isLoading && !currentSelectedBlock) {
+                animateCamera(standardPos, center);
+            }
         };
 
         window.addEventListener('moveCameraToTop', handleMoveToTop);

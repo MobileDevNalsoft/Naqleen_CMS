@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Package, Grid3x3 } from 'lucide-react';
 import { useStore } from '../../store/store';
 import { getAllDynamicBlocks } from '../../utils/layoutUtils';
@@ -14,8 +14,6 @@ export default function BlockDetailsPanel() {
     const [isVisible, setIsVisible] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
     const [containerSearch, setContainerSearch] = useState('');
-    const [indicatorStyle, setIndicatorStyle] = useState({});
-    const tabsContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (selectedBlock) {
@@ -38,41 +36,7 @@ export default function BlockDetailsPanel() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [selectedBlock]);
 
-    // Update indicator position when active tab changes or component mounts
-    useEffect(() => {
-        if (tabsContainerRef.current) {
-            const tabs = tabsContainerRef.current.querySelectorAll('button');
-            const activeIndex = ['overview', 'containers'].indexOf(activeTab);
-            const activeButton = tabs[activeIndex];
 
-            if (activeButton) {
-                const { offsetLeft, offsetWidth } = activeButton;
-                setIndicatorStyle({
-                    left: `${offsetLeft}px`,
-                    width: `${offsetWidth}px`,
-                    opacity: 1
-                });
-            }
-        }
-    }, [activeTab]);
-
-    // Initialize indicator position when component becomes visible
-    useEffect(() => {
-        if (isVisible && tabsContainerRef.current) {
-            const tabs = tabsContainerRef.current.querySelectorAll('button');
-            const activeIndex = ['overview', 'containers'].indexOf(activeTab);
-            const activeButton = tabs[activeIndex];
-
-            if (activeButton) {
-                const { offsetLeft, offsetWidth } = activeButton;
-                setIndicatorStyle({
-                    left: `${offsetLeft}px`,
-                    width: `${offsetWidth}px`,
-                    opacity: 1
-                });
-            }
-        }
-    }, [isVisible]);
 
     // Close block panel when a container is selected, re-open when deselected (backtrack)
     useEffect(() => {
@@ -480,7 +444,9 @@ export default function BlockDetailsPanel() {
                                                     }}
                                                     onClick={() => {
                                                         useStore.getState().setSelectId(id);
-                                                        handleClose(true); // Skip camera reset to avoid animation conflict
+                                                        // Do not close/clear block selection.
+                                                        // The useEffect will monitor [selectId, selectedBlock]
+                                                        // and automatically hide this panel without clearing selectedBlock.
                                                     }}
                                                 >
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

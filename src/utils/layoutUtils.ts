@@ -51,11 +51,11 @@ export const parseIcds = (json: IcdsData, icdId?: string): IcdLayout => {
 /**
  * Get list of all available icds
  */
-export const getAvailableIcds = (json: IcdsData): Array<{ id: string; name: string; location: string }> => {
-    return Object.entries(json.icds).map(([id, icd]) => ({
+export const getAvailableIcds = (json: IcdsData | DynamicIcdsData): Array<{ id: string; name: string; location: string }> => {
+    return Object.entries(json.icds).map(([id, icd]: [string, any]) => ({
         id,
-        name: icd.icd_info.name,
-        location: icd.icd_info.location,
+        name: icd.name || icd.icd_info?.name || 'Unknown ICD',
+        location: icd.location || icd.icd_info?.location || 'Unknown Location',
     }));
 };
 

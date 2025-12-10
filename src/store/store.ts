@@ -1,29 +1,22 @@
 import { create } from 'zustand';
 import type { DynamicIcdLayout } from '../utils/layoutUtils';
+// Re-export ContainerPosition as ContainerEntity for compatibility
+import type { ContainerPosition } from '../api';
 
-export interface ContainerEntity {
-  id: string;
-  x: number;
-  y: number;
-  z: number;
-  status?: string;
-  blockId?: string;
-  lot?: number;
-  row?: number;
-  level?: number;
-  [key: string]: any;
-}
+export type ContainerEntity = ContainerPosition;
 
 interface StoreState {
   entities: Record<string, ContainerEntity>;
   ids: string[];
   selectId: string | null;
   selectedBlock: string | null;
+  hoverId: string | null;
   layout: DynamicIcdLayout | null;
   setEntitiesBatch: (updates: Partial<ContainerEntity> & { id: string }[]) => void;
   patchPositions: (posUpdates: { id: string; x: number; y: number; z: number }[]) => void;
   setSelectId: (id: string | null) => void;
   setSelectedBlock: (blockId: string | null) => void;
+  setHoverId: (id: string | null) => void;
   setLayout: (layout: DynamicIcdLayout) => void;
 }
 
@@ -32,6 +25,7 @@ export const useStore = create<StoreState>((set) => ({
   ids: [],
   selectId: null,
   selectedBlock: null,
+  hoverId: null,
   layout: null,
 
   setEntitiesBatch: (updates) => set((state) => {
@@ -58,5 +52,6 @@ export const useStore = create<StoreState>((set) => ({
 
   setSelectId: (id) => set({ selectId: id }),
   setSelectedBlock: (blockId) => set({ selectedBlock: blockId }),
+  setHoverId: (id) => set({ hoverId: id }),
   setLayout: (layout) => set({ layout }),
 }));

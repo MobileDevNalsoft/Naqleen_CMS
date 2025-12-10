@@ -59,6 +59,11 @@ const GenericZone: React.FC<GenericZoneProps> = ({
         }
     });
 
+    // Hide visual representation for terminal areas as requested
+    if (type.includes('terminal') || type.includes('common_area')) {
+        return null;
+    }
+
     return (
         <mesh
             ref={meshRef}

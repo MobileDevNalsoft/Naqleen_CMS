@@ -1,15 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, MapPin, Bell, User, Settings, LogOut, X, Check, AlertCircle, Info, Package, Truck, Grid3x3, Eye, Search } from 'lucide-react';
+import { ChevronDown, MapPin, Bell, User, Settings, LogOut, X, Package, Search, Truck, AlertCircle, Check, Info } from 'lucide-react';
 import { useIcdsQuery } from '../../api';
 import { useStore } from '../../store/store';
 
-interface ModernHeaderProps { }
+interface ModernHeaderProps {
+    activeNav: string;
+    onNavChange: (nav: string) => void;
+}
 
-export default function ModernHeader({ }: ModernHeaderProps) {
+export default function ModernHeader({ activeNav, onNavChange }: ModernHeaderProps) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [selectedIcdId, setSelectedIcdId] = useState('naqleen-jeddah');
+    // Initialize with null to indicate no selection yet (waiting for data)
+    const [selectedIcdId, setSelectedIcdId] = useState<string | null>(null);
     const [notificationCount] = useState(3); // Mock notification count
-    const [activeNav, setActiveNav] = useState('3D View');
+    // Local state removed in favor of props
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
     const [isNotificationPanelClosing, setIsNotificationPanelClosing] = useState(false);
@@ -19,6 +23,13 @@ export default function ModernHeader({ }: ModernHeaderProps) {
     const [isSearchClosing, setIsSearchClosing] = useState(false);
 
     const { data: icds, isLoading } = useIcdsQuery();
+
+    // Set default selection to first available ICD
+    useEffect(() => {
+        if (icds && icds.length > 0 && !selectedIcdId) {
+            setSelectedIcdId(icds[0].id);
+        }
+    }, [icds, selectedIcdId]);
 
     // Store access for container search
     const entities = useStore((state) => state.entities);
@@ -286,7 +297,7 @@ export default function ModernHeader({ }: ModernHeaderProps) {
                     <div
                         key={item}
                         onClick={() => {
-                            setActiveNav(item);
+                            onNavChange(item);
                             // Close search when switching navigation
                             if (isSearchOpen) {
                                 handleSearchClose();
