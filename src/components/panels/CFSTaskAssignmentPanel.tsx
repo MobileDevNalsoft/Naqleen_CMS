@@ -18,18 +18,7 @@ export default function CFSTaskAssignmentPanel({ isOpen, onClose }: CFSTaskAssig
         onClose();
     };
 
-    const inputStyle = {
-        width: '100%',
-        padding: '12px 16px',
-        background: 'white',
-        border: '1px solid rgba(0, 0, 0, 0.1)',
-        borderRadius: '12px',
-        color: '#1e293b',
-        fontSize: '14px',
-        outline: 'none',
-        transition: 'all 0.2s',
-        boxSizing: 'border-box' as const
-    };
+
 
     const labelStyle = {
         display: 'block',
@@ -100,11 +89,12 @@ export default function CFSTaskAssignmentPanel({ isOpen, onClose }: CFSTaskAssig
             <div>
                 <label style={labelStyle}>Task Type</label>
                 <div style={{ position: 'relative' }}>
-                    <ClipboardList size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: '#4B686C' }} />
+                    <ClipboardList size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4B686C' }} />
                     <select
                         value={taskType}
                         onChange={(e) => setTaskType(e.target.value)}
-                        style={{ ...inputStyle, paddingLeft: '44px', appearance: 'none', cursor: 'pointer' }}
+                        className="modern-input"
+                        style={{ paddingLeft: '48px', appearance: 'none', cursor: 'pointer' }}
                     >
                         <option value="inspection" style={{ color: 'black' }}>Inspection</option>
                         <option value="cleaning" style={{ color: 'black' }}>Cleaning</option>
@@ -117,28 +107,28 @@ export default function CFSTaskAssignmentPanel({ isOpen, onClose }: CFSTaskAssig
             <div>
                 <label style={labelStyle}>Container No</label>
                 <div style={{ position: 'relative' }}>
-                    <Box size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: '#4B686C' }} />
+                    <Box size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4B686C' }} />
                     <input
                         type="text"
                         placeholder="Container Number"
                         value={containerNumber}
                         onChange={(e) => setContainerNumber(e.target.value)}
-                        style={{ ...inputStyle, paddingLeft: '44px' }}
-                    />
+                        className="modern-input"
+                        style={{ paddingLeft: '48px' }} />
                 </div>
             </div>
 
             <div>
                 <label style={labelStyle}>Assign To</label>
                 <div style={{ position: 'relative' }}>
-                    <User size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: '#4B686C' }} />
+                    <User size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4B686C' }} />
                     <input
                         type="text"
                         placeholder="Worker Name / ID"
                         value={assignedTo}
                         onChange={(e) => setAssignedTo(e.target.value)}
-                        style={{ ...inputStyle, paddingLeft: '44px' }}
-                    />
+                        className="modern-input"
+                        style={{ paddingLeft: '48px' }} />
                 </div>
             </div>
 

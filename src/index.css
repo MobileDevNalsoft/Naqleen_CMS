@@ -13,7 +13,7 @@
   --glass-bg: rgba(75, 104, 108, 0.85);
   --glass-border: rgba(255, 255, 255, 0.15);
   --card-bg: #ffffff;
-  
+
   color-scheme: light;
   color: var(--text-color);
   background-color: var(--background-color);
@@ -30,6 +30,7 @@ a {
   text-decoration: inherit;
   transition: color 0.25s;
 }
+
 a:hover {
   color: var(--secondary-color);
 }
@@ -64,12 +65,14 @@ button {
   cursor: pointer;
   transition: border-color 0.25s, background-color 0.25s;
   color: var(--text-color);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
+
 button:hover {
   border-color: var(--primary-color);
   background-color: #fff;
 }
+
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
@@ -109,4 +112,33 @@ button:focus-visible {
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.2);
+}
+
+/* Modern Input Styling */
+.modern-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: white;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 12px;
+  color: #1e293b;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease-in-out;
+  box-sizing: border-box;
+}
+
+.modern-input:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.modern-input:focus {
+  border-color: var(--primary-color);
+  background: white;
+  box-shadow: 0 0 0 3px rgba(75, 104, 108, 0.1);
+}
+
+.modern-input::placeholder {
+  color: #94a3b8;
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Eye, X, MoreHorizontal, Grid3x3, MapPin, ClipboardList, PackageOpen, Truck, Power, ArrowRightLeft } from 'lucide-react';
+import { Zap, Eye, X, MoreHorizontal, Grid3x3, MapPin, ClipboardList, PackageOpen, Truck, Power, ArrowRightLeft, ShieldCheck } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 
 interface QuickActionsButtonProps { }
@@ -98,6 +98,7 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
         { id: 'destuffing', label: 'Assign Destuffing', icon: PackageOpen },
         { id: 'plugInOut', label: 'Plug In / Out', icon: Power },
         { id: 'cfsTask', label: 'CFS Task Assignment', icon: ClipboardList },
+        { id: 'reservedContainers', label: 'Reserved Containers', icon: ShieldCheck },
     ];
 
     // Store icon components instead of pre-rendered JSX so we can control size centrally

@@ -3,9 +3,10 @@ import * as THREE from 'three';
 import { Text, Billboard } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useStore } from '../../store/store';
-import { type IcdTerminal, getAllBlocks } from '../../utils/layoutUtils';
+import { useUIStore } from '../../store/uiStore';
+import { type DynamicEntity, getAllDynamicBlocks } from '../../utils/layoutUtils';
 
-const SlotMarkings = ({ blocks }: { blocks: IcdTerminal[] }) => {
+const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
     const meshRef = useRef<THREE.InstancedMesh>(null);
     const dummy = useMemo(() => new THREE.Object3D(), []);
     const selectedBlock = useStore((state) => state.selectedBlock);
@@ -28,21 +29,22 @@ const SlotMarkings = ({ blocks }: { blocks: IcdTerminal[] }) => {
             const startIndex = index;
             let count = 0;
 
-            const is20ft = block.container_type === '20ft';
+            const props = block.props || {};
+            const is20ft = props.container_type === '20ft';
             const containerLength = is20ft ? 6.058 : 12.192;
             const containerWidth = 2.438;
-            const gapX = block.lot_gap || 0.5;
+            const gapX = props.lot_gap || 0.5;
             const gapZ = 0.3;
-            const totalWidth = (block.lots || 1) * (containerLength + gapX);
-            const totalDepth = (block.rows || 1) * (containerWidth + gapZ);
+            const totalWidth = (props.lots || 1) * (containerLength + gapX);
+            const totalDepth = (props.rows || 1) * (containerWidth + gapZ);
             const startX = -totalWidth / 2 + containerLength / 2;
             const startZ = -totalDepth / 2 + containerWidth / 2;
 
             const blockPos = new THREE.Vector3(block.position.x, block.position.y, block.position.z);
-            const blockRot = new THREE.Euler(0, (block.rotation * Math.PI) / 180, 0);
+            const blockRot = new THREE.Euler(0, ((block.rotation || 0) * Math.PI) / 180, 0);
 
-            for (let b = 0; b < (block.lots || 1); b++) {
-                for (let r = 0; r < (block.rows || 1); r++) {
+            for (let b = 0; b < (props.lots || 1); b++) {
+                for (let r = 0; r < (props.rows || 1); r++) {
                     const x = startX + b * (containerLength + gapX);
                     const z = startZ + r * (containerWidth + gapZ);
 
@@ -100,22 +102,23 @@ const SlotMarkings = ({ blocks }: { blocks: IcdTerminal[] }) => {
                 needsUpdate = true;
 
                 // Re-calculate matrices for this block with new Y
-                const is20ft = block.container_type === '20ft';
+                const props = block.props || {};
+                const is20ft = props.container_type === '20ft';
                 const containerLength = is20ft ? 6.058 : 12.192;
                 const containerWidth = 2.438;
-                const gapX = block.lot_gap || 0.5;
+                const gapX = props.lot_gap || 0.5;
                 const gapZ = 0.3;
-                const totalWidth = (block.lots || 1) * (containerLength + gapX);
-                const totalDepth = (block.rows || 1) * (containerWidth + gapZ);
+                const totalWidth = (props.lots || 1) * (containerLength + gapX);
+                const totalDepth = (props.rows || 1) * (containerWidth + gapZ);
                 const startX = -totalWidth / 2 + containerLength / 2;
                 const startZ = -totalDepth / 2 + containerWidth / 2;
 
                 const blockPos = new THREE.Vector3(block.position.x, block.position.y + state.currentY, block.position.z);
-                const blockRot = new THREE.Euler(0, (block.rotation * Math.PI) / 180, 0);
+                const blockRot = new THREE.Euler(0, ((block.rotation || 0) * Math.PI) / 180, 0);
 
                 let idx = state.startIndex;
-                for (let b = 0; b < (block.lots || 1); b++) {
-                    for (let r = 0; r < (block.rows || 1); r++) {
+                for (let b = 0; b < (props.lots || 1); b++) {
+                    for (let r = 0; r < (props.rows || 1); r++) {
                         const x = startX + b * (containerLength + gapX);
                         const z = startZ + r * (containerWidth + gapZ);
 
@@ -152,7 +155,7 @@ const SlotMarkings = ({ blocks }: { blocks: IcdTerminal[] }) => {
     });
 
     const totalSlots = useMemo(() => {
-        return blocks.reduce((acc, block) => acc + (block.lots || 1) * (block.rows || 1), 0);
+        return blocks.reduce((acc, block) => acc + (block.props?.lots || 1) * (block.props?.rows || 1), 0);
     }, [blocks]);
 
     return (
@@ -163,16 +166,17 @@ const SlotMarkings = ({ blocks }: { blocks: IcdTerminal[] }) => {
     );
 };
 
-const BlockLabels = ({ block }: { block: IcdTerminal }) => {
-    const is20ft = block.container_type === '20ft';
+const BlockLabels = ({ block }: { block: DynamicEntity }) => {
+    const props = block.props || {};
+    const is20ft = props.container_type === '20ft';
     const containerLength = is20ft ? 6.058 : 12.192;
     const containerWidth = 2.438;
     const containerHeight = is20ft ? 2.591 : 2.896; // Standard container heights
-    const gapX = block.lot_gap || 0.5;
+    const gapX = props.lot_gap || 0.5;
     const gapZ = 0.3;
 
-    const totalWidth = (block.lots || 1) * (containerLength + gapX);
-    const totalDepth = (block.rows || 1) * (containerWidth + gapZ);
+    const totalWidth = (props.lots || 1) * (containerLength + gapX);
+    const totalDepth = (props.rows || 1) * (containerWidth + gapZ);
 
     // Calculate maximum stack height (assuming up to 5 levels for containers)
     const maxLevels = 6;
@@ -188,16 +192,16 @@ const BlockLabels = ({ block }: { block: IcdTerminal }) => {
     // Position terminal label at bottom for specified blocks, top for others
     const terminalLabelZOffset = isBottomLabel ? totalDepth / 2 + 4 : -totalDepth / 2 - 4;
     const terminalLabelPos = new THREE.Vector3(0, textButtonHeight, terminalLabelZOffset);
-    terminalLabelPos.applyEuler(new THREE.Euler(0, (block.rotation * Math.PI) / 180, 0));
+    terminalLabelPos.applyEuler(new THREE.Euler(0, ((block.rotation || 0) * Math.PI) / 180, 0));
     terminalLabelPos.add(new THREE.Vector3(block.position.x, block.position.y, block.position.z));
 
     // Clean up block name - remove "Container Storage" text
-    const displayName = (block.description || block.id);
+    const displayName = (props.description || block.id);
 
     // Row Labels (A, B, C...)
     const rowLabels = [];
     const isNorth = block.position.z < 0;
-    const rowCount = block.rows || 1;
+    const rowCount = props.rows || 1;
 
     for (let r = 0; r < rowCount; r++) {
         const z = -totalDepth / 2 + containerWidth / 2 + r * (containerWidth + gapZ);
@@ -205,11 +209,11 @@ const BlockLabels = ({ block }: { block: IcdTerminal }) => {
         const labelX = isRightSide ? totalWidth / 2 + 2 : -totalWidth / 2 - 2;
 
         const pos = new THREE.Vector3(labelX, 0, z);
-        pos.applyEuler(new THREE.Euler(0, (block.rotation * Math.PI) / 180, 0));
+        pos.applyEuler(new THREE.Euler(0, ((block.rotation || 0) * Math.PI) / 180, 0));
         pos.add(new THREE.Vector3(block.position.x, block.position.y, block.position.z));
 
         const labelIndex = isNorth ? rowCount - 1 - r : r;
-        const labelText = block.row_labels?.[labelIndex] || String.fromCharCode(65 + labelIndex);
+        const labelText = props.row_labels?.[labelIndex] || String.fromCharCode(65 + labelIndex);
 
         rowLabels.push({
             text: labelText,
@@ -223,14 +227,14 @@ const BlockLabels = ({ block }: { block: IcdTerminal }) => {
     const isTrmBlockB = block.id === 'trm_block_b';
     const lotZPosition = isTrsBlockB || isTrmBlockB ? -totalDepth / 2 - 2 : totalDepth / 2 + 2;
 
-    for (let b = 0; b < (block.lots || 1); b++) {
+    for (let b = 0; b < (props.lots || 1); b++) {
         const x = -totalWidth / 2 + containerLength / 2 + b * (containerLength + gapX);
         const pos = new THREE.Vector3(x, 0, lotZPosition);
-        pos.applyEuler(new THREE.Euler(0, (block.rotation * Math.PI) / 180, 0));
+        pos.applyEuler(new THREE.Euler(0, ((block.rotation || 0) * Math.PI) / 180, 0));
         pos.add(new THREE.Vector3(block.position.x, block.position.y, block.position.z));
 
         lotLabels.push({
-            text: block.lot_numbers?.[b]?.toString() || (b + 1).toString(),
+            text: props.lot_numbers?.[b]?.toString() || (b + 1).toString(),
             position: pos
         });
     }
@@ -283,10 +287,14 @@ const BlockLabels = ({ block }: { block: IcdTerminal }) => {
                             <mesh
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    const isReservedPanelOpen = useUIStore.getState().activePanel === 'reservedContainers';
+                                    if (isReservedPanelOpen) return;
                                     setSelectedBlock(block.id);
                                 }}
                                 onPointerOver={(e) => {
                                     e.stopPropagation();
+                                    const isReservedPanelOpen = useUIStore.getState().activePanel === 'reservedContainers';
+                                    if (isReservedPanelOpen) return;
                                     document.body.style.cursor = 'pointer';
                                     setIsHovered(true);
                                 }}
@@ -350,7 +358,7 @@ const BlockLabels = ({ block }: { block: IcdTerminal }) => {
                 <Text
                     key={`row-${i}`}
                     position={[label.position.x, 0.1, label.position.z]}
-                    rotation={[-Math.PI / 2, 0, (block.rotation * Math.PI) / 180]}
+                    rotation={[-Math.PI / 2, 0, ((block.rotation || 0) * Math.PI) / 180]}
                     fontSize={1.2}
                     color="#cccccc"
                     anchorX="center"
@@ -365,7 +373,7 @@ const BlockLabels = ({ block }: { block: IcdTerminal }) => {
                 <Text
                     key={`lot-${i}`}
                     position={[label.position.x, 0.1, label.position.z]}
-                    rotation={[-Math.PI / 2, 0, (block.rotation * Math.PI) / 180]}
+                    rotation={[-Math.PI / 2, 0, ((block.rotation || 0) * Math.PI) / 180]}
                     fontSize={1.2}
                     color="#cccccc"
                     anchorX="center"
@@ -383,7 +391,7 @@ export default function IcdMarkings() {
 
     const blocks = useMemo(() => {
         if (!layout) return [];
-        return getAllBlocks(layout);
+        return getAllDynamicBlocks(layout);
     }, [layout]);
 
     if (!layout) return null;

@@ -42,18 +42,7 @@ export default function StuffingPanel({ isOpen, onClose }: StuffingPanelProps) {
         onClose();
     };
 
-    const inputStyle = {
-        width: '100%',
-        padding: '12px 16px',
-        background: 'white',
-        border: '1px solid rgba(0, 0, 0, 0.1)',
-        borderRadius: '12px',
-        color: '#1e293b',
-        fontSize: '14px',
-        outline: 'none',
-        transition: 'all 0.2s',
-        boxSizing: 'border-box' as const
-    };
+
 
     const labelStyle = {
         display: 'block',
@@ -126,27 +115,27 @@ export default function StuffingPanel({ isOpen, onClose }: StuffingPanelProps) {
                 <div>
                     <label style={labelStyle}>Container No</label>
                     <div style={{ position: 'relative' }}>
-                        <Box size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: '#4B686C' }} />
+                        <Box size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4B686C' }} />
                         <input
                             type="text"
                             placeholder="ABCD1234567"
                             value={containerNumber}
                             onChange={(e) => setContainerNumber(e.target.value)}
-                            style={{ ...inputStyle, paddingLeft: '44px' }}
-                        />
+                            className="modern-input"
+                            style={{ paddingLeft: '48px' }} />
                     </div>
                 </div>
                 <div>
                     <label style={labelStyle}>Seal No</label>
                     <div style={{ position: 'relative' }}>
-                        <Lock size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: '#4B686C' }} />
+                        <Lock size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4B686C' }} />
                         <input
                             type="text"
                             placeholder="Seal Number"
                             value={sealNumber}
                             onChange={(e) => setSealNumber(e.target.value)}
-                            style={{ ...inputStyle, paddingLeft: '44px' }}
-                        />
+                            className="modern-input"
+                            style={{ paddingLeft: '48px' }} />
                     </div>
                 </div>
             </div>
@@ -154,14 +143,14 @@ export default function StuffingPanel({ isOpen, onClose }: StuffingPanelProps) {
             <div>
                 <label style={labelStyle}>Customer / Liner</label>
                 <div style={{ position: 'relative' }}>
-                    <User size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: '#4B686C' }} />
+                    <User size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4B686C' }} />
                     <input
                         type="text"
                         placeholder="Select Customer"
                         value={customer}
                         onChange={(e) => setCustomer(e.target.value)}
-                        style={{ ...inputStyle, paddingLeft: '44px' }}
-                    />
+                        className="modern-input"
+                        style={{ paddingLeft: '48px' }} />
                 </div>
             </div>
 
@@ -180,14 +169,16 @@ export default function StuffingPanel({ isOpen, onClose }: StuffingPanelProps) {
                             placeholder="Item Description"
                             value={newItemDesc}
                             onChange={(e) => setNewItemDesc(e.target.value)}
-                            style={{ ...inputStyle, flex: 2 }}
+                            className="modern-input"
+                            style={{ flex: 2 }}
                         />
                         <input
                             type="number"
                             placeholder="Qty"
                             value={newItemQty}
                             onChange={(e) => setNewItemQty(e.target.value)}
-                            style={{ ...inputStyle, flex: 1 }}
+                            className="modern-input"
+                            style={{ flex: 1 }}
                         />
                         <button
                             onClick={handleAddItem}
