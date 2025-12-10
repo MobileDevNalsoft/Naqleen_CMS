@@ -12,7 +12,6 @@ import { useLayoutQuery, useContainersQuery } from './api';
 import DynamicLayoutEngine from './components/layout/dynamic/DynamicLayoutEngine';
 import Fencing from './components/layout/Fencing';
 import Gates from './components/layout/Gates';
-import { Containers } from './components/layout/Containers';
 import QuickActionsButton from './components/ui/QuickActionsButton';
 import IcdMarkings from './components/layout/IcdMarkings';
 import { useUIStore } from './store/uiStore';
@@ -24,7 +23,9 @@ import DestuffingPanel from './components/panels/DestuffingPanel';
 import PlugInOutPanel from './components/panels/PlugInOutPanel';
 import CFSTaskAssignmentPanel from './components/panels/CFSTaskAssignmentPanel';
 import PositionContainerPanel from './components/panels/PositionContainerPanel';
+import ReservedContainersPanel from './components/panels/ReservedContainersPanel';
 import Dashboard from './components/ui/Dashboard';
+import Containers from './components/layout/Containers';
 
 function App() {
   const { data: layout, isLoading: layoutLoading } = useLayoutQuery();
@@ -36,73 +37,8 @@ function App() {
   const canvasSectionRef = useRef<HTMLElement>(null);
   const dashboardSectionRef = useRef<HTMLElement>(null);
   const controlsRef = useRef<any>(null);
-  const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastScrollTop = useRef<number>(0);
-  const scrollDirection = useRef<'down' | 'up'>('down');
+  // Scroll Handling & Snap Logic - REMOVED
 
-  // Scroll Handling & Snap Logic
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      // Direction Detection
-      const currentScroll = container.scrollTop;
-      if (currentScroll > lastScrollTop.current) {
-        scrollDirection.current = 'down';
-      } else if (currentScroll < lastScrollTop.current) {
-        scrollDirection.current = 'up';
-      }
-      lastScrollTop.current = currentScroll;
-
-      // Clear existing timeout
-      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
-
-      const height = container.clientHeight;
-      const threshold = height * 0.10; // 10% threshold
-
-      // Update Active Nav based on position (Visual only, doesn't affect snap logic)
-      if (currentScroll > height / 2) {
-        if (activeNav !== 'Dashboard') setActiveNav('Dashboard');
-      } else {
-        if (activeNav !== '3D View') setActiveNav('3D View');
-      }
-
-      // Snap Logic on scroll end
-      scrollTimeout.current = setTimeout(() => {
-        // Evaluate based on Direction
-        const direction = scrollDirection.current;
-        const snapScroll = container.scrollTop;
-
-        if (snapScroll > 0 && snapScroll < height) {
-          if (direction === 'down') {
-            // Moving Down: Snap to Bottom if moved > 10% (i.e. > threshold)
-            // If moved < 10% (i.e. < threshold), snap back Top
-            if (snapScroll > threshold) {
-              container.scrollTo({ top: height, behavior: 'smooth' });
-            } else {
-              container.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-          } else {
-            // Moving Up: Snap to Top if moved > 10% from bottom (i.e. < 90% or < height - threshold)
-            // If moved < 10% from bottom (i.e. > height - threshold), snap back Bottom
-            const bottomThreshold = height - threshold;
-            if (snapScroll < bottomThreshold) {
-              container.scrollTo({ top: 0, behavior: 'smooth' });
-            } else {
-              container.scrollTo({ top: height, behavior: 'smooth' });
-            }
-          }
-        }
-      }, 150); // Wait for scroll to stop
-    };
-
-    container.addEventListener('scroll', handleScroll);
-    return () => {
-      container.removeEventListener('scroll', handleScroll);
-      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
-    };
-  }, [activeNav]);
 
   const handleNavChange = (nav: string) => {
     setActiveNav(nav);
@@ -275,6 +211,7 @@ function App() {
         <DestuffingPanel isOpen={activePanel === 'destuffing'} onClose={closePanel} />
         <PlugInOutPanel isOpen={activePanel === 'plugInOut'} onClose={closePanel} />
         <CFSTaskAssignmentPanel isOpen={activePanel === 'cfsTask'} onClose={closePanel} />
+        <ReservedContainersPanel isOpen={activePanel === 'reservedContainers'} onClose={closePanel} />
       </section>
 
       {/* Dashboard Section */}

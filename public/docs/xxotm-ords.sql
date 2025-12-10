@@ -239,4 +239,21 @@ begin
    commit;
 end;
 
+begin
+   ords.define_template(
+      p_module_name => 'otm_web',
+      p_pattern     => 'getCustomersAndBookings'
+   );
+   ords.define_handler(
+      p_module_name   => 'otm_web',
+      p_pattern       => 'getCustomersAndBookings',
+      p_method        => 'GET',
+      p_source_type   => ords.source_type_plsql,
+      p_source        => 'BEGIN XX_OTM_GET_CUSTOMERS_AND_BOOKINGS; END;',
+      p_mimes_allowed => 'application/json'
+   );
+
+   commit;
+end;
+
 commit;

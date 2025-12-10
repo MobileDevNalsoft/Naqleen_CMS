@@ -2,6 +2,7 @@ import { useThree } from '@react-three/fiber';
 import { useEffect } from 'react';
 import * as THREE from 'three';
 import { useStore } from '../../store/store';
+import { useUIStore } from '../../store/uiStore';
 import { getAllDynamicBlocks } from '../../utils/layoutUtils';
 import gsap from 'gsap';
 
@@ -18,6 +19,8 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
     const selectId = useStore((state) => state.selectId);
     const entities = useStore((state) => state.entities);
     const layout = useStore((state) => state.layout);
+    // UI Store
+    const activePanel = useUIStore((state) => state.activePanel);
 
     // Target positions
     const standardPos = new THREE.Vector3(0, 150, 300);
@@ -111,6 +114,24 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
 
             animateCamera(targetPos, targetLookAt);
 
+        } else if (activePanel === 'reservedContainers') {
+            // --- Reserved Containers View ---
+            // View complete layout but shifted to accommodate left/right panel
+            // Similar to block view but wider field of view (further back)
+
+            // Shift focus right so scene appears on left (panel is on right)
+            // Based on image: High angle, aligned with grid
+            const targetShiftX = 15;
+            const targetLookAt = new THREE.Vector3(targetShiftX, 0, 50);
+
+            // Position: Higher and angled for good overview (Isometric-ish)
+            // Previous: (60, 200, 320)
+            // New Target: Higher (350), Further back (450) to see full yard
+            const positionShiftX = -160;
+            const targetPos = new THREE.Vector3(positionShiftX, 220, 250);
+
+            animateCamera(targetPos, targetLookAt);
+
         } else if (selectedBlock && layout) {
             // --- Block Selection ---
             const blocks = getAllDynamicBlocks(layout);
@@ -133,7 +154,7 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
                 animateCamera(targetPos, targetLookAt);
             }
         }
-    }, [selectId, selectedBlock, layout, isLoading, entities]);
+    }, [selectId, selectedBlock, activePanel, layout, isLoading, entities]);
 
     // 3. Handle Event Listeners (Top View, Reset)
     useEffect(() => {

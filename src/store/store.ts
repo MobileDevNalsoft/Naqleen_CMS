@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import type { DynamicIcdLayout } from '../utils/layoutUtils';
-// Re-export ContainerPosition as ContainerEntity for compatibility
 import type { ContainerPosition } from '../api';
 
 export type ContainerEntity = ContainerPosition;
@@ -18,6 +17,14 @@ interface StoreState {
   setSelectedBlock: (blockId: string | null) => void;
   setHoverId: (id: string | null) => void;
   setLayout: (layout: DynamicIcdLayout) => void;
+  reservedContainers: ReservedContainer[];
+  setReservedContainers: (containers: ReservedContainer[]) => void;
+}
+
+
+export interface ReservedContainer {
+  container_nbr: string;
+  container_type: string;
 }
 
 export const useStore = create<StoreState>((set) => ({
@@ -54,4 +61,8 @@ export const useStore = create<StoreState>((set) => ({
   setSelectedBlock: (blockId) => set({ selectedBlock: blockId }),
   setHoverId: (id) => set({ hoverId: id }),
   setLayout: (layout) => set({ layout }),
+
+  // Visual state for reserved containers
+  reservedContainers: [] as ReservedContainer[],
+  setReservedContainers: (containers: ReservedContainer[]) => set({ reservedContainers: containers }),
 }));

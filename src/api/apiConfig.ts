@@ -12,6 +12,7 @@ export const API_CONFIG = {
     ENDPOINTS: {
         GET_CONTAINERS: '/getContainers',
         GET_RESERVED_CONTAINERS: '/getReservedContainers',
+        GET_CUSTOMERS_AND_BOOKINGS: '/getCustomersAndBookings',
         GET_ICDS: '/dynamic_icds.json',
         GET_LAYOUT: (id: string) => `/layout/${id}.json`, // Example for future use
     }

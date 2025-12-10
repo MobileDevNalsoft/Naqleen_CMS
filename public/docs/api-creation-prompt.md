@@ -29,10 +29,9 @@ module_name : otm_mobile
 endpoint_name : getInspectedContainers
 http_method: GET
 
+json_key_mapping : 
 for json key mapping get container_nbr as container_number, shipment_nbr as shipment_number, timestamp as inspected_time, inspection_details (clob) as inspection_details(json array) from XXOTM_CONTAINER_INSPECTION_T and container_type as container_type, power_unit as truck_number, liner_name as liner from XXOTM_SHIPMENTS_T and driver_name as driver_name, driver_xid as iqama_number from XXOTM_DRIVER_VEHICLE_MASTER_T
 
-
+additional_instructions:
 for urls in images array 
 add the url https://otmgtm-test-naqleen.otmgtm.me-jeddah-1.ocs.oraclecloud.com:443/logisticsRestApi/resources-int/v2/documents?q=ownerObjectGid eq "NAQLEEN.<shipment_nbr>" for now
-
-considering the api_automation_prompt.json as a system instructions to you and inject the above details into it then create api using mcp tool otm_execute_sql

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Text, Billboard } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useStore } from '../../store/store';
+import { useUIStore } from '../../store/uiStore';
 import { type DynamicEntity, getAllDynamicBlocks } from '../../utils/layoutUtils';
 
 const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
@@ -286,10 +287,14 @@ const BlockLabels = ({ block }: { block: DynamicEntity }) => {
                             <mesh
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    const isReservedPanelOpen = useUIStore.getState().activePanel === 'reservedContainers';
+                                    if (isReservedPanelOpen) return;
                                     setSelectedBlock(block.id);
                                 }}
                                 onPointerOver={(e) => {
                                     e.stopPropagation();
+                                    const isReservedPanelOpen = useUIStore.getState().activePanel === 'reservedContainers';
+                                    if (isReservedPanelOpen) return;
                                     document.body.style.cursor = 'pointer';
                                     setIsHovered(true);
                                 }}

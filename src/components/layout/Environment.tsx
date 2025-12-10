@@ -1,7 +1,7 @@
 import { Sky } from '@react-three/drei';
 import { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { useThree } from '@react-three/fiber';
+import { useThree, useFrame } from '@react-three/fiber';
 import { useStore } from '../../store/store';
 
 // --- Shared Geometries ---
@@ -183,14 +183,27 @@ export default function Environment() {
     };
 
     // Industrial Fog - Hazier, greyer
-    useEffect(() => {
-        scene.fog = new THREE.Fog(
-            '#D0CFCB', // Matches sky/background - Industrial Grey
-            250,       // Start fog
-            700        // End fog
-        );
-        return () => { scene.fog = null; };
-    }, [scene]);
+    // Dynamic Fog based on Camera Height (Altitude)
+    // This allows clear top-down views while keeping the horizon foggy at ground level
+    useFrame(({ camera, scene }) => {
+        if (!scene.fog) {
+            scene.fog = new THREE.Fog('#D0CFCB', 250, 700);
+        }
+
+        const fog = scene.fog as THREE.Fog;
+        const altitude = Math.max(0, camera.position.y);
+
+        // Base values for ground level (Industrial Haze)
+        const baseStart = 250;
+        const baseEnd = 750;
+
+        // As we go up, push the fog away
+        // We add the altitude to the distance so the ground remains clear "below" us
+        // Multiplier controls how fast it clears up. 
+        // 1.2x altitude means if we are at Y=500, fog starts at 250 + 600 = 850. Distance to ground is 500. So clear.
+        fog.near = baseStart + (altitude * 1.5);
+        fog.far = baseEnd + (altitude * 2.5);
+    });
 
     // Add subtle, realistic terrain undulation for circular terrain
     useEffect(() => {

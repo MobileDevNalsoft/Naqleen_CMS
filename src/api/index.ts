@@ -214,3 +214,92 @@ export const useContainersQuery = (layout: DynamicIcdLayout | null) => {
 
     return query;
 };
+
+/**
+ * Fetch reserved containers
+ */
+// --- Reserved Containers Types & API ---
+export interface CustomerBooking {
+    customer_name: string;
+    bookings: string[];
+}
+
+import type { ReservedContainer } from '../store/store';
+
+export const getReservedContainers = async (bookingId?: string): Promise<ReservedContainer[]> => {
+    try {
+        let url = API_CONFIG.ENDPOINTS.GET_RESERVED_CONTAINERS;
+        if (bookingId) {
+            url += `?booking_id=${bookingId}`;
+        }
+
+        const response = await apiClient.get(url);
+        const apiResponse = response.data;
+
+        if (apiResponse.response_code === 200 && Array.isArray(apiResponse.data)) {
+            // Check if data is strings (old) or objects (new)
+            // It should be objects now, but let's be safe or just assume objects
+            // The API returns [{container_nbr, container_type}, ...]
+            return apiResponse.data.map((item: any) => {
+                if (typeof item === 'string') return { container_nbr: item, container_type: '20FT' };
+                return {
+                    container_nbr: item.container_nbr || item.CONTAINER_NBR || item.container_no || '',
+                    container_type: item.container_type || item.CONTAINER_TYPE || '20FT'
+                };
+            });
+        }
+        console.warn('Invalid reserved containers response', apiResponse);
+        return [];
+    } catch (error) {
+        console.error('Failed to fetch reserved containers:', error);
+        return [];
+    }
+};
+
+export const getCustomersAndBookings = async (): Promise<CustomerBooking[]> => {
+    try {
+        const response = await apiClient.get(API_CONFIG.ENDPOINTS.GET_CUSTOMERS_AND_BOOKINGS);
+        const apiResponse = response.data;
+        if (apiResponse.response_code === 200 && Array.isArray(apiResponse.data)) {
+            return apiResponse.data;
+        }
+        return [];
+    } catch (error) {
+        console.error('Error fetching customers and bookings:', error);
+        return [];
+    }
+};
+
+export const useReservedContainersQuery = (bookingId?: string | null) => {
+    const setReservedContainers = useStore(state => state.setReservedContainers);
+
+    const query = useQuery({
+        queryKey: ['reservedContainers', bookingId],
+        queryFn: () => getReservedContainers(bookingId || undefined),
+        enabled: !!bookingId,
+        staleTime: 1000 * 60 * 5,
+    });
+
+    useEffect(() => {
+        if (query.data) {
+            setReservedContainers(query.data);
+        } else {
+            // If no data (or query disabled), ensure we clear selection to match UI state
+            // Only clear if bookingId is null/undefined to avoid flickering during loading
+            if (!bookingId) {
+                setReservedContainers([]);
+            }
+        }
+    }, [query.data, bookingId, setReservedContainers]);
+
+    return query;
+};
+
+export const useCustomersAndBookingsQuery = (enabled: boolean = true) => {
+    return useQuery({
+        queryKey: ['customersAndBookings'],
+        queryFn: getCustomersAndBookings,
+        enabled: enabled,
+        staleTime: 1000 * 60 * 60, // 1 hour
+    });
+};

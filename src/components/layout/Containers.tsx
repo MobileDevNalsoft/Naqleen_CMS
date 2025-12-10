@@ -1,9 +1,9 @@
 import { useRef, useEffect, useMemo, useState, type RefObject } from 'react';
 import * as THREE from 'three';
 import { useStore } from '../../store/store';
+import { useUIStore } from '../../store/uiStore';
 import { useTexture, Outlines } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-// containerColors is defined locally below
 import type { DynamicEntity } from '../../utils/layoutUtils';
 import gsap from 'gsap';
 
@@ -12,19 +12,19 @@ interface ContainersProps {
     onReady?: () => void;
 }
 
-export function Containers({ controlsRef, onReady }: ContainersProps) {
+export default function Containers({ controlsRef, onReady }: ContainersProps) {
     const meshRef = useRef<THREE.InstancedMesh>(null);
     const opacityAttribute = useRef<THREE.InstancedBufferAttribute | null>(null);
-    // Access store state via individual selectors to avoid infinite render loops
-    // caused by object literal creation in single selector
+
+    // Access store state via individual selectors
     const ids = useStore(state => state.ids);
     const entities = useStore(state => state.entities);
     const selectId = useStore(state => state.selectId);
     const selectedBlock = useStore(state => state.selectedBlock);
     const layout = useStore(state => state.layout);
-    // Move hover hooks here to ensure they are called unconditionally
     const setHoverId = useStore(state => state.setHoverId);
     const hoverId = useStore(state => state.hoverId);
+    const reservedContainers = useStore(state => state.reservedContainers);
 
     const { camera } = useThree();
 
@@ -162,6 +162,8 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
         const mesh = meshRef.current;
         if (!mesh || instanceData.length === 0) return;
 
+        const reservedActive = reservedContainers.length > 0;
+
         // --- Handle Block Lift Animation ---
         const targetLift = selectedBlock ? 16 : 0;
         const lerpSpeed = delta * 2;
@@ -189,38 +191,64 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
         const selectedPos = selectedContainerInfo?.selected?.position;
         let needsMatrixUpdate = false;
 
-        if (isLifting || isLotLifting || (selectedBlock && liftHeight.current !== 0) || (selectId && lotLiftHeight.current !== 0) || (!selectedBlock && liftHeight.current !== 0)) {
+        // Added reservedActive check for matrix update to ensure opacity updates correctly even without lift
+        if (isLifting || isLotLifting || (selectedBlock && liftHeight.current !== 0) || (selectId && lotLiftHeight.current !== 0) || reservedActive) {
             needsMatrixUpdate = true;
         }
 
-        const hasSelection = !!selectedBlock || !!selectId;
+        const hasSelection = !!selectedBlock || !!selectId || reservedActive;
         const selectionCleared = prevHasSelection.current && !hasSelection;
         prevHasSelection.current = hasSelection;
 
         if (needsMatrixUpdate || hasSelection || selectionCleared) {
             instanceData.forEach((data, i) => {
-                // 1. Position (Lift)
-                const [x, y, z] = data.position;
-                const isInDataBlock = data.blockId === selectedBlock;
+                const isReserved = reservedActive && reservedContainers.some(c => c.container_nbr === data.id);
 
-                // Check if this container is in the selected stack/lot
-                let isInSelectedStack = false;
-                if (selectedPos) {
-                    isInSelectedStack = Math.abs(x - selectedPos[0]) < 0.1 && Math.abs(z - selectedPos[2]) < 0.1;
+                // 1. Position (Lift) & Scale (Visibility)
+                const [x, y, z] = data.position;
+                let currentY = y;
+                let scaleX = data.scale[0];
+                let scaleY = data.scale[1];
+                let scaleZ = data.scale[2];
+
+                if (reservedActive) {
+                    // Reserved Mode Logic: No Lift
+                    currentY = y;
+
+                    // Hide unreserved containers completely (prevent depth write ghosts)
+                    if (!isReserved) {
+                        scaleX = 0;
+                        scaleY = 0;
+                        scaleZ = 0;
+                    }
+                } else {
+                    // Standard Selection Logic
+                    const isInDataBlock = data.blockId === selectedBlock;
+                    // Check if this container is in the selected stack/lot
+                    let isInSelectedStack = false;
+                    if (selectedPos) {
+                        isInSelectedStack = Math.abs(x - selectedPos[0]) < 0.1 && Math.abs(z - selectedPos[2]) < 0.1;
+                    }
+                    // Base Y + Block Lift + Lot Lift
+                    currentY = y + (isInDataBlock ? liftHeight.current : 0) + (isInSelectedStack ? lotLiftHeight.current : 0);
                 }
 
-                // Base Y + Block Lift + Lot Lift
-                const currentY = y + (isInDataBlock ? liftHeight.current : 0) + (isInSelectedStack ? lotLiftHeight.current : 0);
-
                 dummy.position.set(x, currentY, z);
-                dummy.scale.set(data.scale[0], data.scale[1], data.scale[2]);
+                dummy.scale.set(scaleX, scaleY, scaleZ);
                 dummy.updateMatrix();
                 mesh.setMatrixAt(i, dummy.matrix);
 
                 // 2. Opacity (Dimming)
                 let opacity = 1.0;
 
-                if (selectedBlock) {
+                if (reservedActive) {
+                    // Reserved Mode: Highlight reserved, others are invisible
+                    if (isReserved) {
+                        opacity = 1.0;
+                    } else {
+                        opacity = 0.0;
+                    }
+                } else if (selectedBlock) {
                     if (data.blockId === selectedBlock) {
                         opacity = 1.0;
                     } else {
@@ -246,11 +274,10 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
             if (opacityAttribute.current) opacityAttribute.current.needsUpdate = true;
         }
 
-        // Update Highlight Mesh Position
-        if (highlightMeshRef.current && selectedContainerInfo) {
+        // Update Highlight Mesh Position (Only for individual selection, disable if reserved mode is active?)
+        // Or maybe just hide it if reserved mode active
+        if (highlightMeshRef.current && selectedContainerInfo && !reservedActive) {
             const [x, y, z] = selectedContainerInfo.selected.position;
-            // Always apply full lift to highlight (Block + Lot)
-            // Note: We use the animated values for smooth tracking
             const currentLift = liftHeight.current + lotLiftHeight.current;
             highlightMeshRef.current.position.set(x, y + currentLift, z);
         }
@@ -280,18 +307,24 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
         const dy = e.clientY - dragStart.current.y;
         if (Math.sqrt(dx * dx + dy * dy) > 5) return;
 
+        // Block interaction if Reserved Panel (or any panel?) is open
+        // User requested specifically for "reserved container panel"
+        const isReservedPanelOpen = useUIStore.getState().activePanel === 'reservedContainers';
+        if (isReservedPanelOpen) return;
+
+        // Disable selection click if reserved view is active? Or allow finding?
+        // Let's assume selection is allowed but strictly for info
+
         const instanceId = e.instanceId;
         if (instanceId !== undefined && ids[instanceId]) {
             const clickedId = ids[instanceId];
             const clickedEntity = entities[clickedId];
 
-            // If a block is selected, only allow selecting containers within that block
             if (selectedBlock) {
                 if (clickedEntity?.blockId === selectedBlock) {
                     useStore.getState().setSelectId(clickedId);
                 }
             } else {
-                // No block selected, allow selecting any container
                 useStore.getState().setSelectId(clickedId);
             }
         }
@@ -299,9 +332,7 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
 
     const handleGroundClick = () => {
         if (selectId) {
-            // Only clear container selection to support backtracking to block view
             useStore.getState().setSelectId(null);
-            // Camera reset is handled by CameraTransition now
         }
     };
 
@@ -326,6 +357,7 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
     }, [controlsRef]);
 
     // Clear hover when interacting or selecting
+    // REMOVED reservedContainerIds check to allow hover during reserved mode
     useEffect(() => {
         if (isInteracting || selectId || selectedBlock) {
             setHoverId(null);
@@ -335,8 +367,7 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
 
     const handlePointerMove = (e: any) => {
         e.stopPropagation();
-
-        // Disable hover if interacting, or if selection exists
+        // REMOVED reservedContainerIds check to allow hover during reserved mode
         if (isInteracting || selectId || selectedBlock) return;
 
         const instanceId = e.instanceId;
@@ -388,30 +419,30 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
                         shader.vertexShader = shader.vertexShader.replace(
                             '#include <common>',
                             `#include <common>
-                            attribute float instanceOpacity;
-                            varying float vInstanceOpacity;`
+                                attribute float instanceOpacity;
+                                varying float vInstanceOpacity;`
                         );
                         shader.vertexShader = shader.vertexShader.replace(
                             '#include <begin_vertex>',
                             `#include <begin_vertex>
-                            vInstanceOpacity = instanceOpacity;`
+                                vInstanceOpacity = instanceOpacity;`
                         );
                         shader.fragmentShader = shader.fragmentShader.replace(
                             '#include <common>',
                             `#include <common>
-                            varying float vInstanceOpacity;`
+                                varying float vInstanceOpacity;`
                         );
                         shader.fragmentShader = shader.fragmentShader.replace(
                             '#include <opaque_fragment>',
                             `#include <opaque_fragment>
-                            gl_FragColor.a *= vInstanceOpacity;`
+                                gl_FragColor.a *= vInstanceOpacity;`
                         );
                     }}
                 />
             </instancedMesh>
 
             {/* Thick Highlight for selected container */}
-            {selectedContainerInfo && (
+            {selectedContainerInfo && !reservedContainers.length && (
                 <mesh
                     ref={highlightMeshRef}
                     position={selectedContainerInfo.selected.position}
@@ -423,7 +454,7 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
                 </mesh>
             )}
 
-            {/* Highlight for hovered container (Cyan/Teal) */}
+            {/* Highlight for hovered container (Yellow/Gold) - Enabled during reserved mode if needed */}
             {hoveredContainerInfo && !selectedContainerInfo && (
                 <mesh
                     position={hoveredContainerInfo.position}
