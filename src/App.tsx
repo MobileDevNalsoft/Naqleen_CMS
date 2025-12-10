@@ -23,6 +23,7 @@ import DestuffingPanel from './components/panels/DestuffingPanel';
 import PlugInOutPanel from './components/panels/PlugInOutPanel';
 import CFSTaskAssignmentPanel from './components/panels/CFSTaskAssignmentPanel';
 import PositionContainerPanel from './components/panels/PositionContainerPanel';
+import CustomerInventoryPanel from './components/panels/CustomerInventoryPanel';
 
 function App() {
   const { data: layout, isLoading: layoutLoading } = useLayoutQuery();
@@ -168,6 +169,10 @@ function App() {
       />
       <CFSTaskAssignmentPanel
         isOpen={activePanel === 'cfsTask'}
+        onClose={closePanel}
+      />
+      <CustomerInventoryPanel
+        isOpen={activePanel === 'customerInventory'}
         onClose={closePanel}
       />
     </div>
