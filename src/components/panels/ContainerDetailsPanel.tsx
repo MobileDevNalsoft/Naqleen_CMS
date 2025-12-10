@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Truck, MapPin, FileText, Ship, Package, X, Check, ChevronsRight } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useStore } from '../../store/store';
+import { getContainerDetails } from '../../api';
 
 // Helper function to parse blockId into terminal and block
 const parseBlockId = (blockId?: string): { terminal: string; block: string } => {
@@ -17,10 +19,10 @@ const parseBlockId = (blockId?: string): { terminal: string; block: string } => 
     return { terminal: '--', block: '--' };
 };
 
-// Helper function to convert lot index to letter (A-K)
-const lotIndexToLetter = (lotIndex?: number): string => {
-    if (lotIndex === undefined || lotIndex < 0 || lotIndex > 10) return '--';
-    return String.fromCharCode(65 + lotIndex); // 65 = 'A' in ASCII
+// Helper function to convert row index to letter (A-K)
+const rowIndexToLetter = (rowIndex?: number): string => {
+    if (rowIndex === undefined || rowIndex < 0 || rowIndex > 26) return '--';
+    return String.fromCharCode(65 + rowIndex); // 65 = 'A' in ASCII
 };
 
 export default function ContainerDetailsPanel() {
@@ -33,6 +35,17 @@ export default function ContainerDetailsPanel() {
 
     const selectedContainer = selectId ? entities[selectId] : null;
 
+    // Fetch details on demand
+    const { data: details, isLoading } = useQuery({
+        queryKey: ['container-details', selectId],
+        queryFn: async () => {
+            if (!selectId) return null;
+            return getContainerDetails(selectId);
+        },
+        enabled: !!selectId && isVisible,
+        staleTime: 60000 // Cache for 1 min
+    });
+
     useEffect(() => {
         if (selectId) {
             setIsVisible(true);
@@ -41,17 +54,7 @@ export default function ContainerDetailsPanel() {
         }
     }, [selectId]);
 
-    // ESC key handler to close container panel and return to main view
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && selectId) {
-                handleClose();
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [selectId]);
+    // ... (existing useEffects)
 
     if (!selectId && !isVisible) return null;
 
@@ -64,18 +67,18 @@ export default function ContainerDetailsPanel() {
         }, 300);
     };
 
-    // Mock data for demonstration
+    // Combine 3D position data (selectedContainer) with fetched details
     const containerData = {
         id: selectId,
         type: selectedContainer?.type || '40ft Standard',
         status: 'In Yard',
-        arrival: '2023-10-24 08:30 AM',
-        origin: 'Singapore',
-        destination: 'Riyadh',
-        weight: '24,500 kg',
-        contents: 'Electronics',
-        shippingLine: 'Maersk',
-        vessel: 'MV OCEAN GIANT'
+        arrival: '2023-10-24 08:30 AM', // API doesn't provide this yet
+        origin: details?.origin || 'Loading...',
+        destination: details?.destination || 'Loading...',
+        weight: details?.weight || 'Loading...',
+        contents: details?.contents || 'Loading...',
+        shippingLine: details?.cust_nbr || 'Loading...',
+        vessel: 'MV OCEAN GIANT' // API doesn't provide this yet
     };
 
     return (
@@ -223,127 +226,135 @@ export default function ContainerDetailsPanel() {
             {/* Content Area */}
             <div style={{ padding: '24px', flex: 1, overflowY: 'auto' }} className="custom-scrollbar">
                 {activeTab === 'details' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    isLoading ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: '#64748b', gap: '8px' }}>
+                            <div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid #cbd5e1', borderTopColor: 'var(--primary-color)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                            <span style={{ fontSize: '13px' }}>Loading details...</span>
+                            <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-                        {/* Location Card - Single Line Breadcrumb */}
-                        <DetailSection title="Current Location" icon={<MapPin size={16} />}>
+                            {/* Location Card - Single Line Breadcrumb */}
+                            <DetailSection title="Current Location" icon={<MapPin size={16} />}>
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '8px 12px',
+                                    background: 'linear-gradient(135deg, rgba(75, 104, 108, 0.08), rgba(75, 104, 108, 0.03))',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(75, 104, 108, 0.12)',
+                                    flexWrap: 'wrap'
+                                }}>
+                                    {/* Terminal */}
+                                    <span style={{
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        color: '#4B686C',
+                                        letterSpacing: '0.3px'
+                                    }}>
+                                        Terminal {parseBlockId(selectedContainer?.blockId).terminal}
+                                    </span>
+
+                                    {/* Arrow */}
+                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.4 }}>
+                                        <path d="M4 2L8 6L4 10" stroke="#4B686C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+
+                                    {/* Block */}
+                                    <span style={{
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        color: '#4B686C',
+                                        letterSpacing: '0.3px'
+                                    }}>
+                                        Block {parseBlockId(selectedContainer?.blockId).block}
+                                    </span>
+
+                                    {/* Arrow */}
+                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.4 }}>
+                                        <path d="M4 2L8 6L4 10" stroke="#4B686C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+
+                                    {/* Row */}
+                                    <span style={{
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        color: '#4B686C',
+                                        letterSpacing: '0.3px'
+                                    }}>
+                                        Row {rowIndexToLetter(selectedContainer?.row)}
+                                    </span>
+
+                                    {/* Arrow */}
+                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.4 }}>
+                                        <path d="M4 2L8 6L4 10" stroke="#4B686C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+
+                                    {/* Lot */}
+                                    <span style={{
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        color: '#4B686C',
+                                        letterSpacing: '0.3px'
+                                    }}>
+                                        Lot {selectedContainer?.lot !== undefined ? String(selectedContainer.lot + 1).padStart(2, '0') : '--'}
+                                    </span>
+
+                                    {/* Arrow */}
+                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.4 }}>
+                                        <path d="M4 2L8 6L4 10" stroke="#4B686C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+
+                                    {/* Level */}
+                                    <span style={{
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        color: '#4B686C',
+                                        letterSpacing: '0.3px'
+                                    }}>
+                                        Level {selectedContainer?.level !== undefined ? String(selectedContainer.level + 1).padStart(2, '0') : '--'}
+                                    </span>
+                                </div>
+                            </DetailSection>
+
+                            {/* Divider */}
                             <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                padding: '8px 12px',
-                                background: 'linear-gradient(135deg, rgba(75, 104, 108, 0.08), rgba(75, 104, 108, 0.03))',
-                                borderRadius: '8px',
-                                border: '1px solid rgba(75, 104, 108, 0.12)',
-                                flexWrap: 'wrap'
-                            }}>
-                                {/* Terminal */}
-                                <span style={{
-                                    fontSize: '13px',
-                                    fontWeight: 600,
-                                    color: '#4B686C',
-                                    letterSpacing: '0.3px'
-                                }}>
-                                    Terminal {parseBlockId(selectedContainer?.blockId).terminal}
-                                </span>
+                                height: '1px',
+                                background: 'linear-gradient(90deg, rgba(75, 104, 108, 0.2) 0%, rgba(75, 104, 108, 0.05) 50%, transparent 100%)',
+                                margin: '4px 0'
+                            }} />
 
-                                {/* Arrow */}
-                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.4 }}>
-                                    <path d="M4 2L8 6L4 10" stroke="#4B686C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
+                            {/* Cargo Details */}
+                            <DetailSection title="Cargo Information" icon={<FileText size={16} />}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                    <InfoItem label="Contents" value={containerData.contents} />
+                                    <InfoItem label="Category" value="General" />
+                                    <InfoItem label="Weight" value={containerData.weight} />
+                                    <InfoItem label="Shipping Line" value={containerData.shippingLine} />
+                                    <InfoItem label="Origin" value={containerData.origin} />
+                                    <InfoItem label="Destination" value={containerData.destination} />
+                                </div>
+                            </DetailSection>
 
-                                {/* Block */}
-                                <span style={{
-                                    fontSize: '13px',
-                                    fontWeight: 600,
-                                    color: '#4B686C',
-                                    letterSpacing: '0.3px'
-                                }}>
-                                    Block {parseBlockId(selectedContainer?.blockId).block}
-                                </span>
+                            {/* Divider */}
+                            <div style={{
+                                height: '2px',
+                                background: 'linear-gradient(90deg, rgba(75, 104, 108, 0.2) 0%, rgba(75, 104, 108, 0.05) 50%, transparent 100%)',
+                                margin: '4px 0'
+                            }} />
 
-                                {/* Arrow */}
-                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.4 }}>
-                                    <path d="M4 2L8 6L4 10" stroke="#4B686C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-
-                                {/* Row */}
-                                <span style={{
-                                    fontSize: '13px',
-                                    fontWeight: 600,
-                                    color: '#4B686C',
-                                    letterSpacing: '0.3px'
-                                }}>
-                                    Row {selectedContainer?.row !== undefined ? String(selectedContainer.row + 1).padStart(2, '0') : '--'}
-                                </span>
-
-                                {/* Arrow */}
-                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.4 }}>
-                                    <path d="M4 2L8 6L4 10" stroke="#4B686C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-
-                                {/* Lot */}
-                                <span style={{
-                                    fontSize: '13px',
-                                    fontWeight: 600,
-                                    color: '#4B686C',
-                                    letterSpacing: '0.3px'
-                                }}>
-                                    Lot {lotIndexToLetter(selectedContainer?.lot)}
-                                </span>
-
-                                {/* Arrow */}
-                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.4 }}>
-                                    <path d="M4 2L8 6L4 10" stroke="#4B686C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-
-                                {/* Level */}
-                                <span style={{
-                                    fontSize: '13px',
-                                    fontWeight: 600,
-                                    color: '#4B686C',
-                                    letterSpacing: '0.3px'
-                                }}>
-                                    Level {selectedContainer?.level !== undefined ? String(selectedContainer.level + 1).padStart(2, '0') : '--'}
-                                </span>
-                            </div>
-                        </DetailSection>
-
-                        {/* Divider */}
-                        <div style={{
-                            height: '1px',
-                            background: 'linear-gradient(90deg, rgba(75, 104, 108, 0.2) 0%, rgba(75, 104, 108, 0.05) 50%, transparent 100%)',
-                            margin: '4px 0'
-                        }} />
-
-                        {/* Cargo Details */}
-                        <DetailSection title="Cargo Information" icon={<FileText size={16} />}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                <InfoItem label="Contents" value={containerData.contents} />
-                                <InfoItem label="Category" value="General" />
-                                <InfoItem label="Weight" value={containerData.weight} />
-                                <InfoItem label="Shipping Line" value={containerData.shippingLine} />
-                                <InfoItem label="Origin" value={containerData.origin} />
-                                <InfoItem label="Destination" value={containerData.destination} />
-                            </div>
-                        </DetailSection>
-
-                        {/* Divider */}
-                        <div style={{
-                            height: '2px',
-                            background: 'linear-gradient(90deg, rgba(75, 104, 108, 0.2) 0%, rgba(75, 104, 108, 0.05) 50%, transparent 100%)',
-                            margin: '4px 0'
-                        }} />
-
-                        {/* Vessel Details */}
-                        <DetailSection title="Vessel Schedule" icon={<Ship size={16} />}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                <InfoItem label="Vessel Name" value={containerData.vessel} fullWidth />
-                                <InfoItem label="Voyage No." value="VOY-2023-X89" />
-                                <InfoItem label="ETA" value="Oct 24, 06:00" />
-                            </div>
-                        </DetailSection>
-                    </div>
+                            {/* Vessel Details */}
+                            <DetailSection title="Vessel Schedule" icon={<Ship size={16} />}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                    <InfoItem label="Vessel Name" value={containerData.vessel} fullWidth />
+                                    <InfoItem label="Voyage No." value="VOY-2023-X89" />
+                                    <InfoItem label="ETA" value="Oct 24, 06:00" />
+                                </div>
+                            </DetailSection>
+                        </div>
+                    )
                 )}
 
                 {activeTab === 'lifecycle' && (

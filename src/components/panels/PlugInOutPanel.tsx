@@ -18,18 +18,7 @@ export default function PlugInOutPanel({ isOpen, onClose }: PlugInOutPanelProps)
         onClose();
     };
 
-    const inputStyle = {
-        width: '100%',
-        padding: '12px 16px',
-        background: 'white',
-        border: '1px solid rgba(0, 0, 0, 0.1)',
-        borderRadius: '12px',
-        color: '#1e293b',
-        fontSize: '14px',
-        outline: 'none',
-        transition: 'all 0.2s',
-        boxSizing: 'border-box' as const
-    };
+
 
     const labelStyle = {
         display: 'block',
@@ -100,14 +89,14 @@ export default function PlugInOutPanel({ isOpen, onClose }: PlugInOutPanelProps)
             <div>
                 <label style={labelStyle}>Container No</label>
                 <div style={{ position: 'relative' }}>
-                    <Box size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: '#4B686C' }} />
+                    <Box size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4B686C' }} />
                     <input
                         type="text"
                         placeholder="Container Number"
                         value={containerNumber}
                         onChange={(e) => setContainerNumber(e.target.value)}
-                        style={{ ...inputStyle, paddingLeft: '44px' }}
-                    />
+                        className="modern-input"
+                        style={{ paddingLeft: '48px' }} />
                 </div>
             </div>
 
@@ -115,14 +104,14 @@ export default function PlugInOutPanel({ isOpen, onClose }: PlugInOutPanelProps)
                 <div style={{ flex: 1 }}>
                     <label style={labelStyle}>Temperature (°C)</label>
                     <div style={{ position: 'relative' }}>
-                        <Thermometer size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: '#4B686C' }} />
+                        <Thermometer size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4B686C' }} />
                         <input
                             type="number"
                             placeholder="-18.0"
                             value={temperature}
                             onChange={(e) => setTemperature(e.target.value)}
-                            style={{ ...inputStyle, paddingLeft: '44px' }}
-                        />
+                            className="modern-input"
+                            style={{ paddingLeft: '48px' }} />
                     </div>
                 </div>
 
@@ -165,7 +154,8 @@ export default function PlugInOutPanel({ isOpen, onClose }: PlugInOutPanelProps)
                         placeholder="Any additional notes..."
                         value={remarks}
                         onChange={(e) => setRemarks(e.target.value)}
-                        style={{ ...inputStyle, paddingLeft: '44px', minHeight: '80px', resize: 'vertical' }}
+                        className="modern-input"
+                        style={{ paddingLeft: '48px', minHeight: '80px', resize: 'vertical' }}
                     />
                 </div>
             </div>

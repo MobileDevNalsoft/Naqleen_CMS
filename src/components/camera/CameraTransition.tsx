@@ -1,8 +1,8 @@
 import { useThree } from '@react-three/fiber';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import * as THREE from 'three';
 import { useStore } from '../../store/store';
-import { getAllBlocks } from '../../utils/layoutUtils';
+import { getAllDynamicBlocks } from '../../utils/layoutUtils';
 import gsap from 'gsap';
 
 interface CameraTransitionProps {
@@ -113,7 +113,7 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
 
         } else if (selectedBlock && layout) {
             // --- Block Selection ---
-            const blocks = getAllBlocks(layout);
+            const blocks = getAllDynamicBlocks(layout);
             const block = blocks.find(b => b.id === selectedBlock);
 
             if (block) {
@@ -142,7 +142,12 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
         };
 
         const handleResetToInitial = () => {
-            if (!isLoading) animateCamera(standardPos, center);
+            // Only reset to global view if no block is selected
+            // If block is selected, the main useEffect will handle "returning" to block view
+            const currentSelectedBlock = useStore.getState().selectedBlock;
+            if (!isLoading && !currentSelectedBlock) {
+                animateCamera(standardPos, center);
+            }
         };
 
         window.addEventListener('moveCameraToTop', handleMoveToTop);

@@ -77,7 +77,7 @@ export default function PositionContainerPanel({ isOpen, onClose }: PositionCont
     const currentBlockData = useMemo(() => {
         if (!layout || !selectedTerminal || !selectedBlock) return null;
 
-        const terminalKey = selectedTerminal === 'TRS' ? 'trs_container_blocks' : 'trm_container_blocks';
+        const terminalKey = selectedTerminal === 'TRS' ? 'trs_blocks' : 'trm_blocks';
         const blockKey = `${selectedTerminal.toLowerCase()}_block_${selectedBlock.toLowerCase()}`;
 
         // @ts-ignore

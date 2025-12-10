@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Package, Grid3x3 } from 'lucide-react';
 import { useStore } from '../../store/store';
-import { getAllBlocks } from '../../utils/layoutUtils';
+import { getAllDynamicBlocks } from '../../utils/layoutUtils';
 
 export default function BlockDetailsPanel() {
     const selectedBlock = useStore(state => state.selectedBlock);
@@ -14,8 +14,6 @@ export default function BlockDetailsPanel() {
     const [isVisible, setIsVisible] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
     const [containerSearch, setContainerSearch] = useState('');
-    const [indicatorStyle, setIndicatorStyle] = useState({});
-    const tabsContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (selectedBlock) {
@@ -38,41 +36,7 @@ export default function BlockDetailsPanel() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [selectedBlock]);
 
-    // Update indicator position when active tab changes or component mounts
-    useEffect(() => {
-        if (tabsContainerRef.current) {
-            const tabs = tabsContainerRef.current.querySelectorAll('button');
-            const activeIndex = ['overview', 'containers'].indexOf(activeTab);
-            const activeButton = tabs[activeIndex];
 
-            if (activeButton) {
-                const { offsetLeft, offsetWidth } = activeButton;
-                setIndicatorStyle({
-                    left: `${offsetLeft}px`,
-                    width: `${offsetWidth}px`,
-                    opacity: 1
-                });
-            }
-        }
-    }, [activeTab]);
-
-    // Initialize indicator position when component becomes visible
-    useEffect(() => {
-        if (isVisible && tabsContainerRef.current) {
-            const tabs = tabsContainerRef.current.querySelectorAll('button');
-            const activeIndex = ['overview', 'containers'].indexOf(activeTab);
-            const activeButton = tabs[activeIndex];
-
-            if (activeButton) {
-                const { offsetLeft, offsetWidth } = activeButton;
-                setIndicatorStyle({
-                    left: `${offsetLeft}px`,
-                    width: `${offsetWidth}px`,
-                    opacity: 1
-                });
-            }
-        }
-    }, [isVisible]);
 
     // Close block panel when a container is selected, re-open when deselected (backtrack)
     useEffect(() => {
@@ -88,7 +52,7 @@ export default function BlockDetailsPanel() {
     const blockData = useMemo(() => {
         if (!selectedBlock || !layout) return null;
 
-        const blocks = getAllBlocks(layout);
+        const blocks = getAllDynamicBlocks(layout);
         const block = blocks.find(b => b.id === selectedBlock);
         if (!block) return null;
 
@@ -98,7 +62,8 @@ export default function BlockDetailsPanel() {
             return entity && entity.blockId === selectedBlock;
         });
 
-        const totalCapacity = (block.lots || 1) * (block.rows || 1) * 6; // Assuming 6-high stacks
+        const props = block.props || {};
+        const totalCapacity = (props.lots || 1) * (props.rows || 1) * 6; // Assuming 6-high stacks
         const currentCount = containersInBlock.length;
         const occupancyPercent = Math.round((currentCount / totalCapacity) * 100);
 
@@ -130,8 +95,9 @@ export default function BlockDetailsPanel() {
     if (!blockData) return null;
 
     const { block, containersInBlock, currentCount, totalCapacity, occupancyPercent } = blockData;
+    const props = block.props || {};
 
-    const containerTypeLabel = block.container_type || '40ft';
+    const containerTypeLabel = props.container_type || '40ft';
     const availableSlots = Math.max(totalCapacity - currentCount, 0);
     const occupiedSlots = currentCount;
 
@@ -194,7 +160,7 @@ export default function BlockDetailsPanel() {
                             textTransform: 'uppercase',
                             letterSpacing: '-0.5px'
                         }}>
-                            {block.description || block.id}
+                            {props.description || block.id}
                         </h2>
                     </div>
                     <button
@@ -323,7 +289,7 @@ export default function BlockDetailsPanel() {
                         <MetricCard
                             icon={<Grid3x3 size={18} />}
                             label="Dimensions"
-                            value={`${block.lots} lots × ${block.rows} rows`}
+                            value={`${props.lots} lots × ${props.rows} rows`}
                         />
 
                         <div style={{
@@ -478,7 +444,9 @@ export default function BlockDetailsPanel() {
                                                     }}
                                                     onClick={() => {
                                                         useStore.getState().setSelectId(id);
-                                                        handleClose(true); // Skip camera reset to avoid animation conflict
+                                                        // Do not close/clear block selection.
+                                                        // The useEffect will monitor [selectId, selectedBlock]
+                                                        // and automatically hide this panel without clearing selectedBlock.
                                                     }}
                                                 >
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

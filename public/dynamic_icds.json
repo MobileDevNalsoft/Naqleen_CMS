@@ -1,0 +1,556 @@
+{
+  "version": "3.0",
+  "icds": {
+    "naqleen-jeddah": {
+      "id": "naqleen-jeddah",
+      "name": "Naqleen Jeddah",
+      "location": "Jeddah, Saudi Arabia",
+      "total_dimensions": {
+        "width": 360,
+        "height": 145,
+        "unit": "meters"
+      },
+      "scale": "1:100",
+      "drawing_number": "ASQ012324/160189",
+      "approved_by": "Nesthubz Infra Solutions",
+      "entities": [
+        {
+          "id": "trs_terminal",
+          "type": "trs_terminal",
+          "position": {
+            "x": -90,
+            "y": 0.1,
+            "z": 0,
+            "unit": "meters"
+          },
+          "rotation": 0,
+          "dimensions": {
+            "width": 180,
+            "height": 145,
+            "unit": "meters"
+          },
+          "props": {
+            "description": "TRS Terminal (Left Side) - Main operational area"
+          }
+        },
+        {
+          "id": "trm_terminal",
+          "type": "trm_terminal",
+          "position": {
+            "x": 94,
+            "y": 0.1,
+            "z": 0,
+            "unit": "meters"
+          },
+          "rotation": 0,
+          "dimensions": {
+            "width": 172,
+            "height": 145,
+            "unit": "meters"
+          },
+          "props": {
+            "description": "TRM Terminal (Right Side) - Main operational area"
+          }
+        },
+        {
+          "id": "yard_base",
+          "type": "yard_base",
+          "position": {
+            "x": 0,
+            "y": -1,
+            "z": 0,
+            "unit": "meters"
+          },
+          "rotation": 0,
+          "corner_points": [
+            {
+              "x": -180,
+              "z": -72.5,
+              "description": "Bottom-left corner"
+            },
+            {
+              "x": 180,
+              "z": -72.5,
+              "description": "Bottom-right corner"
+            },
+            {
+              "x": 180,
+              "z": 72.5,
+              "description": "Top-right corner"
+            },
+            {
+              "x": -180,
+              "z": 72.5,
+              "description": "Top-left corner"
+            }
+          ],
+          "props": {
+            "color": "#27a79a",
+            "description": "Main yard base ground plane"
+          }
+        },
+        {
+          "id": "trs_block_a",
+          "type": "container_block_a",
+          "position": {
+            "x": -88.8,
+            "y": 0.3,
+            "z": -55.75,
+            "unit": "meters"
+          },
+          "rotation": 0,
+          "dimensions": {
+            "width": 177.83,
+            "height": 30,
+            "unit": "meters"
+          },
+          "props": {
+            "color": "#FF9800",
+            "description": "TRS Block A - 20ft",
+            "container_type": "20ft",
+            "lots": 23,
+            "rows": 11,
+            "row_labels": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K"
+            ],
+            "lot_numbers": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ],
+            "lot_gap": 1.75
+          }
+        },
+        {
+          "id": "trs_block_b",
+          "type": "container_block_b",
+          "position": {
+            "x": -72,
+            "y": 0.3,
+            "z": -15.06,
+            "unit": "meters"
+          },
+          "rotation": 0,
+          "dimensions": {
+            "height": 26.82,
+            "width": 152.47,
+            "unit": "meters"
+          },
+          "props": {
+            "color": "#F44336",
+            "description": "TRS Block B",
+            "container_type": "40ft",
+            "lots": 11,
+            "rows": 11,
+            "lot_gap": 1.75,
+            "row_labels": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K"
+            ],
+            "lot_numbers": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ]
+          }
+        },
+        {
+          "id": "trs_block_c",
+          "type": "container_block_c",
+          "position": {
+            "x": -72,
+            "y": 0.3,
+            "z": 15.06,
+            "unit": "meters"
+          },
+          "rotation": 0,
+          "dimensions": {
+            "height": 26.82,
+            "width": 152.47,
+            "unit": "meters"
+          },
+          "props": {
+            "color": "#9C27B0",
+            "description": "TRS Block C",
+            "container_type": "40ft",
+            "lots": 11,
+            "rows": 11,
+            "lot_gap": 1.75,
+            "row_labels": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K"
+            ],
+            "lot_numbers": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ]
+          }
+        },
+        {
+          "id": "trs_block_d_part1",
+          "type": "container_block_d",
+          "position": {
+            "x": -172,
+            "y": 0.3,
+            "z": 59,
+            "unit": "meters"
+          },
+          "rotation": 0,
+          "dimensions": {
+            "height": 24.38,
+            "width": 14,
+            "unit": "meters"
+          },
+          "props": {
+            "color": "#607D8B",
+            "description": "TRS Block D",
+            "container_type": "40ft",
+            "lots": 1,
+            "rows": 10,
+            "lot_gap": 1.75,
+            "row_labels": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J"
+            ],
+            "lot_numbers": [
+              1
+            ]
+          }
+        },
+        {
+          "id": "trs_block_d_part2",
+          "type": "container_block_d",
+          "position": {
+            "x": -70,
+            "y": 0.3,
+            "z": 59,
+            "unit": "meters"
+          },
+          "rotation": 0,
+          "dimensions": {
+            "height": 24.38,
+            "width": 150,
+            "unit": "meters"
+          },
+          "props": {
+            "color": "#607D8B",
+            "description": "TRS Block D",
+            "container_type": "40ft",
+            "lots": 11,
+            "rows": 10,
+            "lot_gap": 1.75,
+            "row_labels": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J"
+            ],
+            "lot_numbers": [
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12
+            ]
+          }
+        },
+        {
+          "id": "trm_block_a",
+          "type": "container_block_a",
+          "position": {
+            "x": 93,
+            "y": 0.3,
+            "z": -55.75,
+            "unit": "meters"
+          },
+          "rotation": 0,
+          "dimensions": {
+            "height": 30,
+            "width": 170.03,
+            "unit": "meters"
+          },
+          "props": {
+            "color": "#FF9800",
+            "description": "TRM Block A - 20ft",
+            "container_type": "20ft",
+            "lots": 22,
+            "rows": 11,
+            "lot_gap": 1.75,
+            "row_labels": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K"
+            ],
+            "lot_numbers": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22
+            ]
+          }
+        },
+        {
+          "id": "trm_block_b",
+          "type": "container_block_b",
+          "position": {
+            "x": 81,
+            "y": 0.3,
+            "z": -15.06,
+            "unit": "meters"
+          },
+          "rotation": 0,
+          "dimensions": {
+            "height": 26.82,
+            "width": 152.47,
+            "unit": "meters"
+          },
+          "props": {
+            "color": "#F44336",
+            "description": "TRM Block B",
+            "container_type": "40ft",
+            "lots": 11,
+            "rows": 11,
+            "lot_gap": 1.75,
+            "row_labels": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K"
+            ],
+            "lot_numbers": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ]
+          }
+        },
+        {
+          "id": "trm_block_c",
+          "type": "container_block_c",
+          "position": {
+            "x": 81,
+            "y": 0.3,
+            "z": 15.06,
+            "unit": "meters"
+          },
+          "rotation": 0,
+          "dimensions": {
+            "height": 26.82,
+            "width": 152.47,
+            "unit": "meters"
+          },
+          "props": {
+            "color": "#9C27B0",
+            "description": "TRM Block C",
+            "container_type": "40ft",
+            "lots": 11,
+            "rows": 11,
+            "lot_gap": 1.75,
+            "row_labels": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J",
+              "K"
+            ],
+            "lot_numbers": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ]
+          }
+        },
+        {
+          "id": "trm_block_d",
+          "type": "container_block_d",
+          "position": {
+            "x": 97,
+            "y": 0.3,
+            "z": 59,
+            "unit": "meters"
+          },
+          "rotation": 0,
+          "dimensions": {
+            "height": 24.38,
+            "width": 165,
+            "unit": "meters"
+          },
+          "props": {
+            "color": "#607D8B",
+            "description": "TRM Block D",
+            "container_type": "40ft",
+            "lots": 12,
+            "rows": 10,
+            "lot_gap": 1.75,
+            "row_labels": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F",
+              "G",
+              "H",
+              "I",
+              "J"
+            ],
+            "lot_numbers": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

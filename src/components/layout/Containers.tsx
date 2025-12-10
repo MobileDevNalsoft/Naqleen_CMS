@@ -3,21 +3,28 @@ import * as THREE from 'three';
 import { useStore } from '../../store/store';
 import { useTexture, Outlines } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
+// containerColors is defined locally below
+import type { DynamicEntity } from '../../utils/layoutUtils';
 import gsap from 'gsap';
 
 interface ContainersProps {
-    count?: number;
     controlsRef?: RefObject<any>;
     onReady?: () => void;
 }
 
-export function Containers({ count, controlsRef, onReady }: ContainersProps) {
+export function Containers({ controlsRef, onReady }: ContainersProps) {
     const meshRef = useRef<THREE.InstancedMesh>(null);
     const opacityAttribute = useRef<THREE.InstancedBufferAttribute | null>(null);
+    // Access store state via individual selectors to avoid infinite render loops
+    // caused by object literal creation in single selector
     const ids = useStore(state => state.ids);
     const entities = useStore(state => state.entities);
     const selectId = useStore(state => state.selectId);
     const selectedBlock = useStore(state => state.selectedBlock);
+    const layout = useStore(state => state.layout);
+    // Move hover hooks here to ensure they are called unconditionally
+    const setHoverId = useStore(state => state.setHoverId);
+    const hoverId = useStore(state => state.hoverId);
 
     const { camera } = useThree();
 
@@ -43,6 +50,16 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
 
     // Memoize instance data with scaling for 40ft containers
     const instanceData = useMemo(() => {
+        // Create a map of blocks for quick lookup
+        const blockMap = new Map<string, DynamicEntity>();
+        if (layout && layout.entities) {
+            layout.entities.forEach(entity => {
+                if (entity.type && entity.type.includes('block')) {
+                    blockMap.set(entity.id, entity);
+                }
+            });
+        }
+
         return ids.map(id => {
             const e = entities[id];
             const color = new THREE.Color();
@@ -52,22 +69,24 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
             const colorIndex = hash % containerColors.length;
             color.setHex(containerColors[colorIndex]);
 
-            // Determine scale based on type (20ft vs 40ft)
-            const type = e?.type || '20ft';
-            // 40ft is roughly 2x 20ft (12.192m vs 6.058m)
-            // Exact ratio: 12.192 / 6.058 = 2.0125
-            const scaleX = type === '40ft' ? 2.0125 : 1;
+            // Get block to determine scaling based on SLOT SIZE not container size
+            const block = e?.blockId ? blockMap.get(e.blockId) : null;
+            const blockType = block?.props?.container_type || '20ft';
+
+            // Determine scale: If block slots are 40ft, scale up. If 20ft, standard.
+            // This aligns visual mesh with the grid slot size.
+            const scaleX = blockType === '40ft' ? 2.0125 : 1;
 
             return {
                 position: [e?.x || 0, e?.y || 0, e?.z || 0] as [number, number, number],
                 color: color,
                 id: id,
                 scale: [scaleX, 1, 1] as [number, number, number],
-                type: type,
+                type: e?.type || '20ft', // Keep actual type for info, but scale by block
                 blockId: e?.blockId
             };
         });
-    }, [ids, entities, containerColors]);
+    }, [ids, entities, containerColors, layout]);
 
     const dummy = useMemo(() => new THREE.Object3D(), []);
 
@@ -139,7 +158,7 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
     const highlightMeshRef = useRef<THREE.Mesh>(null);
 
     // Main Animation Loop (Lift & Opacity)
-    useFrame((state, delta) => {
+    useFrame((_, delta) => {
         const mesh = meshRef.current;
         if (!mesh || instanceData.length === 0) return;
 
@@ -286,17 +305,75 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
         }
     };
 
+    // --- Hover Logic - moved up from below ---
+    const [isInteracting, setIsInteracting] = useState(false);
+
+    // Monitor camera interaction to disable hover
+    useEffect(() => {
+        const controls = controlsRef?.current;
+        if (!controls) return;
+
+        const onStart = () => setIsInteracting(true);
+        const onEnd = () => setIsInteracting(false);
+
+        controls.addEventListener('start', onStart);
+        controls.addEventListener('end', onEnd);
+
+        return () => {
+            controls.removeEventListener('start', onStart);
+            controls.removeEventListener('end', onEnd);
+        };
+    }, [controlsRef]);
+
+    // Clear hover when interacting or selecting
+    useEffect(() => {
+        if (isInteracting || selectId || selectedBlock) {
+            setHoverId(null);
+            document.body.style.cursor = 'auto';
+        }
+    }, [isInteracting, selectId, selectedBlock, setHoverId]);
+
+    const handlePointerMove = (e: any) => {
+        e.stopPropagation();
+
+        // Disable hover if interacting, or if selection exists
+        if (isInteracting || selectId || selectedBlock) return;
+
+        const instanceId = e.instanceId;
+        if (instanceId !== undefined && ids[instanceId]) {
+            const id = ids[instanceId];
+            if (hoverId !== id) {
+                setHoverId(id);
+                document.body.style.cursor = 'pointer';
+            }
+        }
+    };
+
+    const handlePointerOut = (e: any) => {
+        e.stopPropagation();
+        if (hoverId) {
+            setHoverId(null);
+            document.body.style.cursor = 'auto';
+        }
+    };
+
+    // Calculate highlighted container info - moved up
+    const hoveredContainerInfo = useMemo(() => {
+        if (!hoverId) return null;
+        return instanceData.find(d => d.id === hoverId);
+    }, [hoverId, instanceData]);
+
     if (ids.length === 0) return null;
 
     return (
         <group onClick={handleGroundClick}>
             <instancedMesh
                 ref={meshRef}
-                args={[undefined, undefined, Math.max(count || 0, ids.length)]}
+                args={[undefined, undefined, ids.length]}
                 onClick={handleClick}
                 onPointerDown={handlePointerDown}
-                onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; }}
-                onPointerOut={() => { document.body.style.cursor = 'auto'; }}
+                onPointerMove={handlePointerMove}
+                onPointerOut={handlePointerOut}
                 frustumCulled={true}
             >
                 <boxGeometry args={[6.058, 2.591, 2.438]} />
@@ -343,6 +420,18 @@ export function Containers({ count, controlsRef, onReady }: ContainersProps) {
                     <boxGeometry args={[6.058, 2.591, 2.438]} />
                     <meshBasicMaterial transparent opacity={0} depthWrite={false} />
                     <Outlines thickness={5} color="#FFD700" />
+                </mesh>
+            )}
+
+            {/* Highlight for hovered container (Cyan/Teal) */}
+            {hoveredContainerInfo && !selectedContainerInfo && (
+                <mesh
+                    position={hoveredContainerInfo.position}
+                    scale={hoveredContainerInfo.scale}
+                >
+                    <boxGeometry args={[6.058, 2.591, 2.438]} />
+                    <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+                    <Outlines thickness={3} color="#FFD700" />
                 </mesh>
             )}
         </group>

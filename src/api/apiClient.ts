@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { API_CONFIG } from './apiConfig';
 
 /**
  * Axios instance with common configuration
@@ -11,11 +12,13 @@ import axios from 'axios';
  * - Request cancellation
  */
 const apiClient = axios.create({
-    baseURL: '/', // Base URL for all requests
-    timeout: 10000, // 10 second timeout
-    headers: {
-        'Content-Type': 'application/json',
-    },
+    baseURL: API_CONFIG.BASE_URL,
+    timeout: API_CONFIG.TIMEOUT,
+    headers: API_CONFIG.HEADERS,
+    auth: {
+        username: API_CONFIG.AUTH.BASIC_AUTH_USERNAME,
+        password: API_CONFIG.AUTH.BASIC_AUTH_PASSWORD
+    }
 });
 
 // Request interceptor (useful for adding auth tokens, logging, etc.)

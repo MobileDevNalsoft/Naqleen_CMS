@@ -18,18 +18,7 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
         onClose();
     };
 
-    const inputStyle = {
-        width: '100%',
-        padding: '12px 16px',
-        background: 'white',
-        border: '1px solid rgba(0, 0, 0, 0.1)',
-        borderRadius: '12px',
-        color: '#1e293b',
-        fontSize: '14px',
-        outline: 'none',
-        transition: 'all 0.2s',
-        boxSizing: 'border-box' as const
-    };
+
 
     const labelStyle = {
         display: 'block',
@@ -100,42 +89,42 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
             <div>
                 <label style={labelStyle}>Truck Information</label>
                 <div style={{ position: 'relative' }}>
-                    <Truck size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: '#4B686C' }} />
+                    <Truck size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4B686C' }} />
                     <input
                         type="text"
                         placeholder="Enter Truck Number"
                         value={truckNumber}
                         onChange={(e) => setTruckNumber(e.target.value)}
-                        style={{ ...inputStyle, paddingLeft: '44px' }}
-                    />
+                        className="modern-input"
+                        style={{ paddingLeft: '48px' }} />
                 </div>
             </div>
 
             <div>
                 <label style={labelStyle}>Driver Details</label>
                 <div style={{ position: 'relative' }}>
-                    <User size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: '#4B686C' }} />
+                    <User size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4B686C' }} />
                     <input
                         type="text"
                         placeholder="Driver Name"
                         value={driverName}
                         onChange={(e) => setDriverName(e.target.value)}
-                        style={{ ...inputStyle, paddingLeft: '44px' }}
-                    />
+                        className="modern-input"
+                        style={{ paddingLeft: '48px' }} />
                 </div>
             </div>
 
             <div>
                 <label style={labelStyle}>Container</label>
                 <div style={{ position: 'relative' }}>
-                    <Box size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: '#4B686C' }} />
+                    <Box size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4B686C' }} />
                     <input
                         type="text"
                         placeholder="Container Number"
                         value={containerNumber}
                         onChange={(e) => setContainerNumber(e.target.value)}
-                        style={{ ...inputStyle, paddingLeft: '44px' }}
-                    />
+                        className="modern-input"
+                        style={{ paddingLeft: '48px' }} />
                 </div>
             </div>
 
@@ -147,7 +136,8 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                         placeholder="Any additional notes..."
                         value={remarks}
                         onChange={(e) => setRemarks(e.target.value)}
-                        style={{ ...inputStyle, paddingLeft: '44px', minHeight: '80px', resize: 'vertical' }}
+                        className="modern-input"
+                        style={{ paddingLeft: '48px', minHeight: '80px', resize: 'vertical' }}
                     />
                 </div>
             </div>
