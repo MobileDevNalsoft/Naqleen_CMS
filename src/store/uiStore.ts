@@ -9,7 +9,8 @@ export type ActivePanel =
     | 'destuffing'
     | 'plugInOut'
     | 'cfsTask'
-    | 'reservedContainers';
+    | 'reservedContainers'
+    | 'customerInventory';
 
 interface UIState {
     activePanel: ActivePanel;

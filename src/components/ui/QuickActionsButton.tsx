@@ -99,6 +99,7 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
         // { id: 'plugInOut', label: 'Plug In / Out', icon: Power },
         // { id: 'cfsTask', label: 'CFS Task Assignment', icon: ClipboardList },
         { id: 'reservedContainers', label: 'Reserved Containers', icon: ShieldCheck },
+        { id: 'customerInventory', label: 'Customer Inventory', icon: ClipboardList },
     ];
 
     // Store icon components instead of pre-rendered JSX so we can control size centrally

@@ -26,6 +26,7 @@ import PositionContainerPanel from './components/panels/PositionContainerPanel';
 import ReservedContainersPanel from './components/panels/ReservedContainersPanel';
 import Dashboard from './components/ui/Dashboard';
 import Containers from './components/layout/Containers';
+import CustomerInventoryPanel from './components/panels/CustomerInventoryPanel';
 
 function App() {
   const { data: layout, isLoading: layoutLoading } = useLayoutQuery();
@@ -200,6 +201,7 @@ function App() {
           <PlugInOutPanel isOpen={activePanel === 'plugInOut'} onClose={closePanel} />
           <CFSTaskAssignmentPanel isOpen={activePanel === 'cfsTask'} onClose={closePanel} />
           <ReservedContainersPanel isOpen={activePanel === 'reservedContainers'} onClose={closePanel} />
+          <CustomerInventoryPanel isOpen={activePanel === 'customerInventory'} onClose={closePanel} />
         </section>
 
         {/* Dashboard Section */}
