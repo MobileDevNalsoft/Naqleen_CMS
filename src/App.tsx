@@ -25,6 +25,7 @@ import PlugInOutPanel from './components/panels/PlugInOutPanel';
 import CFSTaskAssignmentPanel from './components/panels/CFSTaskAssignmentPanel';
 import PositionContainerPanel from './components/panels/PositionContainerPanel';
 import Dashboard from './components/ui/Dashboard';
+import CustomerInventoryPanel from './components/panels/CustomerInventoryPanel';
 
 function App() {
   const { data: layout, isLoading: layoutLoading } = useLayoutQuery();
@@ -221,12 +222,12 @@ function App() {
         <BlockDetailsPanel />
 
         {/* Loading Screen */}
-        {showLoadingScreen && (
+        {/* {showLoadingScreen && (
           <LoadingScreen
             isLoading={isDataLoading}
             onComplete={() => setShowLoadingScreen(false)}
           />
-        )}
+        )} */}
 
         <Canvas
           style={{ width: '100%', height: '100%', display: 'block' }}
@@ -235,15 +236,15 @@ function App() {
         >
           <color attach="background" args={['#E6F4F1']} />
 
-          <Environment />
+          {/* <Environment /> */}
           <DynamicLayoutEngine />
-          <IcdMarkings />
+          {/* <IcdMarkings />
           <Fencing />
           <Gates />
           <Containers
             controlsRef={controlsRef}
             onReady={() => setSceneReady(true)}
-          />
+          /> */}
 
           <CameraTransition isLoading={isDataLoading} controlsRef={controlsRef} />
 
@@ -275,6 +276,7 @@ function App() {
         <DestuffingPanel isOpen={activePanel === 'destuffing'} onClose={closePanel} />
         <PlugInOutPanel isOpen={activePanel === 'plugInOut'} onClose={closePanel} />
         <CFSTaskAssignmentPanel isOpen={activePanel === 'cfsTask'} onClose={closePanel} />
+        <CustomerInventoryPanel isOpen={activePanel === 'customerInventory'} onClose={closePanel} />
       </section>
 
       {/* Dashboard Section */}

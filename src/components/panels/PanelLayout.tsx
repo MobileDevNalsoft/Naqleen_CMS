@@ -8,6 +8,7 @@ interface PanelLayoutProps {
     onClose: () => void;
     children: React.ReactNode;
     footerActions?: React.ReactNode;
+    headerActions?: React.ReactNode;
     width?: string;
 }
 
@@ -18,6 +19,7 @@ export default function PanelLayout({
     onClose,
     children,
     footerActions,
+    headerActions,
     width = '420px'
 }: PanelLayoutProps) {
     const [isVisible, setIsVisible] = useState(false);
@@ -95,7 +97,8 @@ export default function PanelLayout({
                             {title}
                         </h2>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {headerActions}
                         <button
                             onClick={onClose}
                             style={{
