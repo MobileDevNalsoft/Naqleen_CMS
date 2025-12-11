@@ -142,7 +142,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
 
     // View Inventory - Search State
     const [searchTerm, setSearchTerm] = useState('');
-    const [searchFilter, setSearchFilter] = useState<'ALL' | 'SHIPMENT' | 'CUSTOMER' | 'CONTAINER'>('ALL');
+    const [searchFilter, setSearchFilter] = useState<'SHIPMENT' | 'CUSTOMER' | 'CONTAINER'>('CUSTOMER');
 
     // Load inventory on mount and tab change
     useEffect(() => {
@@ -157,11 +157,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
             const params: { searchCust?: string; searchCont?: string; searchShip?: string } = {};
 
             if (term) {
-                if (filter === 'ALL') {
-                    params.searchCust = term;
-                    params.searchCont = term;
-                    params.searchShip = term;
-                } else if (filter === 'CUSTOMER') {
+                if (filter === 'CUSTOMER') {
                     params.searchCust = term;
                 } else if (filter === 'CONTAINER') {
                     params.searchCont = term;
