@@ -91,13 +91,13 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
     ];
 
     const actionModes = [
-        { id: 'position', label: 'Position Container', icon: MapPin },
-        { id: 'gateIn', label: 'Gate In Entry', icon: Truck },
-        { id: 'gateOut', label: 'Gate Out Entry', icon: ArrowRightLeft },
-        { id: 'stuffing', label: 'Assign Stuffing', icon: PackageOpen },
-        { id: 'destuffing', label: 'Assign Destuffing', icon: PackageOpen },
-        { id: 'plugInOut', label: 'Plug In / Out', icon: Power },
-        { id: 'cfsTask', label: 'CFS Task Assignment', icon: ClipboardList },
+        // { id: 'position', label: 'Position Container', icon: MapPin },
+        // { id: 'gateIn', label: 'Gate In Entry', icon: Truck },
+        // { id: 'gateOut', label: 'Gate Out Entry', icon: ArrowRightLeft },
+        // { id: 'stuffing', label: 'Assign Stuffing', icon: PackageOpen },
+        // { id: 'destuffing', label: 'Assign Destuffing', icon: PackageOpen },
+        // { id: 'plugInOut', label: 'Plug In / Out', icon: Power },
+        // { id: 'cfsTask', label: 'CFS Task Assignment', icon: ClipboardList },
         { id: 'reservedContainers', label: 'Reserved Containers', icon: ShieldCheck },
     ];
 
@@ -216,10 +216,10 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
                 bottom: '160px', // Position at Eye button center
                 left: '70px', // Start from Eye button center
                 width: '150px',
-                background: 'rgba(253, 246, 235, 0.95)',
+                background: 'rgba(253, 246, 235)',
                 backdropFilter: 'blur(16px)',
                 borderRadius: '16px',
-                border: '1px solid rgba(75, 104, 108, 0.1)',
+                border: '1px solid rgba(75, 104, 108, 0.2)',
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
                 overflow: 'hidden',
                 display: 'flex',
@@ -285,26 +285,27 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
                                 gap: '12px',
                                 padding: '10px 12px',
                                 borderRadius: '10px',
-                                border: '2px solid rgba(3, 97, 109, 0.1)',
-                                background: currentViewMode === mode.id ? 'var(--secondary-gradient)' : 'transparent',
-                                color: currentViewMode === mode.id ? 'var(--primary-color)' : '#64748b',
+                                border: '1px solid rgba(196, 196, 196, 1)',
+                                background: 'rgba(255, 255, 255, 0.5)',
+                                color: '#1e293b',
                                 cursor: 'pointer',
                                 transition: 'all 0.2s',
                                 fontSize: '13px',
-                                fontWeight: 600
+                                fontWeight: 600,
+                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.03)'
                             }}
                             onMouseEnter={(e) => {
-                                if (currentViewMode !== mode.id) {
-                                    e.currentTarget.style.background = 'rgba(75, 104, 108, 0.05)';
-                                }
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
+                                e.currentTarget.style.transform = 'translateY(-1px)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.06)';
                             }}
                             onMouseLeave={(e) => {
-                                if (currentViewMode !== mode.id) {
-                                    e.currentTarget.style.background = 'transparent';
-                                }
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.5)';
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.03)';
                             }}
                         >
-                            <mode.icon size={16} />
+                            <mode.icon size={16} style={{ color: '#4B686C' }} />
                             {mode.label}
                         </button>
                     ))}
@@ -385,8 +386,8 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
                                 gap: '12px',
                                 padding: '12px',
                                 borderRadius: '10px',
-                                border: '2px solid rgba(75, 104, 108, 0.1)',
-                                background: 'transparent',
+                                border: '1px solid rgba(196, 196, 196, 1)',
+                                background: 'rgba(255, 255, 255, 0.5)',
                                 color: '#1e293b',
                                 cursor: 'pointer',
                                 transition: 'all 0.2s',
@@ -394,15 +395,18 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
                                 fontWeight: 500,
                                 width: '100%',
                                 textAlign: 'left',
-                                marginBottom: '4px'
+                                marginBottom: '4px',
+                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.03)'
                             }}
                             onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'rgba(75, 104, 108, 0.05)';
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
                                 e.currentTarget.style.transform = 'translateX(4px)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.06)';
                             }}
                             onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.5)';
                                 e.currentTarget.style.transform = 'translateX(0)';
+                                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.03)';
                             }}
                         >
                             <mode.icon size={16} style={{ color: '#4B686C' }} />

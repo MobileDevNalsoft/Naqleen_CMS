@@ -33,7 +33,7 @@ function App() {
   const [sceneReady, setSceneReady] = useState(false);
   const [activeNav, setActiveNav] = useState('3D View');
 
-  const containerRef = useRef<HTMLDivElement>(null);
+
   const canvasSectionRef = useRef<HTMLElement>(null);
   const dashboardSectionRef = useRef<HTMLElement>(null);
   const controlsRef = useRef<any>(null);
@@ -42,30 +42,9 @@ function App() {
 
   const handleNavChange = (nav: string) => {
     setActiveNav(nav);
-    if (!containerRef.current) return;
-
-    const height = containerRef.current.clientHeight;
-    if (nav === 'Dashboard') {
-      containerRef.current.scrollTo({ top: height, behavior: 'smooth' });
-    } else {
-      containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
   };
 
-  // Handle Wheel Event to pass scroll from Canvas to Page when zoomed out
-  const handleCanvasWheel = (e: React.WheelEvent) => {
-    if (!controlsRef.current || !containerRef.current) return;
-    const controls = controlsRef.current;
 
-    const distance = controls.object.position.distanceTo(controls.target);
-    const output = e.deltaY;
-
-    // If zooming out (deltaY > 0) and at max distance
-    // Using 599 as threshold (max is 600)
-    if (output > 0 && distance >= controls.maxDistance - 1) {
-      containerRef.current.scrollBy({ top: output, behavior: 'auto' });
-    }
-  };
 
   // Prevent panning outside environment boundaries
   const handleControlsChange = () => {
@@ -122,111 +101,126 @@ function App() {
 
   return (
     <div
-      ref={containerRef}
       style={{
         width: '100vw',
         height: '100vh',
-        overflowY: 'auto',
-        overflowX: 'hidden',
+        overflow: 'hidden',
         margin: 0,
         padding: 0,
         position: 'relative',
-        scrollBehavior: 'smooth'
+        background: '#111'
       }}
     >
 
-      {/* Modern Branding Header - Fixed on top of container */}
-      <div style={{ position: 'sticky', top: 0, left: 0, right: 0, zIndex: 1000, height: 0 }}>
-        <ModernHeader activeNav={activeNav} onNavChange={handleNavChange} />
+      {/* Modern Branding Header - Fixed Overlay */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000, height: 0 }}>
+        <ModernHeader activeNav={activeNav} onNavChange={handleNavChange} isSearchVisible={true} /> {/* put isDataLoading in place of true to hide search till loading completes*/}
         <HoverInfoPanel />
       </div>
 
-      {/* 3D View Section */}
-      <section
-        ref={canvasSectionRef}
-        onWheel={handleCanvasWheel}
+      {/* Sliding Viewport Container */}
+      <div
         style={{
           width: '100%',
-          height: '100vh',
-          position: 'relative',
-          // Ensure overlays work
+          height: '200%', // Space for two full-screen sections
+          transform: activeNav === 'Dashboard' ? 'translateY(-50%)' : 'translateY(0)',
+          transition: 'transform 0.8s cubic-bezier(0.65, 0, 0.35, 1)', // Premium ease-in-out-expo feel
         }}
       >
-        {/* Side Panels */}
-        <ContainerDetailsPanel />
-        <BlockDetailsPanel />
-
-        {/* Loading Screen */}
-        {showLoadingScreen && (
-          <LoadingScreen
-            isLoading={isDataLoading}
-            onComplete={() => setShowLoadingScreen(false)}
-          />
-        )}
-
-        <Canvas
-          style={{ width: '100%', height: '100%', display: 'block' }}
-          camera={{ position: [0, 150, 300], fov: 45 }}
-          shadows
+        {/* 3D View Section */}
+        <section
+          ref={canvasSectionRef}
+          style={{
+            width: '100%',
+            height: '50%', // 50% of 200% = 100vh
+            position: 'relative',
+          }}
         >
-          <color attach="background" args={['#E6F4F1']} />
+          {/* Side Panels */}
+          <ContainerDetailsPanel />
+          <BlockDetailsPanel />
 
-          <Environment />
-          <DynamicLayoutEngine />
-          <IcdMarkings />
-          <Fencing />
-          <Gates />
-          <Containers
-            controlsRef={controlsRef}
-            onReady={() => setSceneReady(true)}
-          />
+          {/* Loading Screen */}
+          {
+            // showLoadingScreen 
+            false
+            && (
+              <LoadingScreen
+                isLoading={isDataLoading}
+                onComplete={() => setShowLoadingScreen(false)}
+              />
+            )}
 
-          <CameraTransition isLoading={isDataLoading} controlsRef={controlsRef} />
+          <Canvas
+            style={{ width: '100%', height: '100%', display: 'block' }}
+            camera={{ position: [0, 150, 300], fov: 45 }}
+            shadows
+          >
+            <color attach="background" args={['#E6F4F1']} />
 
-          <OrbitControls
-            ref={controlsRef}
-            makeDefault
-            enableDamping
-            dampingFactor={0.05}
-            minPolarAngle={0}                    // Prevent looking straight down
-            maxPolarAngle={Math.PI / 2 - 0.05}     // Prevent going below horizontal
-            minDistance={0}                        // Minimum zoom distance
-            maxDistance={600}                       // Maximum zoom distance (Restricted)
-            enablePan={true}                        // Allow panning
-            panSpeed={1}                            // Pan speed
-            rotateSpeed={0.8}                       // Rotation speed
-            onChange={handleControlsChange}         // Clamp target position
-            enableZoom={true}
-          />
-        </Canvas>
+            {/* <Environment /> */}
+            <DynamicLayoutEngine />
+            {/* <IcdMarkings />
+            <Fencing />
+            <Gates />
+            <Containers
+              controlsRef={controlsRef}
+              onReady={() => setSceneReady(true)}
+            /> */}
 
-        {/* Quick Actions Button */}
-        <QuickActionsButton />
+            <CameraTransition isLoading={isDataLoading} controlsRef={controlsRef} />
 
-        {/* Action Panels */}
-        <PositionContainerPanel isOpen={activePanel === 'position'} onClose={closePanel} />
-        <GateInPanel isOpen={activePanel === 'gateIn'} onClose={closePanel} />
-        <GateOutPanel isOpen={activePanel === 'gateOut'} onClose={closePanel} />
-        <StuffingPanel isOpen={activePanel === 'stuffing'} onClose={closePanel} />
-        <DestuffingPanel isOpen={activePanel === 'destuffing'} onClose={closePanel} />
-        <PlugInOutPanel isOpen={activePanel === 'plugInOut'} onClose={closePanel} />
-        <CFSTaskAssignmentPanel isOpen={activePanel === 'cfsTask'} onClose={closePanel} />
-        <ReservedContainersPanel isOpen={activePanel === 'reservedContainers'} onClose={closePanel} />
-      </section>
+            <OrbitControls
+              ref={controlsRef}
+              makeDefault
+              enableDamping
+              dampingFactor={0.05}
+              minPolarAngle={0}                    // Prevent looking straight down
+              maxPolarAngle={Math.PI / 2 - 0.05}     // Prevent going below horizontal
+              minDistance={0}                        // Minimum zoom distance
+              maxDistance={600}                       // Maximum zoom distance (Restricted)
+              enablePan={true}                        // Allow panning
+              panSpeed={1}                            // Pan speed
+              rotateSpeed={0.8}                       // Rotation speed
+              onChange={handleControlsChange}         // Clamp target position
+              enableZoom={true}
+              zoomSpeed={3}
+            />
+          </Canvas>
 
-      {/* Dashboard Section */}
-      <section
-        ref={dashboardSectionRef}
-        style={{
-          width: '100%',
-          minHeight: '100vh',
-          position: 'relative',
-          background: '#F5F7F7',
-          zIndex: 10
-        }}
-      >
-        <Dashboard />
-      </section>
+          {/* Quick Actions Button */}
+
+
+          {/* Action Panels */}
+          <PositionContainerPanel isOpen={activePanel === 'position'} onClose={closePanel} />
+          <GateInPanel isOpen={activePanel === 'gateIn'} onClose={closePanel} />
+          <GateOutPanel isOpen={activePanel === 'gateOut'} onClose={closePanel} />
+          <StuffingPanel isOpen={activePanel === 'stuffing'} onClose={closePanel} />
+          <DestuffingPanel isOpen={activePanel === 'destuffing'} onClose={closePanel} />
+          <PlugInOutPanel isOpen={activePanel === 'plugInOut'} onClose={closePanel} />
+          <CFSTaskAssignmentPanel isOpen={activePanel === 'cfsTask'} onClose={closePanel} />
+          <ReservedContainersPanel isOpen={activePanel === 'reservedContainers'} onClose={closePanel} />
+        </section>
+
+        {/* Dashboard Section */}
+        <section
+          ref={dashboardSectionRef}
+          style={{
+            width: '100%',
+            height: '50%', // 50% of 200% = 100vh
+            position: 'relative',
+            background: '#F5F7F7',
+            zIndex: 10,
+            overflowY: 'auto', // Enable scrolling within the dashboard
+            overflowX: 'hidden'
+          }}
+        >
+          <Dashboard />
+        </section>
+      </div>
+
+      {/* Quick Actions Button - Fixed position relative to viewport */}
+      {activeNav === '3D View' && <QuickActionsButton />}
     </div>
   );
 }

@@ -18,21 +18,21 @@ export default function Dashboard() {
             </div>
 
             {/* KPI Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px' }}>
+            {/* <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px' }}>
                 <KpiCard title="Total Inventory" value="2,453" change="+12%" icon={<Box size={24} color="#3b82f6" />} />
                 <KpiCard title="Gate Moves (Today)" value="342" change="-5%" icon={<Activity size={24} color="#10b981" />} />
                 <KpiCard title="Pending Inspections" value="18" change="+2" icon={<Users size={24} color="#f59e0b" />} />
                 <KpiCard title="Avg Turnaround Time" value="42m" change="-8%" icon={<TrendingUp size={24} color="#6366f1" />} />
-            </div>
+            </div> */}
 
             {/* Charts Section */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '24px', flex: 1 }}>
-                <ChartCard title="Container Throughput (Last 7 Days)">
+                {/* <ChartCard title="Container Throughput (Last 7 Days)">
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px', background: '#f8fafc', borderRadius: '12px' }}>
                         <BarChart3 size={48} color="#94a3b8" />
                         <span style={{ marginLeft: '12px', color: '#94a3b8' }}>Throughput Chart Visualization Placeholder</span>
                     </div>
-                </ChartCard>
+                </ChartCard> */}
                 <ChartCard title="Equipment Utilization">
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px', background: '#f8fafc', borderRadius: '12px' }}>
                         <PieChart size={48} color="#94a3b8" />

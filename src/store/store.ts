@@ -10,12 +10,13 @@ interface StoreState {
   selectId: string | null;
   selectedBlock: string | null;
   hoverId: string | null;
+  hoverSource: string | null;
   layout: DynamicIcdLayout | null;
   setEntitiesBatch: (updates: Partial<ContainerEntity> & { id: string }[]) => void;
   patchPositions: (posUpdates: { id: string; x: number; y: number; z: number }[]) => void;
   setSelectId: (id: string | null) => void;
   setSelectedBlock: (blockId: string | null) => void;
-  setHoverId: (id: string | null) => void;
+  setHoverId: (id: string | null, source?: string) => void;
   setLayout: (layout: DynamicIcdLayout) => void;
   reservedContainers: ReservedContainer[];
   setReservedContainers: (containers: ReservedContainer[]) => void;
@@ -33,6 +34,7 @@ export const useStore = create<StoreState>((set) => ({
   selectId: null,
   selectedBlock: null,
   hoverId: null,
+  hoverSource: null,
   layout: null,
 
   setEntitiesBatch: (updates) => set((state) => {
@@ -59,7 +61,7 @@ export const useStore = create<StoreState>((set) => ({
 
   setSelectId: (id) => set({ selectId: id }),
   setSelectedBlock: (blockId) => set({ selectedBlock: blockId }),
-  setHoverId: (id) => set({ hoverId: id }),
+  setHoverId: (id, source) => set({ hoverId: id, hoverSource: source || null }),
   setLayout: (layout) => set({ layout }),
 
   // Visual state for reserved containers

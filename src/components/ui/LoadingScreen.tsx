@@ -64,7 +64,7 @@ export default function LoadingScreen({ isLoading, onComplete }: LoadingScreenPr
                 marginBottom: '20px'
             }} />
             <h1 style={{ fontSize: '24px', fontWeight: 'bold', letterSpacing: '1px' }}>NAQLEEN ICD</h1>
-            <p style={{ color: 'rgba(255, 255, 255, 0.7)', marginTop: '10px' }}>Building Icd... {progress}%</p>
+            <p style={{ color: 'rgba(255, 255, 255, 0.7)', marginTop: '10px' }}>Building 3D Layout... {progress}%</p>
 
             {/* Progress Bar */}
             <div style={{

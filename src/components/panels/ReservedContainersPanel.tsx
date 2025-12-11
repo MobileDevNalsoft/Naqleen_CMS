@@ -17,6 +17,7 @@ export default function ReservedContainersPanel({ isOpen, onClose }: ReservedCon
     const [expandedCustomer, setExpandedCustomer] = useState<string | null>(null);
     const [selectedBooking, setSelectedBooking] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedSizeFilter, setSelectedSizeFilter] = useState<'20FT' | '40FT' | null>(null);
 
     // -- Data Fetching --
     const {
@@ -30,9 +31,17 @@ export default function ReservedContainersPanel({ isOpen, onClose }: ReservedCon
     } = useReservedContainersQuery(selectedBooking);
 
     // -- Derived State --
-    const filteredContainers = reservedContainers.filter(c =>
-        c.container_nbr ? c.container_nbr.toLowerCase().includes(searchTerm.toLowerCase()) : false
-    );
+    const totalCount = reservedContainers.length;
+    const count20ft = reservedContainers.filter(c => c.container_type === '20FT').length;
+    const count40ft = reservedContainers.filter(c => c.container_type !== '20FT').length; // Assuming anything not 20FT is 40FT for now, or check explicit '40FT'
+
+    const filteredContainers = reservedContainers.filter(c => {
+        const matchesSearch = c.container_nbr ? c.container_nbr.toLowerCase().includes(searchTerm.toLowerCase()) : false;
+        const matchesType = selectedSizeFilter ? (
+            selectedSizeFilter === '20FT' ? c.container_type === '20FT' : c.container_type !== '20FT'
+        ) : true;
+        return matchesSearch && matchesType;
+    });
     const matchCount = filteredContainers.length;
 
     // -- Effects --
@@ -40,10 +49,14 @@ export default function ReservedContainersPanel({ isOpen, onClose }: ReservedCon
         if (isOpen) {
             setIsVisible(true);
         } else {
+            // When closing, reset camera if it was visible (to avoid triggering on initial load if closed)
+            if (isVisible) {
+                window.dispatchEvent(new CustomEvent('resetCameraToInitial'));
+            }
             const timer = setTimeout(() => setIsVisible(false), 400); // Wait for transition
             return () => clearTimeout(timer);
         }
-    }, [isOpen]);
+    }, [isOpen, isVisible]);
 
     // -- Handlers --
     const toggleCustomer = (customerName: string) => {
@@ -57,11 +70,13 @@ export default function ReservedContainersPanel({ isOpen, onClose }: ReservedCon
     const clearSelection = () => {
         setSelectedBooking(null);
         setSearchTerm('');
+        setSelectedSizeFilter(null);
     };
 
     const handlePanelClose = () => {
         setSelectedBooking(null);
         setSearchTerm('');
+        setSelectedSizeFilter(null);
         onClose();
     };
 
@@ -161,7 +176,7 @@ export default function ReservedContainersPanel({ isOpen, onClose }: ReservedCon
                                 {selectedBooking ? selectedBooking : 'Reserved Units'}
                             </h2>
                             <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>
-                                {selectedBooking ? 'Booking Detail View' : 'Client Bookings Overview'}
+                                {selectedBooking ? `Booking Detail View • ${totalCount} Units` : 'Client Bookings Overview'}
                             </p>
                         </div>
 
@@ -264,6 +279,47 @@ export default function ReservedContainersPanel({ isOpen, onClose }: ReservedCon
                                     onFocus={(e) => { e.target.style.borderColor = '#4B686C'; e.target.style.boxShadow = '0 0 0 3px rgba(75, 104, 108, 0.1)'; }}
                                     onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.1)'; e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)'; }}
                                 />
+
+                                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                    {[
+                                        { label: '20FT', count: count20ft, value: '20FT' },
+                                        { label: '40FT', count: count40ft, value: '40FT' }
+                                    ].map((tab) => {
+                                        const isActive = selectedSizeFilter === tab.value;
+                                        return (
+                                            <button
+                                                key={tab.value}
+                                                onClick={() => setSelectedSizeFilter(isActive ? null : tab.value as any)}
+                                                style={{
+                                                    flex: 1,
+                                                    padding: '8px',
+                                                    borderRadius: '8px',
+                                                    border: `1px solid ${isActive ? '#4B686C' : 'rgba(0,0,0,0.15)'}`,
+                                                    background: isActive ? '#4B686C' : 'white',
+                                                    color: isActive ? 'white' : '#64748b',
+                                                    cursor: 'pointer',
+                                                    fontSize: '12px',
+                                                    fontWeight: 600,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: '6px',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                            >
+                                                <span>{tab.label}</span>
+                                                <span style={{
+                                                    background: isActive ? 'rgba(255,255,255,0.2)' : '#f1f5f9',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '4px',
+                                                    fontSize: '10px'
+                                                }}>
+                                                    {tab.count}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
 
                             <div style={{
@@ -303,7 +359,7 @@ export default function ReservedContainersPanel({ isOpen, onClose }: ReservedCon
                                         onMouseEnter={(e) => {
                                             e.currentTarget.style.transform = 'translateY(-2px)';
                                             e.currentTarget.style.borderColor = '#facc15';
-                                            setHoverId(container.container_nbr);
+                                            setHoverId(container.container_nbr, 'panel');
                                         }}
                                         onMouseLeave={(e) => {
                                             e.currentTarget.style.transform = 'translateY(0)';

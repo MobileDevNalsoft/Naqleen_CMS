@@ -1,15 +1,20 @@
 import { useRef, useEffect } from 'react';
 import gsap from 'gsap';
 import { useStore } from '../../store/store';
+import { useUIStore } from '../../store/uiStore';
 import { Package } from 'lucide-react';
 
 export default function HoverInfoPanel() {
     const hoverId = useStore(state => state.hoverId);
+    const activePanel = useUIStore(state => state.activePanel);
     const panelRef = useRef<HTMLDivElement>(null);
     const timelineRef = useRef<gsap.core.Timeline | null>(null);
 
     useEffect(() => {
-        if (hoverId) {
+        const source = useStore.getState().hoverSource;
+        const isReservedOpen = useUIStore.getState().activePanel === 'reservedContainers';
+
+        if (hoverId && source !== 'panel' && !isReservedOpen) {
             // Kill existing animation if any
             if (timelineRef.current) timelineRef.current.kill();
 
@@ -45,7 +50,7 @@ export default function HoverInfoPanel() {
                 }
             });
         }
-    }, [hoverId]);
+    }, [hoverId, activePanel]);
 
     // Don't render null to keep ref alive for GSAP, but control visibility via CSS/GSAP
     // Ideally we always render and just hide it.
