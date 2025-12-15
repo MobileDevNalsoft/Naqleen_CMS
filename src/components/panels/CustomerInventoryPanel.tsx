@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import PanelLayout from './PanelLayout';
 import {
     Plus,
@@ -469,7 +470,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     return (
         <>
             {/* Confirmation Modal */}
-            {showConfirmModal && (
+            {showConfirmModal && createPortal(
                 <div style={modalOverlayStyle} onClick={() => setShowConfirmModal(false)}>
                     <div style={{ ...modalStyle, maxWidth: '500px', height: 'auto', maxHeight: 'none' }} onClick={e => e.stopPropagation()}>
                         <div style={{ padding: '24px', textAlign: 'center' }}>
@@ -516,7 +517,8 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             <PanelLayout
@@ -1162,7 +1164,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
 
             {/* Add Item Modal */}
             {
-                showAddItemModal && (
+                showAddItemModal && createPortal(
                     <div style={modalOverlayStyle}>
                         <div style={modalStyle}>
                             <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1238,11 +1240,12 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                 <button onClick={handleAddItem} style={{ padding: '10px 24px', background: 'var(--primary-color)', border: 'none', borderRadius: '8px', fontWeight: 600, color: 'white', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>Add Item</button>
                             </div>
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )
             }
 
-            {showBulkConflictModal && (
+            {showBulkConflictModal && createPortal(
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 }}>
                     <div style={{
                         background: 'var(--card-bg)',
@@ -1364,7 +1367,8 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </>
     );

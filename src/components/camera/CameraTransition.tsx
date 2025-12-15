@@ -114,8 +114,8 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
 
             animateCamera(targetPos, targetLookAt);
 
-        } else if (activePanel === 'reservedContainers') {
-            // --- Reserved Containers View ---
+        } else if (activePanel === 'reserveContainers') {
+            // --- Reserve Containers View ---
             // View complete layout but shifted to accommodate left/right panel
             // Similar to block view but wider field of view (further back)
 

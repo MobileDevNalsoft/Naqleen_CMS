@@ -29,21 +29,12 @@ export interface IcdLayout {
 }
 
 /**
- * New multi-icd structure (v2.0)
- * Supports multiple icds with easy switching
- */
-export interface IcdsData {
-    version: string;
-    icds: Record<string, IcdLayout>;
-}
-
-/**
  * Parse the multi-icd JSON structure
  * @param json - Raw JSON data from naqleen_icds.json
  * @param icdId - Optional icd ID (defaults to first icd)
  * @returns Single icd layout
  */
-export const parseIcds = (json: IcdsData, icdId?: string): IcdLayout => {
+export const parseIcds = (json: DynamicIcdsData, icdId?: string): DynamicIcdLayout => {
     const selectedIcdId = icdId || Object.keys(json.icds)[0];
     return json.icds[selectedIcdId];
 };
@@ -51,11 +42,11 @@ export const parseIcds = (json: IcdsData, icdId?: string): IcdLayout => {
 /**
  * Get list of all available icds
  */
-export const getAvailableIcds = (json: IcdsData | DynamicIcdsData): Array<{ id: string; name: string; location: string }> => {
+export const getAvailableIcds = (json: DynamicIcdsData): Array<{ id: string; name: string; location: string }> => {
     return Object.entries(json.icds).map(([id, icd]: [string, any]) => ({
         id,
-        name: icd.name || icd.icd_info?.name || 'Unknown ICD',
-        location: icd.location || icd.icd_info?.location || 'Unknown Location',
+        name: icd.name || 'Unknown ICD',
+        location: icd.location || 'Unknown Location',
     }));
 };
 

@@ -1,6 +1,6 @@
 export const API_CONFIG = {
-    BASE_URL: 'https://paas.nalsoft.net:4443/ords/xxotm/otm-web', // Use execution context relative path by default
-    MOBILE_BASE_URL: 'https://paas.nalsoft.net:4443/ords/xxotm/otm-mobile',
+    BASE_URL: '/ords/xxotm/otm-web',
+    MOBILE_BASE_URL: '/ords/xxotm/otm-mobile',
     TIMEOUT: 30000,
     HEADERS: {
         'Content-Type': 'application/json',
@@ -12,11 +12,12 @@ export const API_CONFIG = {
     },
     ENDPOINTS: {
         GET_CONTAINERS: '/getContainers',
-        GET_RESERVED_CONTAINERS: '/getReservedContainers',
         GET_CUSTOMERS_AND_BOOKINGS: '/getCustomersAndBookings',
+        GET_RECOMMENDED_CONTAINERS: '/getRecommendedContainers',
+        GET_CONTAINERS_OF_TYPE: '/getContainersOfType',
         GET_INVENTORY: '/getInventory',
+        GET_CONTAINER_DETAILS: '/getContainerDetails',
         CREATE_INVENTORY: '/customerInventory',
-        GET_ICDS: '/dynamic_icds.json',
-        GET_LAYOUT: (id: string) => `/layout/${id}.json`, // Example for future use
+        GET_ICDS: '/dynamic_icds.json'
     }
 } as const;

@@ -24,7 +24,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
     const layout = useStore(state => state.layout);
     const setHoverId = useStore(state => state.setHoverId);
     const hoverId = useStore(state => state.hoverId);
-    const reservedContainers = useStore(state => state.reservedContainers);
+    const reserveContainers = useStore(state => state.reserveContainers);
 
     const { camera } = useThree();
 
@@ -162,7 +162,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         const mesh = meshRef.current;
         if (!mesh || instanceData.length === 0) return;
 
-        const reservedActive = reservedContainers.length > 0;
+        const reserveActive = reserveContainers.length > 0;
 
         // --- Handle Block Lift Animation ---
         const targetLift = selectedBlock ? 16 : 0;
@@ -191,18 +191,18 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         const selectedPos = selectedContainerInfo?.selected?.position;
         let needsMatrixUpdate = false;
 
-        // Added reservedActive check for matrix update to ensure opacity updates correctly even without lift
-        if (isLifting || isLotLifting || (selectedBlock && liftHeight.current !== 0) || (selectId && lotLiftHeight.current !== 0) || reservedActive) {
+        // Added reserveActive check for matrix update to ensure opacity updates correctly even without lift
+        if (isLifting || isLotLifting || (selectedBlock && liftHeight.current !== 0) || (selectId && lotLiftHeight.current !== 0) || reserveActive) {
             needsMatrixUpdate = true;
         }
 
-        const hasSelection = !!selectedBlock || !!selectId || reservedActive;
+        const hasSelection = !!selectedBlock || !!selectId || reserveActive;
         const selectionCleared = prevHasSelection.current && !hasSelection;
         prevHasSelection.current = hasSelection;
 
         if (needsMatrixUpdate || hasSelection || selectionCleared) {
             instanceData.forEach((data, i) => {
-                const isReserved = reservedActive && reservedContainers.some(c => c.container_nbr === data.id);
+                const isReserve = reserveActive && reserveContainers.some(c => c.container_nbr === data.id);
 
                 // 1. Position (Lift) & Scale (Visibility)
                 const [x, y, z] = data.position;
@@ -211,12 +211,12 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                 let scaleY = data.scale[1];
                 let scaleZ = data.scale[2];
 
-                if (reservedActive) {
-                    // Reserved Mode Logic: No Lift
+                if (reserveActive) {
+                    // Reserve Mode Logic: No Lift
                     currentY = y;
 
-                    // Hide unreserved containers completely (prevent depth write ghosts)
-                    if (!isReserved) {
+                    // Hide unreserve containers completely (prevent depth write ghosts)
+                    if (!isReserve) {
                         scaleX = 0;
                         scaleY = 0;
                         scaleZ = 0;
@@ -241,9 +241,9 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                 // 2. Opacity (Dimming)
                 let opacity = 1.0;
 
-                if (reservedActive) {
-                    // Reserved Mode: Highlight reserved, others are invisible
-                    if (isReserved) {
+                if (reserveActive) {
+                    // Reserve Mode: Highlight reserve, others are invisible
+                    if (isReserve) {
                         opacity = 1.0;
                     } else {
                         opacity = 0.0;
@@ -274,9 +274,9 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
             if (opacityAttribute.current) opacityAttribute.current.needsUpdate = true;
         }
 
-        // Update Highlight Mesh Position (Only for individual selection, disable if reserved mode is active?)
-        // Or maybe just hide it if reserved mode active
-        if (highlightMeshRef.current && selectedContainerInfo && !reservedActive) {
+        // Update Highlight Mesh Position (Only for individual selection, disable if reserve mode is active?)
+        // Or maybe just hide it if reserve mode active
+        if (highlightMeshRef.current && selectedContainerInfo && !reserveActive) {
             const [x, y, z] = selectedContainerInfo.selected.position;
             const currentLift = liftHeight.current + lotLiftHeight.current;
             highlightMeshRef.current.position.set(x, y + currentLift, z);
@@ -307,12 +307,12 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         const dy = e.clientY - dragStart.current.y;
         if (Math.sqrt(dx * dx + dy * dy) > 5) return;
 
-        // Block interaction if Reserved Panel (or any panel?) is open
-        // User requested specifically for "reserved container panel"
-        const isReservedPanelOpen = useUIStore.getState().activePanel === 'reservedContainers';
-        if (isReservedPanelOpen) return;
+        // Block interaction if Reserve Panel (or any panel?) is open
+        // User requested specifically for "reserve container panel"
+        const isReservePanelOpen = useUIStore.getState().activePanel === 'reserveContainers';
+        if (isReservePanelOpen) return;
 
-        // Disable selection click if reserved view is active? Or allow finding?
+        // Disable selection click if reserve view is active? Or allow finding?
         // Let's assume selection is allowed but strictly for info
 
         const instanceId = e.instanceId;
@@ -357,7 +357,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
     }, [controlsRef]);
 
     // Clear hover when interacting or selecting
-    // REMOVED reservedContainerIds check to allow hover during reserved mode
+    // REMOVED reserveContainerIds check to allow hover during reserve mode
     useEffect(() => {
         if (isInteracting || selectId || selectedBlock) {
             setHoverId(null);
@@ -367,7 +367,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
 
     const handlePointerMove = (e: any) => {
         e.stopPropagation();
-        // REMOVED reservedContainerIds check to allow hover during reserved mode
+        // REMOVED reserveContainerIds check to allow hover during reserve mode
         if (isInteracting || selectId || selectedBlock) return;
 
         const instanceId = e.instanceId;
@@ -442,7 +442,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
             </instancedMesh>
 
             {/* Thick Highlight for selected container */}
-            {selectedContainerInfo && !reservedContainers.length && (
+            {selectedContainerInfo && !reserveContainers.length && (
                 <mesh
                     ref={highlightMeshRef}
                     position={selectedContainerInfo.selected.position}
@@ -454,7 +454,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                 </mesh>
             )}
 
-            {/* Highlight for hovered container (Yellow/Gold) - Enabled during reserved mode if needed */}
+            {/* Highlight for hovered container (Yellow/Gold) - Enabled during reserve mode if needed */}
             {hoveredContainerInfo && !selectedContainerInfo && (
                 <mesh
                     position={hoveredContainerInfo.position}

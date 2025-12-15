@@ -96,9 +96,9 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
         // { id: 'gateOut', label: 'Gate Out Entry', icon: ArrowRightLeft },
         // { id: 'stuffing', label: 'Assign Stuffing', icon: PackageOpen },
         // { id: 'destuffing', label: 'Assign Destuffing', icon: PackageOpen },
-        // { id: 'plugInOut', label: 'Plug In / Out', icon: Power },
+        { id: 'plugInOut', label: 'Plug In / Out', icon: Power },
         // { id: 'cfsTask', label: 'CFS Task Assignment', icon: ClipboardList },
-        { id: 'reservedContainers', label: 'Reserved Containers', icon: ShieldCheck },
+        { id: 'reserveContainers', label: 'Reserve Containers', icon: ShieldCheck },
         { id: 'customerInventory', label: 'Customer Inventory', icon: ClipboardList },
     ];
 

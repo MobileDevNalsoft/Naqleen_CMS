@@ -60,7 +60,7 @@ const GenericZone: React.FC<GenericZoneProps> = ({
     });
 
     // Hide visual representation for terminal areas as requested
-    if (type.includes('terminal') || type.includes('common_area')) {
+    if (type.includes('terminal')) {
         return null;
     }
 

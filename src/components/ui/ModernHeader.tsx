@@ -7,12 +7,13 @@ interface ModernHeaderProps {
     activeNav: string;
     onNavChange: (nav: string) => void;
     isSearchVisible?: boolean;
+    selectedIcdId: string;
+    onIcdChange: (id: string) => void;
 }
 
-export default function ModernHeader({ activeNav, onNavChange, isSearchVisible = true }: ModernHeaderProps) {
+export default function ModernHeader({ activeNav, onNavChange, isSearchVisible = true, selectedIcdId, onIcdChange }: ModernHeaderProps) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    // Initialize with null to indicate no selection yet (waiting for data)
-    const [selectedIcdId, setSelectedIcdId] = useState<string | null>(null);
+    // Removed local selectedIcdId state in favor of parent state
     const [notificationCount] = useState(3); // Mock notification count
     // Local state removed in favor of props
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -25,12 +26,12 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
 
     const { data: icds, isLoading } = useIcdsQuery();
 
-    // Set default selection to first available ICD
+    // Auto-select first ICD if none selected found in list (optional, but good for safety)
     useEffect(() => {
         if (icds && icds.length > 0 && !selectedIcdId) {
-            setSelectedIcdId(icds[0].id);
+            onIcdChange(icds[0].id);
         }
-    }, [icds, selectedIcdId]);
+    }, [icds, selectedIcdId, onIcdChange]);
 
     // Store access for container search
     const entities = useStore((state) => state.entities);
@@ -134,7 +135,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
     const currentIcd = icds?.find(t => t.id === selectedIcdId);
 
     const handleIcdSelect = (icdId: string) => {
-        setSelectedIcdId(icdId);
+        onIcdChange(icdId);
         setIsDropdownOpen(false);
     };
 

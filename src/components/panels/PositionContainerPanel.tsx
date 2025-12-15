@@ -49,10 +49,15 @@ export default function PositionContainerPanel({ isOpen, onClose }: PositionCont
     }, [selectedTerminal]);
 
     useEffect(() => {
+        setSelectedLot(''); // Block -> Lot
         setSelectedRow('');
-        setSelectedLot('');
         setSelectedLevel('');
     }, [selectedBlock]);
+
+    useEffect(() => {
+        setSelectedRow(''); // Lot -> Row
+        setSelectedLevel('');
+    }, [selectedLot]);
 
     useEffect(() => {
         // When Row or Lot changes, try to auto-select level
@@ -376,22 +381,22 @@ export default function PositionContainerPanel({ isOpen, onClose }: PositionCont
                             </div>
                             <div style={{ display: 'flex', gap: '12px' }}>
                                 <Dropdown
-                                    label="Row"
-                                    value={selectedRow}
-                                    options={rows}
-                                    onChange={setSelectedRow}
+                                    label="Lot"
+                                    value={selectedLot}
+                                    options={lots.map((l: number) => l.toString())}
+                                    onChange={setSelectedLot}
                                     disabled={!selectedBlock}
-                                    icon={<ArrowRight size={14} />}
+                                    icon={<Box size={14} />}
                                     flex={1}
                                     variant="light"
                                 />
                                 <Dropdown
-                                    label="Lot"
-                                    value={selectedLot}
-                                    options={lots.map(l => l.toString())}
-                                    onChange={setSelectedLot}
-                                    disabled={!selectedRow}
-                                    icon={<Box size={14} />}
+                                    label="Row"
+                                    value={selectedRow}
+                                    options={rows}
+                                    onChange={setSelectedRow}
+                                    disabled={!selectedLot}
+                                    icon={<ArrowRight size={14} />}
                                     flex={1}
                                     variant="light"
                                 />

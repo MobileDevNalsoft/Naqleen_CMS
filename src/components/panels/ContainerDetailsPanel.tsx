@@ -68,17 +68,23 @@ export default function ContainerDetailsPanel() {
     };
 
     // Combine 3D position data (selectedContainer) with fetched details
-    const containerData = {
-        id: selectId,
-        type: selectedContainer?.type || '40ft Standard',
-        status: 'In Yard',
-        arrival: '2023-10-24 08:30 AM', // API doesn't provide this yet
-        origin: details?.origin || 'Loading...',
-        destination: details?.destination || 'Loading...',
-        weight: details?.weight || 'Loading...',
-        contents: details?.contents || 'Loading...',
-        shippingLine: details?.cust_nbr || 'Loading...',
-        vessel: 'MV OCEAN GIANT' // API doesn't provide this yet
+    const containerType = details?.container_type || selectedContainer?.type || '20ft';
+
+    // Format stored time nicely
+    const formatStoredTime = (isoString: string | null | undefined): string => {
+        if (!isoString) return 'N/A';
+        try {
+            const date = new Date(isoString);
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            return isoString;
+        }
     };
 
     return (
@@ -107,29 +113,57 @@ export default function ContainerDetailsPanel() {
         >
             {/* Header Section */}
             <div style={{
-                padding: '16px 24px 8px',
+                padding: '20px 24px 16px',
                 background: '#4B686C',
                 position: 'relative',
                 boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08)',
                 zIndex: 10
             }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0px' }}>
-                    <div>
-                        <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            padding: '4px 10px',
-                            background: 'rgba(243, 239, 239, 0.08)',
-                            border: '1px solid rgba(255, 255, 255, 0.15)',
-                            borderRadius: '20px',
-                            marginBottom: '12px'
-                        }}>
-                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#e7e7e7ff', boxShadow: '0 0 6px #e7e7e7ff' }} />
-                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#e7e7e7ff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                {containerData.type}
-                            </span>
-                        </div>
+                {/* Location Breadcrumb (Moved to Header) */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    marginBottom: '8px',
+                    opacity: 0.9
+                }}>
+                    <div style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        background: 'rgba(255, 255, 255, 0.15)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}>
+                        <MapPin size={12} color="white" />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
+                            {parseBlockId(selectedContainer?.blockId).terminal}
+                        </span>
+                        <div style={{ width: '1px', height: '10px', background: 'rgba(255,255,255,0.3)' }} />
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
+                            {parseBlockId(selectedContainer?.blockId).block}
+                        </span>
+                        <div style={{ width: '1px', height: '10px', background: 'rgba(255,255,255,0.3)' }} />
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
+                            Lot {selectedContainer?.lot !== undefined ? String(selectedContainer.lot + 1).padStart(2, '0') : '--'}
+                        </span>
+                        <div style={{ width: '1px', height: '10px', background: 'rgba(255,255,255,0.3)' }} />
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
+                            Row {rowIndexToLetter(selectedContainer?.row)}
+                        </span>
+                        <div style={{ width: '1px', height: '10px', background: 'rgba(255,255,255,0.3)' }} />
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
+                            Level {selectedContainer?.level !== undefined ? String(selectedContainer.level + 1).padStart(2, '0') : '--'}
+                        </span>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <h2 style={{
                             fontSize: '28px',
                             fontWeight: 800,
@@ -138,10 +172,25 @@ export default function ContainerDetailsPanel() {
                             WebkitBackgroundClip: 'text',
                             WebkitTextFillColor: 'transparent',
                             textTransform: 'uppercase',
-                            letterSpacing: '-0.5px'
                         }}>
                             {selectId}
                         </h2>
+
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '4px 10px',
+                            background: 'rgba(243, 239, 239, 0.08)',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            borderRadius: '20px',
+                            marginTop: '4px' // Align slightly with text baseline visual
+                        }}>
+                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#e7e7e7ff', boxShadow: '0 0 6px #e7e7e7ff' }} />
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#e7e7e7ff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                {containerType}
+                            </span>
+                        </div>
                     </div>
                     <button
                         onClick={handleClose}
@@ -162,6 +211,7 @@ export default function ContainerDetailsPanel() {
                             position: 'relative',
                             padding: '0',
                             margin: '0',
+                            marginBottom: '4px',
                             color: 'rgba(255, 255, 255, 0.8)'
                         }}
                         onMouseEnter={e => {
@@ -224,7 +274,7 @@ export default function ContainerDetailsPanel() {
             </div>
 
             {/* Content Area */}
-            <div style={{ padding: '24px', flex: 1, overflowY: 'auto' }} className="custom-scrollbar">
+            <div style={{ padding: '16px 24px 24px 24px', flex: 1, overflowY: 'auto' }} className="custom-scrollbar">
                 {activeTab === 'details' && (
                     isLoading ? (
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: '#64748b', gap: '8px' }}>
@@ -232,109 +282,19 @@ export default function ContainerDetailsPanel() {
                             <span style={{ fontSize: '13px' }}>Loading details...</span>
                             <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
                         </div>
+                    ) : !details ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: '#94a3b8', fontSize: '13px' }}>
+                            Container details not available
+                        </div>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
-                            {/* Location Card - Single Line Breadcrumb */}
-                            <DetailSection title="Current Location" icon={<MapPin size={16} />}>
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    padding: '8px 12px',
-                                    background: 'linear-gradient(135deg, rgba(75, 104, 108, 0.08), rgba(75, 104, 108, 0.03))',
-                                    borderRadius: '8px',
-                                    border: '1px solid rgba(75, 104, 108, 0.12)',
-                                    flexWrap: 'wrap'
-                                }}>
-                                    {/* Terminal */}
-                                    <span style={{
-                                        fontSize: '12px',
-                                        fontWeight: 600,
-                                        color: '#4B686C',
-                                        letterSpacing: '0.3px'
-                                    }}>
-                                        Terminal {parseBlockId(selectedContainer?.blockId).terminal}
-                                    </span>
-
-                                    {/* Arrow */}
-                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.4 }}>
-                                        <path d="M4 2L8 6L4 10" stroke="#4B686C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-
-                                    {/* Block */}
-                                    <span style={{
-                                        fontSize: '12px',
-                                        fontWeight: 600,
-                                        color: '#4B686C',
-                                        letterSpacing: '0.3px'
-                                    }}>
-                                        Block {parseBlockId(selectedContainer?.blockId).block}
-                                    </span>
-
-                                    {/* Arrow */}
-                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.4 }}>
-                                        <path d="M4 2L8 6L4 10" stroke="#4B686C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-
-                                    {/* Row */}
-                                    <span style={{
-                                        fontSize: '12px',
-                                        fontWeight: 600,
-                                        color: '#4B686C',
-                                        letterSpacing: '0.3px'
-                                    }}>
-                                        Row {rowIndexToLetter(selectedContainer?.row)}
-                                    </span>
-
-                                    {/* Arrow */}
-                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.4 }}>
-                                        <path d="M4 2L8 6L4 10" stroke="#4B686C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-
-                                    {/* Lot */}
-                                    <span style={{
-                                        fontSize: '12px',
-                                        fontWeight: 600,
-                                        color: '#4B686C',
-                                        letterSpacing: '0.3px'
-                                    }}>
-                                        Lot {selectedContainer?.lot !== undefined ? String(selectedContainer.lot + 1).padStart(2, '0') : '--'}
-                                    </span>
-
-                                    {/* Arrow */}
-                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.4 }}>
-                                        <path d="M4 2L8 6L4 10" stroke="#4B686C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-
-                                    {/* Level */}
-                                    <span style={{
-                                        fontSize: '12px',
-                                        fontWeight: 600,
-                                        color: '#4B686C',
-                                        letterSpacing: '0.3px'
-                                    }}>
-                                        Level {selectedContainer?.level !== undefined ? String(selectedContainer.level + 1).padStart(2, '0') : '--'}
-                                    </span>
-                                </div>
-                            </DetailSection>
-
-                            {/* Divider */}
-                            <div style={{
-                                height: '1px',
-                                background: 'linear-gradient(90deg, rgba(75, 104, 108, 0.2) 0%, rgba(75, 104, 108, 0.05) 50%, transparent 100%)',
-                                margin: '4px 0'
-                            }} />
-
-                            {/* Cargo Details */}
-                            <DetailSection title="Cargo Information" icon={<FileText size={16} />}>
+                            {/* Customer Information */}
+                            <DetailSection title="Customer Information" icon={<FileText size={16} />}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                    <InfoItem label="Contents" value={containerData.contents} />
-                                    <InfoItem label="Category" value="General" />
-                                    <InfoItem label="Weight" value={containerData.weight} />
-                                    <InfoItem label="Shipping Line" value={containerData.shippingLine} />
-                                    <InfoItem label="Origin" value={containerData.origin} />
-                                    <InfoItem label="Destination" value={containerData.destination} />
+                                    <InfoItem label="Customer Name" value={details.customer_name || 'N/A'} fullWidth />
+                                    {details.booking_id && <InfoItem label="Booking ID" value={details.booking_id} />}
+                                    <InfoItem label="Shipment Name" value={details.shipment_name || 'N/A'} />
                                 </div>
                             </DetailSection>
 
@@ -345,12 +305,25 @@ export default function ContainerDetailsPanel() {
                                 margin: '4px 0'
                             }} />
 
-                            {/* Vessel Details */}
-                            <DetailSection title="Vessel Schedule" icon={<Ship size={16} />}>
+                            {/* Shipment Details */}
+                            <DetailSection title="Shipment Details" icon={<Ship size={16} />}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                    <InfoItem label="Vessel Name" value={containerData.vessel} fullWidth />
-                                    <InfoItem label="Voyage No." value="VOY-2023-X89" />
-                                    <InfoItem label="ETA" value="Oct 24, 06:00" />
+                                    <InfoItem label="Inbound Order" value={details.inbound_order_nbr || 'N/A'} />
+                                    <InfoItem label="Inbound Shipment" value={details.inbound_shipment_nbr || 'N/A'} />
+                                </div>
+                            </DetailSection>
+
+                            {/* Divider */}
+                            <div style={{
+                                height: '2px',
+                                background: 'linear-gradient(90deg, rgba(75, 104, 108, 0.2) 0%, rgba(75, 104, 108, 0.05) 50%, transparent 100%)',
+                                margin: '4px 0'
+                            }} />
+
+                            {/* Storage Information */}
+                            <DetailSection title="Yard Information" icon={<Package size={16} />}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                    <InfoItem label="Stored Time" value={formatStoredTime(details.container_stored_time)} fullWidth />
                                 </div>
                             </DetailSection>
                         </div>

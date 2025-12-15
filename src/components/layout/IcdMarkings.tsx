@@ -287,14 +287,14 @@ const BlockLabels = ({ block }: { block: DynamicEntity }) => {
                             <mesh
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    const isReservedPanelOpen = useUIStore.getState().activePanel === 'reservedContainers';
-                                    if (isReservedPanelOpen) return;
+                                    const isReservePanelOpen = useUIStore.getState().activePanel === 'reserveContainers';
+                                    if (isReservePanelOpen) return;
                                     setSelectedBlock(block.id);
                                 }}
                                 onPointerOver={(e) => {
                                     e.stopPropagation();
-                                    const isReservedPanelOpen = useUIStore.getState().activePanel === 'reservedContainers';
-                                    if (isReservedPanelOpen) return;
+                                    const isReservePanelOpen = useUIStore.getState().activePanel === 'reserveContainers';
+                                    if (isReservePanelOpen) return;
                                     document.body.style.cursor = 'pointer';
                                     setIsHovered(true);
                                 }}

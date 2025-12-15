@@ -31,7 +31,17 @@
           },
           "props": {
             "description": "TRS Terminal (Left Side) - Main operational area"
-          }
+          },
+          "corner_points": [
+            { "x": -179, "z": -72.5 },
+            { "x": 5, "z": -72.5 },
+            { "x": 5, "z": -45 },
+            { "x": 3.5, "z": -45 },
+            { "x": 3.5, "z": 30.5 },
+            { "x": 0, "z": 30.5 },
+            { "x": 0, "z": 72.5 },
+            { "x": -180, "z": 72.5 }
+          ]
         },
         {
           "id": "trm_terminal",
@@ -50,7 +60,13 @@
           },
           "props": {
             "description": "TRM Terminal (Right Side) - Main operational area"
-          }
+          },
+          "corner_points": [
+            { "x": 8, "z": -72.5 },
+            { "x": 180, "z": -72.5 },
+            { "x": 180, "z": 72.5 },
+            { "x": 8, "z": 72.5 }
+          ]
         },
         {
           "id": "yard_base",

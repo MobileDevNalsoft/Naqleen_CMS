@@ -23,17 +23,17 @@ import DestuffingPanel from './components/panels/DestuffingPanel';
 import PlugInOutPanel from './components/panels/PlugInOutPanel';
 import CFSTaskAssignmentPanel from './components/panels/CFSTaskAssignmentPanel';
 import PositionContainerPanel from './components/panels/PositionContainerPanel';
-import ReservedContainersPanel from './components/panels/ReservedContainersPanel';
 import Dashboard from './components/ui/Dashboard';
 import Containers from './components/layout/Containers';
 import CustomerInventoryPanel from './components/panels/CustomerInventoryPanel';
+import ReserveContainersPanel from './components/panels/ReserveContainersPanel';
 
-function App() {
-  const { data: layout, isLoading: layoutLoading } = useLayoutQuery();
+const App = () => {
+  const [selectedIcdId, setSelectedIcdId] = useState('naqleen-jeddah');
+  const { data: layout, isLoading: layoutLoading } = useLayoutQuery(selectedIcdId);
   const { isLoading: containersLoading } = useContainersQuery(layout || null);
   const [sceneReady, setSceneReady] = useState(false);
   const [activeNav, setActiveNav] = useState('3D View');
-
 
   const canvasSectionRef = useRef<HTMLElement>(null);
   const dashboardSectionRef = useRef<HTMLElement>(null);
@@ -115,7 +115,7 @@ function App() {
 
       {/* Modern Branding Header - Fixed Overlay */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000, height: 0 }}>
-        <ModernHeader activeNav={activeNav} onNavChange={handleNavChange} isSearchVisible={true} /> {/* put isDataLoading in place of true to hide search till loading completes*/}
+        <ModernHeader activeNav={activeNav} onNavChange={handleNavChange} isSearchVisible={true} selectedIcdId={selectedIcdId} onIcdChange={setSelectedIcdId} /> {/* put isDataLoading in place of true to hide search till loading completes*/}
         <HoverInfoPanel />
       </div>
 
@@ -137,10 +137,6 @@ function App() {
             position: 'relative',
           }}
         >
-          {/* Side Panels */}
-          <ContainerDetailsPanel />
-          <BlockDetailsPanel />
-
           {/* Loading Screen */}
           {
             // showLoadingScreen 
@@ -161,10 +157,10 @@ function App() {
 
             {/* <Environment /> */}
             <DynamicLayoutEngine />
-            {/* <IcdMarkings />
-            <Fencing />
-            <Gates />
-            <Containers
+            <IcdMarkings />
+            {/* <Fencing />
+            <Gates /> */}
+            {/* <Containers
               controlsRef={controlsRef}
               onReady={() => setSceneReady(true)}
             /> */}
@@ -186,13 +182,13 @@ function App() {
               onChange={handleControlsChange}         // Clamp target position
               enableZoom={true}
               zoomSpeed={3}
+              zoomToCursor={true}
             />
           </Canvas>
 
-          {/* Quick Actions Button */}
-
-
-          {/* Action Panels */}
+          {/* Panels */}
+          <ContainerDetailsPanel />
+          <BlockDetailsPanel />
           <PositionContainerPanel isOpen={activePanel === 'position'} onClose={closePanel} />
           <GateInPanel isOpen={activePanel === 'gateIn'} onClose={closePanel} />
           <GateOutPanel isOpen={activePanel === 'gateOut'} onClose={closePanel} />
@@ -200,7 +196,7 @@ function App() {
           <DestuffingPanel isOpen={activePanel === 'destuffing'} onClose={closePanel} />
           <PlugInOutPanel isOpen={activePanel === 'plugInOut'} onClose={closePanel} />
           <CFSTaskAssignmentPanel isOpen={activePanel === 'cfsTask'} onClose={closePanel} />
-          <ReservedContainersPanel isOpen={activePanel === 'reservedContainers'} onClose={closePanel} />
+          <ReserveContainersPanel isOpen={activePanel === 'reserveContainers'} onClose={closePanel} />
           <CustomerInventoryPanel isOpen={activePanel === 'customerInventory'} onClose={closePanel} />
         </section>
 

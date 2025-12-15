@@ -12,21 +12,17 @@ interface StoreState {
   hoverId: string | null;
   hoverSource: string | null;
   layout: DynamicIcdLayout | null;
+  reserveContainers: { container_nbr: string }[];
   setEntitiesBatch: (updates: Partial<ContainerEntity> & { id: string }[]) => void;
   patchPositions: (posUpdates: { id: string; x: number; y: number; z: number }[]) => void;
   setSelectId: (id: string | null) => void;
   setSelectedBlock: (blockId: string | null) => void;
   setHoverId: (id: string | null, source?: string) => void;
   setLayout: (layout: DynamicIcdLayout) => void;
-  reservedContainers: ReservedContainer[];
-  setReservedContainers: (containers: ReservedContainer[]) => void;
+  setReserveContainers: (containers: { container_nbr: string }[]) => void;
 }
 
 
-export interface ReservedContainer {
-  container_nbr: string;
-  container_type: string;
-}
 
 export const useStore = create<StoreState>((set) => ({
   entities: {},
@@ -36,6 +32,7 @@ export const useStore = create<StoreState>((set) => ({
   hoverId: null,
   hoverSource: null,
   layout: null,
+  reserveContainers: [],
 
   setEntitiesBatch: (updates) => set((state) => {
     const entities = { ...state.entities };
@@ -63,8 +60,5 @@ export const useStore = create<StoreState>((set) => ({
   setSelectedBlock: (blockId) => set({ selectedBlock: blockId }),
   setHoverId: (id, source) => set({ hoverId: id, hoverSource: source || null }),
   setLayout: (layout) => set({ layout }),
-
-  // Visual state for reserved containers
-  reservedContainers: [] as ReservedContainer[],
-  setReservedContainers: (containers: ReservedContainer[]) => set({ reservedContainers: containers }),
+  setReserveContainers: (containers) => set({ reserveContainers: containers }),
 }));
