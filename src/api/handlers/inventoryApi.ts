@@ -1,74 +1,23 @@
-import apiClient from './apiClient';
-import { API_CONFIG } from './apiConfig';
-
-// --- API Response Interfaces ---
-interface ItemData {
-    item_description?: string;
-    cargo_description?: string;
-    hs_code?: string;
-    gross_weight?: number;
-    net_weight?: number;
-    weight_uom?: string;
-    volume?: number;
-    volume_uom?: string;
-    un_class?: string;
-    country_of_origin?: string;
-    quantity?: number;
-    quantity_uom?: string;
-}
-
-interface ContainerData {
-    container_nbr?: string;
-    shipment_nbr?: string;
-    items: ItemData[];
-}
-
-interface CustomerInventoryData {
-    customer: string;
-    customer_nbr: string;
-    containers: ContainerData[];
-}
-
-interface InventoryApiResponse {
-    response_code: number;
-    response_message: string;
-    data: CustomerInventoryData[];
-    items?: CustomerInventoryData[];
-}
-
-// --- UI Interfaces ---
-export interface InventoryItem {
-    id: string;
-    hsCode: string;
-    qty: string;
-    description: string;
-    uom: string;
-    grossWeight: string;
-    netWeight?: string;
-    weightUom?: string;
-    volume: string;
-    volumeUom?: string;
-    unClass?: string;
-    countryOfOrigin?: string;
-}
-
-export interface InventoryRecord {
-    id: string;
-    customer: string;
-    containerNumber: string;
-    otmShipmentNumber: string;
-    contactPerson?: string;
-    email?: string;
-    items: InventoryItem[];
-}
+import { mobileApiClient } from '../apiClient';
+import { API_CONFIG } from '../apiConfig';
+import type { ApiResponse } from '../types/commonTypes';
+import type {
+    CustomerInventoryData,
+    InventoryApiResponse,
+    InventoryItem,
+    InventoryRecord,
+    InventoryPayloadItem,
+    CreateInventoryPayload,
+    CustomerLookupData,
+    ShipmentLookupData
+} from '../types/inventoryTypes';
 
 // Function to fetch inventory with search params
 export const fetchInventory = async (params: { searchCust?: string, searchCont?: string, searchShip?: string, pageNum?: number } = {}): Promise<InventoryRecord[]> => {
     const { searchCust = '', searchCont = '', searchShip = '', pageNum = 0 } = params;
-    const url = `${API_CONFIG.MOBILE_BASE_URL}${API_CONFIG.ENDPOINTS.GET_INVENTORY}`;
 
     try {
-        const response = await apiClient.get<InventoryApiResponse>(url, {
+        const response = await mobileApiClient.get<InventoryApiResponse>(API_CONFIG.ENDPOINTS.GET_INVENTORY, {
             params: {
                 searchCust: searchCust,
                 searchCont: searchCont,
@@ -139,34 +88,10 @@ const mapApiResponseToInventoryRecords = (apiData: CustomerInventoryData[]): Inv
 };
 
 // --- POST Payload Interfaces ---
-export interface InventoryPayloadItem {
-    customer: string;
-    customer_nbr?: string; // Optional if not available in UI
-    container_nbr: string;
-    shipment_nbr: string;
-    item_description: string;
-    cargo_description: string;
-    hs_code: string;
-    gross_weight: number;
-    net_weight: number;
-    weight_uom: string;
-    volume: number;
-    volume_uom: string;
-    un_class: string;
-    country_of_origin: string;
-    quantity: number;
-    quantity_uom: string;
-    rcvd_qty: number;
-}
-
-interface CreateInventoryPayload {
-    flag: 'CHECK' | 'INSERT';
-    data: InventoryPayloadItem[];
-}
 
 // Function to create new inventory 
 export const createInventory = async (data: Omit<InventoryRecord, 'id'>, flag: 'CHECK' | 'INSERT' = 'CHECK'): Promise<any> => {
-    const url = `${API_CONFIG.MOBILE_BASE_URL}${API_CONFIG.ENDPOINTS.CREATE_INVENTORY}`;
+    const url = API_CONFIG.ENDPOINTS.CREATE_INVENTORY;
 
     // Map UI data to API Payload
     const payloadItems: InventoryPayloadItem[] = data.items.map(item => ({
@@ -195,7 +120,7 @@ export const createInventory = async (data: Omit<InventoryRecord, 'id'>, flag: '
     };
 
     try {
-        const response = await apiClient.post(url, payload);
+        const response = await mobileApiClient.post(url, payload);
         return response.data;
     } catch (error: any) {
         console.error("Error creating inventory:", error);
@@ -212,7 +137,7 @@ export const createInventory = async (data: Omit<InventoryRecord, 'id'>, flag: '
 };
 
 export const createBulkInventory = async (payloadItems: InventoryPayloadItem[], flag: 'CHECK' | 'INSERT' = 'CHECK'): Promise<any> => {
-    const url = `${API_CONFIG.MOBILE_BASE_URL}${API_CONFIG.ENDPOINTS.CREATE_INVENTORY}`;
+    const url = API_CONFIG.ENDPOINTS.CREATE_INVENTORY;
 
     const payload: CreateInventoryPayload = {
         flag,
@@ -220,7 +145,7 @@ export const createBulkInventory = async (payloadItems: InventoryPayloadItem[], 
     };
 
     try {
-        const response = await apiClient.post(url, payload);
+        const response = await mobileApiClient.post(url, payload);
         return response.data;
     } catch (error: any) {
         console.error("Error creating bulk inventory:", error);
@@ -230,19 +155,13 @@ export const createBulkInventory = async (payloadItems: InventoryPayloadItem[], 
     }
 };
 
-export interface CustomerLookupData {
-    customer_nbr: string;
-    customer_name: string;
-}
-
 export const fetchCustomerLookup = async (searchText: string): Promise<CustomerLookupData[]> => {
-    const url = `${API_CONFIG.MOBILE_BASE_URL}/customerInventoryCustomers`;
     try {
-        const response = await apiClient.get<any>(url, {
-            params: { searchText }
+        const response = await mobileApiClient.get<ApiResponse<CustomerLookupData[]>>('/customerInventoryCustomers', {
+            params: { p_search_text: searchText }
         });
 
-        if (response.data && response.data.data) {
+        if (response.data.response_code === 200 && response.data.data) {
             return response.data.data;
         }
         return [];
@@ -252,19 +171,13 @@ export const fetchCustomerLookup = async (searchText: string): Promise<CustomerL
     }
 };
 
-export interface ShipmentLookupData {
-    shipment_nbr: string;
-    container_nbr?: string;
-}
-
 export const fetchShipmentLookup = async (customerNbr: string, searchText: string): Promise<ShipmentLookupData[]> => {
-    const url = `${API_CONFIG.MOBILE_BASE_URL}/customerInventoryShipments`;
     try {
-        const response = await apiClient.get<any>(url, {
-            params: { customerNbr, searchText }
+        const response = await mobileApiClient.get<ApiResponse<ShipmentLookupData[]>>('/customerInventoryShipments', {
+            params: { customerNbr: customerNbr, searchText: searchText }
         });
 
-        if (response.data && response.data.data) {
+        if (response.data.response_code === 200 && response.data.data) {
             return response.data.data;
         }
         return [];

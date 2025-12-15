@@ -17,6 +17,7 @@ interface DropdownProps {
     disabled?: boolean;
     onSearch?: (query: string) => void;
     onFocus?: () => void;
+    loading?: boolean;
 }
 
 export default function Dropdown({
@@ -29,7 +30,8 @@ export default function Dropdown({
     searchable = false,
     disabled = false,
     onSearch,
-    onFocus
+    onFocus,
+    loading = false
 }: DropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     // inputValue tracks what the user sees in the text box
@@ -201,7 +203,15 @@ export default function Dropdown({
                     )}
 
                     <div style={{ display: 'flex', alignItems: 'center', paddingRight: '10px' }}>
-                        {showClear && !disabled && (
+                        {loading && (
+                            <div style={{ marginRight: '8px', animation: 'spin 1s linear infinite' }}>
+                                {/* Simple CSS spinner or Lucide loader */}
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                                </svg>
+                            </div>
+                        )}
+                        {showClear && !disabled && !loading && (
                             <div
                                 onClick={handleClear}
                                 style={{
@@ -245,9 +255,9 @@ export default function Dropdown({
                     }}>
                         <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
                             {filteredOptions.length > 0 ? (
-                                filteredOptions.map(option => (
+                                filteredOptions.map((option, index) => (
                                     <div
-                                        key={option.value}
+                                        key={`${option.value}-${index}`}
                                         onClick={() => handleOptionClick(option)}
                                         style={{
                                             padding: '10px 14px',
@@ -285,6 +295,10 @@ export default function Dropdown({
                 @keyframes fadeIn {
                     from { opacity: 0; transform: translateY(-4px); }
                     to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
                 }
             `}</style>
         </div>

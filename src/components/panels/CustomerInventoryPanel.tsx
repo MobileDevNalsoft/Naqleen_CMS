@@ -20,9 +20,9 @@ import {
     AlertTriangle
 } from 'lucide-react';
 import Dropdown from '../ui/Dropdown';
-import { fetchInventory, createInventory, createBulkInventory, fetchCustomerLookup, fetchShipmentLookup } from '../../api/inventory';
+import { fetchInventory, createInventory, createBulkInventory, fetchCustomerLookup, fetchShipmentLookup } from '../../api/handlers/inventoryApi';
 import { parseInventoryExcel } from '../../services/excelImportService';
-import type { InventoryRecord, InventoryItem, InventoryPayloadItem } from '../../api/inventory';
+import type { InventoryRecord, InventoryItem, InventoryPayloadItem } from '../../api/types/inventoryTypes';
 
 interface CustomerInventoryPanelProps {
     isOpen: boolean;
@@ -76,6 +76,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     const [customersData, setCustomersData] = useState<any[]>([]);
     const [shipmentsData, setShipmentsData] = useState<any[]>([]); // Store shipment objects
     const [isContainerReadOnly, setIsContainerReadOnly] = useState(false);
+    const [isLoadingShipments, setIsLoadingShipments] = useState(false);
 
     const handleCustomerSearch = async (query: string) => {
         console.log("Searching for:", query);
@@ -84,12 +85,33 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
             const data = await fetchCustomerLookup(query);
             console.log("Customer Lookup API Response:", data);
 
-            // "data" is { customer_nbr, customer_name }
-            // Use Name as value but store full object to lookup ID for shipments
-            const options = data.map(c => ({ label: c.customer_name, value: c.customer_name, original: c }));
+            // Normalize data: API might return string[] (from /customers) or Object[]
+            let normalizedData: { customer_name: string; original: any }[] = [];
+
+            if (Array.isArray(data) && data.length > 0) {
+                if (typeof data[0] === 'string') {
+                    // Handle string[]
+                    normalizedData = (data as any as string[]).map(s => ({ customer_name: s, original: s }));
+                } else {
+                    // Handle CustomerLookupData[]
+                    normalizedData = data.map(c => ({ customer_name: c.customer_name, original: c }));
+                }
+            } else if (Array.isArray(data)) {
+                normalizedData = [];
+            }
+
+            // Deduplicate by name
+            const uniqueData = normalizedData.filter((item, index, self) =>
+                index === self.findIndex((t) => (
+                    t.customer_name === item.customer_name
+                ))
+            );
+
+            // Map to options
+            const options = uniqueData.map(c => ({ label: c.customer_name, value: c.customer_name, original: c.original }));
             console.log("Mapped Options:", options);
             setCustomerOptions(options);
-            setCustomersData(data);
+            setCustomersData(uniqueData); // Store normalized data for lookup
         } catch (error) {
             console.error("Error searching customers:", error);
         }
@@ -99,18 +121,16 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
         if (!customer) return;
 
         // Find customer ID
-        // We look in customersData. But customersData might only have search results.
-        // If user selected a customer, and then searched something else, customersData changes.
-        // We need to ensure we have the ID of the *selected* customer.
-        // When user selects a customer, we should store the ID.
-        // Let's add state selectedCustomerId.
-        const selectedId = selectedCustomerId; // Need to add this state
+        // We look in customersData.
+        // If user selected a customer, we should have ID in state
+        const selectedId = selectedCustomerId;
         if (!selectedId) {
             console.warn("No customer ID found for shipment search");
             return;
         }
 
         console.log("Searching shipments for Customer ID:", selectedId, "Query:", query);
+        setIsLoadingShipments(true);
         try {
             const data = await fetchShipmentLookup(selectedId, query);
 
@@ -120,6 +140,8 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
             setShipmentsData(data);
         } catch (error) {
             console.error("Error searching shipments:", error);
+        } finally {
+            setIsLoadingShipments(false);
         }
     };
 
@@ -765,7 +787,9 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                                         // Find ID from customersData
                                                         const selected = customersData.find(c => c.customer_name === val);
                                                         if (selected) {
-                                                            setSelectedCustomerId(selected.customer_nbr);
+                                                            // If original is object with ID, use it. If string, use name as ID.
+                                                            const id = selected.original?.customer_nbr || selected.customer_name;
+                                                            setSelectedCustomerId(id);
                                                             // Reset shipment when customer changes
                                                             setOtmShipmentNumber('');
                                                             setShipmentOptions([]);
@@ -837,6 +861,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                                             handleShipmentSearch('');
                                                         }}
                                                         disabled={!customer}
+                                                        loading={isLoadingShipments}
                                                     />
                                                 </div>
                                             </div>

@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { useStore } from '../store/store';
+import { useStore } from '../../store/store';
 import { useEffect } from 'react';
-import { parseDynamicIcds, getAvailableIcds } from '../utils/layoutUtils';
-import apiClient from './apiClient';
-import { API_CONFIG } from './apiConfig';
-import type { DynamicIcdLayout } from '../utils/layoutUtils';
+import { parseDynamicIcds, getAvailableIcds } from '../../utils/layoutUtils';
+import apiClient from '../apiClient';
+import { API_CONFIG } from '../apiConfig';
+import type { DynamicIcdLayout } from '../../utils/layoutUtils';
 
 /**
  * Fetch all icds data

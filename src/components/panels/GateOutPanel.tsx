@@ -31,7 +31,7 @@ export default function GateOutPanel({ isOpen, onClose }: GateOutPanelProps) {
 
     return (
         <PanelLayout
-            title="Gate Out Entry"
+            title="Gate Out"
             category="GATE OPERATION"
             isOpen={isOpen}
             onClose={onClose}

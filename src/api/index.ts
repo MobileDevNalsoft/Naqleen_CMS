@@ -1,10 +1,12 @@
 // Core exports
-export * from './types';
-export { default as apiClient } from './apiClient';
+export * from './types/index';
+export { default as apiClient, webApiClient, mobileApiClient } from './apiClient';
 export { API_CONFIG } from './apiConfig';
 
 // Domain exports
-export * from './layoutApi';
-export * from './containerApi';
-export * from './bookingApi';
-export * from './inventory';
+export * from './handlers/layoutApi';
+export * from './handlers/containerApi';
+export * from './handlers/bookingApi';
+export * from './handlers/inventoryApi';
+export * from './handlers/gateApi';
+

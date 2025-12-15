@@ -1,5 +1,5 @@
 export const API_CONFIG = {
-    BASE_URL: '/ords/xxotm/otm-web',
+    WEB_BASE_URL: '/ords/xxotm/otm-web',
     MOBILE_BASE_URL: '/ords/xxotm/otm-mobile',
     TIMEOUT: 30000,
     HEADERS: {
@@ -18,6 +18,12 @@ export const API_CONFIG = {
         GET_INVENTORY: '/getInventory',
         GET_CONTAINER_DETAILS: '/getContainerDetails',
         CREATE_INVENTORY: '/customerInventory',
-        GET_ICDS: '/dynamic_icds.json'
+        GET_ICDS: '/dynamic_icds.json',
+        // Gate In endpoints
+        GATE_IN_TRUCKS: '/gateInTrucks',
+        GATE_IN_TRUCK_DETAILS: '/gateInTruckDetails',
+        CUSTOMER_SHIPMENTS: '/customerShipments',
+        SHIPMENT_DETAILS: '/shipmentDetails',
+        SUBMIT_GATE_IN: '/submitGateIn',
     }
 } as const;

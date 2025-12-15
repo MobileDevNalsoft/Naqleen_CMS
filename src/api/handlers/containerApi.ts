@@ -1,28 +1,29 @@
 import { useQuery } from '@tanstack/react-query';
-import { useStore } from '../store/store';
+import { useStore } from '../../store/store';
 import { useEffect } from 'react';
 import {
     getDynamicContainerPosition,
     getAllDynamicBlocks
-} from '../utils/layoutUtils';
-import type { DynamicIcdLayout, DynamicEntity } from '../utils/layoutUtils';
-import apiClient from './apiClient';
-import { API_CONFIG } from './apiConfig';
+} from '../../utils/layoutUtils';
+import type { DynamicIcdLayout, DynamicEntity } from '../../utils/layoutUtils';
+import apiClient from '../apiClient';
+import { API_CONFIG } from '../apiConfig';
 
+import type { ApiResponse } from '../types/commonTypes';
 import type {
     ContainerPosition,
     ContainerDetails,
     RecommendedContainerResponse,
     SwapCandidate,
-    ApiResponse
-} from './types';
+    ContainerApiResponse
+} from '../types/containerTypes';
 
 /**
  * Fetch containers data and calculate positions based on layout
  */
 export async function getContainers(layout: DynamicIcdLayout): Promise<ContainerPosition[]> {
     // Fetch from ORDS API
-    const response = await apiClient.get<ApiResponse<any[]>>(API_CONFIG.ENDPOINTS.GET_CONTAINERS);
+    const response = await apiClient.get<ApiResponse<ContainerApiResponse[]>>(API_CONFIG.ENDPOINTS.GET_CONTAINERS);
     const apiResponse = response.data;
 
     // Validate response structure
@@ -38,7 +39,7 @@ export async function getContainers(layout: DynamicIcdLayout): Promise<Container
     const blockMap = new Map<string, DynamicEntity>();
     blocks.forEach(b => blockMap.set(b.id, b));
 
-    return rawContainers.map((c: any) => {
+    return rawContainers.map((c) => {
         let mappedBlockId = c.position.block_id;
 
         // Handle split block 'trs_block_d'
@@ -97,12 +98,13 @@ export async function getContainers(layout: DynamicIcdLayout): Promise<Container
  */
 export async function getContainerDetails(containerNbr: string): Promise<ContainerDetails | null> {
     try {
-        const response = await apiClient.get(API_CONFIG.ENDPOINTS.GET_CONTAINER_DETAILS, {
-            params: { containerNbr: containerNbr }
-        });
+        const response = await apiClient.get<ApiResponse<ContainerDetails>>(
+            API_CONFIG.ENDPOINTS.GET_CONTAINER_DETAILS,
+            { params: { containerNbr: containerNbr } }
+        );
 
         if (response.data.response_code === 200 && response.data.data) {
-            return response.data.data as ContainerDetails;
+            return response.data.data;
         }
 
         console.warn('Container not found:', containerNbr);
@@ -113,50 +115,50 @@ export async function getContainerDetails(containerNbr: string): Promise<Contain
     }
 }
 
-export const getRecommendedContainers = async (requirements: { container_type: string, container_count: number }[]): Promise<RecommendedContainerResponse[]> => {
+export const getRecommendedContainers = async (
+    requirements: { container_type: string; container_count: number }[]
+): Promise<RecommendedContainerResponse[]> => {
     try {
-        const url = API_CONFIG.ENDPOINTS.GET_RECOMMENDED_CONTAINERS;
-
-        // User requested payload structure: { "container_types": [...] } directly as body
-        const payload = {
-            container_types: requirements
-        };
-
-        const response = await apiClient.post(url, payload);
+        const payload = { container_types: requirements };
+        const response = await apiClient.post<ApiResponse<RecommendedContainerResponse[]>>(
+            API_CONFIG.ENDPOINTS.GET_RECOMMENDED_CONTAINERS,
+            payload
+        );
 
         if (response.data.response_code === 200 && Array.isArray(response.data.data)) {
-            return response.data.data.map((item: any) => ({
-                container_type: item.container_type,
-                recommended_containers: item.recommended_containers
-            }));
+            return response.data.data;
         }
 
         console.warn('Invalid response from recommendation API', response.data);
         return [];
-
     } catch (error) {
         console.error('Error fetching recommendations:', error);
         return [];
     }
 };
 
-export const getContainersToSwap = async (type: string, query: string, offset: number): Promise<SwapCandidate[]> => {
+export const getContainersToSwap = async (
+    type: string,
+    query: string,
+    offset: number
+): Promise<SwapCandidate[]> => {
     try {
-        const response = await apiClient.get(API_CONFIG.ENDPOINTS.GET_CONTAINERS_OF_TYPE, {
-            params: {
-                containerType: type,
-                offset: offset,
-                searchText: query
+        const response = await apiClient.get<ApiResponse<string[]>>(
+            API_CONFIG.ENDPOINTS.GET_CONTAINERS_OF_TYPE,
+            {
+                params: {
+                    containerType: type,
+                    offset: offset,
+                    searchText: query
+                }
             }
-        });
+        );
 
         if (response.data.response_code === 200 && Array.isArray(response.data.data)) {
-            // The API returns a simple array of container numbers: ["CONT1", "CONT2"]
-            // We map this to SwapCandidate objects. 
-            // Note: The SQL output does not currently provide position, so we default to 'N/A'
             return response.data.data.map((nbr: string) => ({
                 container_nbr: nbr,
-                container_type: type
+                container_type: type,
+                position: 'N/A'
             }));
         }
 

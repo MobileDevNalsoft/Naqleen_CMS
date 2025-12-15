@@ -155,7 +155,7 @@ const App = () => {
           >
             <color attach="background" args={['#E6F4F1']} />
 
-            {/* <Environment /> */}
+            <Environment />
             <DynamicLayoutEngine />
             <IcdMarkings />
             {/* <Fencing />

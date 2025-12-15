@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import apiClient from './apiClient';
-import { API_CONFIG } from './apiConfig';
-import { MOCK_CUSTOMERS_AND_BOOKINGS } from './mockData';
-import type { CustomerBooking, ApiResponse } from './types';
+import apiClient from '../apiClient';
+import { API_CONFIG } from '../apiConfig';
+import type { ApiResponse } from '../types/commonTypes';
+import type { CustomerBooking } from '../types/bookingTypes';
 
 /**
  * Fetch reserve containers
@@ -21,15 +21,6 @@ export const getCustomersAndBookings = async (): Promise<CustomerBooking[]> => {
     }
 };
 
-// --- Mock APIs for Development ---
-
-export const getCustomersAndBookingsTest = async (): Promise<any> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    return MOCK_CUSTOMERS_AND_BOOKINGS.data;
-};
-
-
 // --- Hooks ---
 
 export const useCustomersAndBookingsQuery = (enabled: boolean = true) => {
@@ -38,14 +29,5 @@ export const useCustomersAndBookingsQuery = (enabled: boolean = true) => {
         queryFn: getCustomersAndBookings,
         enabled: enabled,
         staleTime: 1000 * 60 * 60, // 1 hour
-    });
-};
-
-export const useCustomersAndBookingsTestQuery = (enabled: boolean = true) => {
-    return useQuery({
-        queryKey: ['customersAndBookingsTest'],
-        queryFn: getCustomersAndBookingsTest,
-        enabled: enabled,
-        staleTime: Infinity,
     });
 };
