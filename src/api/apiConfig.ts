@@ -25,5 +25,9 @@ export const API_CONFIG = {
         CUSTOMER_SHIPMENTS: '/customerShipments',
         SHIPMENT_DETAILS: '/shipmentDetails',
         SUBMIT_GATE_IN: '/submitGateIn',
+        // Reservation endpoints
+        POST_RESERVATION_CONTAINERS: '/postReservationContainers',
+        DELETE_RESERVATION_CONTAINERS: '/deleteReservationContainers',
+        SWAP_RESERVATION_CONTAINERS: '/swapReservationContainers',
     }
 } as const;

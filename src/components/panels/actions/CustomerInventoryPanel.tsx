@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import PanelLayout from './PanelLayout';
+import PanelLayout from '../PanelLayout';
 import {
     Plus,
     Upload,
@@ -19,10 +19,10 @@ import {
     AlertCircle,
     AlertTriangle
 } from 'lucide-react';
-import Dropdown from '../ui/Dropdown';
-import { fetchInventory, createInventory, createBulkInventory, fetchCustomerLookup, fetchShipmentLookup } from '../../api/handlers/inventoryApi';
-import { parseInventoryExcel } from '../../services/excelImportService';
-import type { InventoryRecord, InventoryItem, InventoryPayloadItem } from '../../api/types/inventoryTypes';
+import Dropdown from '../../ui/Dropdown';
+import { fetchInventory, createInventory, createBulkInventory, fetchCustomerLookup, fetchShipmentLookup } from '../../../api/handlers/inventoryApi';
+import { parseInventoryExcel } from '../../../services/excelImportService';
+import type { InventoryRecord, InventoryItem, InventoryPayloadItem } from '../../../api/types/inventoryTypes';
 
 interface CustomerInventoryPanelProps {
     isOpen: boolean;
@@ -77,6 +77,20 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     const [shipmentsData, setShipmentsData] = useState<any[]>([]); // Store shipment objects
     const [isContainerReadOnly, setIsContainerReadOnly] = useState(false);
     const [isLoadingShipments, setIsLoadingShipments] = useState(false);
+
+    // Cleanup: Reset modal/temporary states when panel closes to prevent blocking overlays
+    useEffect(() => {
+        if (!isOpen) {
+            setShowAddItemModal(false);
+            setShowBulkConflictModal(false);
+            setConflictDetails(null);
+            setExpandedRowId(null);
+            setExpandedItemId(null);
+            setImportedItems([]);
+            setIsImporting(false);
+            setIsSubmitting(false);
+        }
+    }, [isOpen]);
 
     const handleCustomerSearch = async (query: string) => {
         console.log("Searching for:", query);

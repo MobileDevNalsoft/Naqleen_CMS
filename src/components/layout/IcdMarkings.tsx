@@ -200,8 +200,16 @@ const BlockLabels = ({ block }: { block: DynamicEntity }) => {
 
     // Row Labels (A, B, C...)
     const rowLabels = [];
-    const isNorth = block.position.z < 0;
     const rowCount = props.rows || 1;
+
+    // Extract block letter from block ID (e.g., 'trs_block_a' -> 'A', 'trm_block_d' -> 'D')
+    const blockLetter = block.id.match(/block_([a-d])/i)?.[1]?.toUpperCase() || '';
+
+    // Block A: A-K from top to bottom (no reversal - first physical row gets A)
+    // Block B: A-K from bottom to top (reverse - first physical row gets last label)
+    // Block C: keep default (no reversal)
+    // Block D: A-K from bottom to top (reverse - first physical row gets last label)
+    const shouldReverse = blockLetter === 'B' || blockLetter === 'D';
 
     for (let r = 0; r < rowCount; r++) {
         const z = -totalDepth / 2 + containerWidth / 2 + r * (containerWidth + gapZ);
@@ -212,7 +220,7 @@ const BlockLabels = ({ block }: { block: DynamicEntity }) => {
         pos.applyEuler(new THREE.Euler(0, ((block.rotation || 0) * Math.PI) / 180, 0));
         pos.add(new THREE.Vector3(block.position.x, block.position.y, block.position.z));
 
-        const labelIndex = isNorth ? rowCount - 1 - r : r;
+        const labelIndex = shouldReverse ? rowCount - 1 - r : r;
         const labelText = props.row_labels?.[labelIndex] || String.fromCharCode(65 + labelIndex);
 
         rowLabels.push({

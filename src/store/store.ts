@@ -4,6 +4,11 @@ import type { ContainerPosition } from '../api';
 
 export type ContainerEntity = ContainerPosition;
 
+export interface SwapConnection {
+  from: string;  // Original container ID
+  to: string;    // Replacement container ID
+}
+
 interface StoreState {
   entities: Record<string, ContainerEntity>;
   ids: string[];
@@ -13,6 +18,8 @@ interface StoreState {
   hoverSource: string | null;
   layout: DynamicIcdLayout | null;
   reserveContainers: { container_nbr: string }[];
+  swapConnections: SwapConnection[];
+  customerByContainer: Record<string, string>; // Reverse lookup: container_nbr -> customer_name
   setEntitiesBatch: (updates: Partial<ContainerEntity> & { id: string }[]) => void;
   patchPositions: (posUpdates: { id: string; x: number; y: number; z: number }[]) => void;
   setSelectId: (id: string | null) => void;
@@ -20,6 +27,8 @@ interface StoreState {
   setHoverId: (id: string | null, source?: string) => void;
   setLayout: (layout: DynamicIcdLayout) => void;
   setReserveContainers: (containers: { container_nbr: string }[]) => void;
+  setSwapConnections: (connections: SwapConnection[]) => void;
+  setCustomerByContainer: (map: Record<string, string>) => void;
 }
 
 
@@ -33,6 +42,8 @@ export const useStore = create<StoreState>((set) => ({
   hoverSource: null,
   layout: null,
   reserveContainers: [],
+  swapConnections: [],
+  customerByContainer: {},
 
   setEntitiesBatch: (updates) => set((state) => {
     const entities = { ...state.entities };
@@ -61,4 +72,7 @@ export const useStore = create<StoreState>((set) => ({
   setHoverId: (id, source) => set({ hoverId: id, hoverSource: source || null }),
   setLayout: (layout) => set({ layout }),
   setReserveContainers: (containers) => set({ reserveContainers: containers }),
+  setSwapConnections: (connections) => set({ swapConnections: connections }),
+  setCustomerByContainer: (map) => set({ customerByContainer: map }),
 }));
+

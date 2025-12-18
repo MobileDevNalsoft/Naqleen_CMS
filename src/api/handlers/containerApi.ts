@@ -12,38 +12,61 @@ import { API_CONFIG } from '../apiConfig';
 import type { ApiResponse } from '../types/commonTypes';
 import type {
     ContainerPosition,
-    ContainerDetails,
-    RecommendedContainerResponse,
-    SwapCandidate,
-    ContainerApiResponse
+    ContainerDetailsResponse,
+    SwapCandidateResponse,
+    CustomerContainerGroup,
+    ContainerFromApi,
+    RecommendedContainersResponse,
+    GetContainersResponse
 } from '../types/containerTypes';
 
+
 /**
- * Fetch containers data and calculate positions based on layout
+ * Fetch containers data (grouped by customer) and calculate positions based on layout
+ * Implements Approach 2: Keep nested structure + Build Index Map
  */
-export async function getContainers(layout: DynamicIcdLayout): Promise<ContainerPosition[]> {
-    // Fetch from ORDS API
-    const response = await apiClient.get<ApiResponse<ContainerApiResponse[]>>(API_CONFIG.ENDPOINTS.GET_CONTAINERS);
+export async function getContainers(layout: DynamicIcdLayout): Promise<GetContainersResponse> {
+    // Fetch from ORDS API (now returns grouped structure)
+    const response = await apiClient.get<ApiResponse<CustomerContainerGroup[]>>(API_CONFIG.ENDPOINTS.GET_CONTAINERS);
     const apiResponse = response.data;
 
     // Validate response structure
     if (apiResponse.response_code !== 200 || !Array.isArray(apiResponse.data)) {
         console.error('Invalid API response:', apiResponse);
-        return [];
+        return { positions: [], customerByContainer: {} };
     }
 
-    const rawContainers = apiResponse.data;
+    const customerGroups = apiResponse.data;
+
+    // Build reverse lookup map: container_nbr -> customer_name
+    const customerByContainer: Record<string, string> = {};
+
+    // Flatten containers while preserving customer link
+    const flatContainers: (ContainerFromApi & { customer_name: string })[] = [];
+
+    customerGroups.forEach(group => {
+        group.containers.forEach(container => {
+            customerByContainer[container.container_nbr] = group.customer_name;
+            flatContainers.push({
+                ...container,
+                customer_name: group.customer_name
+            });
+        });
+    });
 
     // Calculate positions
     const blocks = getAllDynamicBlocks(layout);
     const blockMap = new Map<string, DynamicEntity>();
     blocks.forEach(b => blockMap.set(b.id, b));
 
-    return rawContainers.map((c) => {
+    const positions = flatContainers.map((c) => {
+        // Use block_id directly from API response
         let mappedBlockId = c.position.block_id;
+        const terminal = c.position.terminal?.toUpperCase() || '';
+        const blockLetter = c.position.block?.toUpperCase() || '';
 
-        // Handle split block 'trs_block_d'
-        if (mappedBlockId === 'trs_block_d') {
+        // Handle split block 'trs_block_d' (TRS terminal, Block D)
+        if (terminal === 'TRS' && blockLetter === 'D') {
             // Lot 1 is part 1, Lots 2+ are part 2
             if (c.position.lot === 1) {
                 mappedBlockId = 'trs_block_d_part1';
@@ -66,15 +89,25 @@ export async function getContainers(layout: DynamicIcdLayout): Promise<Container
         }
 
         const lotIndex = Math.max(0, localLotIndex);
-        const rowIndex = Math.max(0, c.position.row - 1);
+        let rowIndex = Math.max(0, c.position.row - 1);
         const levelIndex = Math.max(0, c.position.level - 1);
+
+        // Get number of rows from block props for reversal calculation
+        const blockRows = block.props?.rows || 11;
+
+        // Blocks B and D have reversed row labels (A at bottom, K at top)
+        // So we need to reverse the row index to match the physical label positions
+        const shouldReverseRowPlacement = blockLetter === 'B' || blockLetter === 'D';
+        if (shouldReverseRowPlacement) {
+            rowIndex = blockRows - 1 - rowIndex;
+        }
 
         // Pass container type to ensure correct slot sizing (dynamic 20ft vs 40ft spacing)
         const pos = getDynamicContainerPosition(block, lotIndex, rowIndex, levelIndex);
 
-        // Force type for known 40ft blocks if needed, otherwise use DB or default
-        let finalType = (c.container_type || '20ft').toLowerCase();
-        if (mappedBlockId.includes('trs_block_d')) {
+        // Force type for known 40ft blocks, otherwise default to 20ft
+        let finalType = '20ft';
+        if (terminal === 'TRS' && blockLetter === 'D') {
             finalType = '40ft';
         }
 
@@ -84,21 +117,26 @@ export async function getContainers(layout: DynamicIcdLayout): Promise<Container
             y: pos.y,
             z: pos.z,
             status: 'active',
-            blockId: mappedBlockId, // Use mapped ID so UI finds the correct block entity (part1/part2)
-            lot: c.position.lot - 1, // Keep global lot index for display
-            row: rowIndex, // Store as 0-based in app state
-            level: levelIndex, // Store as 0-based in app state
-            type: finalType
+            terminal: terminal,       // Store terminal for easy access
+            block: blockLetter,       // Store block letter for easy access
+            blockId: mappedBlockId,   // Use mapped ID so UI finds the correct block entity (part1/part2)
+            lot: c.position.lot,      // Store as 1-based (matches API/UI)
+            row: rowIndex,            // Store as 0-based in app state
+            level: c.position.level,  // Store as 1-based (matches API/UI)
+            type: finalType,
+            customerName: c.customer_name // Embedded customer link
         } as ContainerPosition;
     }).filter((c): c is ContainerPosition => c !== null);
+
+    return { positions, customerByContainer };
 }
 
 /**
  * Fetch full container details on demand
  */
-export async function getContainerDetails(containerNbr: string): Promise<ContainerDetails | null> {
+export async function getContainerDetails(containerNbr: string): Promise<ContainerDetailsResponse | null> {
     try {
-        const response = await apiClient.get<ApiResponse<ContainerDetails>>(
+        const response = await apiClient.get<ApiResponse<ContainerDetailsResponse>>(
             API_CONFIG.ENDPOINTS.GET_CONTAINER_DETAILS,
             { params: { containerNbr: containerNbr } }
         );
@@ -117,10 +155,10 @@ export async function getContainerDetails(containerNbr: string): Promise<Contain
 
 export const getRecommendedContainers = async (
     requirements: { container_type: string; container_count: number }[]
-): Promise<RecommendedContainerResponse[]> => {
+): Promise<RecommendedContainersResponse[]> => {
     try {
         const payload = { container_types: requirements };
-        const response = await apiClient.post<ApiResponse<RecommendedContainerResponse[]>>(
+        const response = await apiClient.post<ApiResponse<RecommendedContainersResponse[]>>(
             API_CONFIG.ENDPOINTS.GET_RECOMMENDED_CONTAINERS,
             payload
         );
@@ -141,7 +179,7 @@ export const getContainersToSwap = async (
     type: string,
     query: string,
     offset: number
-): Promise<SwapCandidate[]> => {
+): Promise<SwapCandidateResponse[]> => {
     try {
         const response = await apiClient.get<ApiResponse<string[]>>(
             API_CONFIG.ENDPOINTS.GET_CONTAINERS_OF_TYPE,
@@ -173,11 +211,12 @@ export const getContainersToSwap = async (
 
 export const useContainersQuery = (layout: DynamicIcdLayout | null) => {
     const setEntitiesBatch = useStore((state) => state.setEntitiesBatch);
+    const setCustomerByContainer = useStore((state) => state.setCustomerByContainer);
 
     const query = useQuery({
         queryKey: ['containers', layout?.name || 'no-layout'],
         queryFn: async () => {
-            if (!layout) return [];
+            if (!layout) return { positions: [], customerByContainer: {} };
             return getContainers(layout);
         },
         enabled: !!layout,
@@ -186,20 +225,25 @@ export const useContainersQuery = (layout: DynamicIcdLayout | null) => {
     });
 
     useEffect(() => {
-        if (query.data && query.data.length > 0) {
+        if (query.data && query.data.positions.length > 0) {
             const currentIds = useStore.getState().ids;
             if (currentIds.length === 0) {
-                setEntitiesBatch(query.data);
+                setEntitiesBatch(query.data.positions);
+                setCustomerByContainer(query.data.customerByContainer);
             }
         }
-    }, [query.data, setEntitiesBatch]);
+    }, [query.data, setEntitiesBatch, setCustomerByContainer]);
 
-    return query;
+    // Return positions for backwards compatibility with existing consumers
+    return {
+        ...query,
+        data: query.data?.positions || []
+    };
 };
 
 export const useRecommendedContainersQuery = (bookingId: string | null, requirements: { container_type: string, container_count: number }[] | null) => {
     return useQuery({
-        queryKey: ['recommendedContainers', bookingId],
+        queryKey: ['recommendedContainers', bookingId, requirements],
         queryFn: () => getRecommendedContainers(requirements!),
         enabled: !!bookingId && !!requirements,
         staleTime: 1000 * 60 * 5,

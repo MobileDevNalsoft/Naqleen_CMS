@@ -18,7 +18,7 @@ export interface GateCustomer {
     customerName: string;
 }
 
-export interface GateShipment {
+export interface GateCustomerShipments {
     shipmentNbr: string;
     shipmentName?: string;
     containerNbr?: string;

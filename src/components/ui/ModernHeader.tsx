@@ -7,11 +7,13 @@ interface ModernHeaderProps {
     activeNav: string;
     onNavChange: (nav: string) => void;
     isSearchVisible?: boolean;
+    isUIVisible?: boolean; // Controls ICD dropdown, center nav, and search visibility
     selectedIcdId: string;
     onIcdChange: (id: string) => void;
+    onLogout?: () => void;
 }
 
-export default function ModernHeader({ activeNav, onNavChange, isSearchVisible = true, selectedIcdId, onIcdChange }: ModernHeaderProps) {
+export default function ModernHeader({ activeNav, onNavChange, isSearchVisible = true, isUIVisible = true, selectedIcdId, onIcdChange, onLogout }: ModernHeaderProps) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     // Removed local selectedIcdId state in favor of parent state
     const [notificationCount] = useState(3); // Mock notification count
@@ -170,7 +172,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 </div>
 
                 {/* Divider */}
-                {activeNav !== 'Dashboard' && (
+                {activeNav !== 'Dashboard' && isUIVisible && (
                     <>
                         <div style={{
                             width: '1px',
@@ -283,59 +285,61 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
             </div>
 
             {/* Center Navigation */}
-            <div style={{
-                position: 'absolute',
-                top: '15px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 1000,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: 'var(--glass-bg)',
-                backdropFilter: 'blur(20px)',
-                padding: '6px',
-                borderRadius: '50px',
-                border: '1px solid var(--glass-border)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-            }}>
-                {['3D View', 'Dashboard'].map((item) => (
-                    <div
-                        key={item}
-                        onClick={() => {
-                            onNavChange(item);
-                            // Close search when switching navigation
-                            if (isSearchOpen) {
-                                handleSearchClose();
-                            }
-                        }}
-                        style={{
-                            padding: '10px 20px',
-                            borderRadius: '50px',
-                            background: activeNav === item ? 'rgba(197, 147, 90, 0.3)' : 'transparent',
-                            color: activeNav === item ? 'var(--secondary-color)' : 'white',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            whiteSpace: 'nowrap',
-                            outline: 'none',
-                        }}
-                        onMouseEnter={e => {
-                            if (activeNav !== item) {
-                                e.currentTarget.style.background = 'rgba(247, 207, 155, 0.1)';
-                            }
-                        }}
-                        onMouseLeave={e => {
-                            if (activeNav !== item) {
-                                e.currentTarget.style.background = 'transparent';
-                            }
-                        }}
-                    >
-                        {item}
-                    </div>
-                ))}
-            </div>
+            {isUIVisible && (
+                <div style={{
+                    position: 'absolute',
+                    top: '15px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 1000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: 'var(--glass-bg)',
+                    backdropFilter: 'blur(20px)',
+                    padding: '6px',
+                    borderRadius: '50px',
+                    border: '1px solid var(--glass-border)',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                }}>
+                    {['3D View', 'Dashboard'].map((item) => (
+                        <div
+                            key={item}
+                            onClick={() => {
+                                onNavChange(item);
+                                // Close search when switching navigation
+                                if (isSearchOpen) {
+                                    handleSearchClose();
+                                }
+                            }}
+                            style={{
+                                padding: '10px 20px',
+                                borderRadius: '50px',
+                                background: activeNav === item ? 'rgba(197, 147, 90, 0.3)' : 'transparent',
+                                color: activeNav === item ? 'var(--secondary-color)' : 'white',
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                whiteSpace: 'nowrap',
+                                outline: 'none',
+                            }}
+                            onMouseEnter={e => {
+                                if (activeNav !== item) {
+                                    e.currentTarget.style.background = 'rgba(247, 207, 155, 0.1)';
+                                }
+                            }}
+                            onMouseLeave={e => {
+                                if (activeNav !== item) {
+                                    e.currentTarget.style.background = 'transparent';
+                                }
+                            }}
+                        >
+                            {item}
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Right Header: Notifications & Profile */}
             <div style={{
@@ -354,7 +358,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
             }}>
                 {/* Search Button & Expandable Field */}
-                {isSearchVisible && (
+                {isSearchVisible && isUIVisible && (
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }} ref={searchContainerRef}>
                         {/* Search Icon Button */}
                         {!isSearchOpen && !isSearchClosing && (
@@ -755,6 +759,10 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                     }}
                                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
                                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                    onClick={() => {
+                                        setIsProfileMenuOpen(false);
+                                        onLogout?.();
+                                    }}
                                 >
                                     <LogOut size={18} />
                                     <span>Logout</span>

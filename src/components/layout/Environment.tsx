@@ -361,7 +361,7 @@ export default function Environment() {
                 if (item.type === 'lightPole') return <LightPole key={idx} position={item.position} />;
                 if (item.type === 'bgContainer') return <BgContainerStack key={idx} position={item.position} rotation={item.rotation!} />;
                 if (item.type === 'warehouse') return <Warehouse key={idx} position={item.position} rotation={item.rotation} colorIndex={item.colorIndex} />;
-                if (item.type === 'hill') return <Hill key={idx} position={item.position} scale={item.scale} colorIndex={item.colorIndex} />;
+                // if (item.type === 'hill') return <Hill key={idx} position={item.position} scale={item.scale} colorIndex={item.colorIndex} />;
                 return null;
             })}
 

@@ -6,8 +6,8 @@ type : query_params
 example : {"container_nbr" : "MSKA1234651"}
 response_requirements: 
    {
-    "response_message": "Success",
     "response_code": 200,
+    "response_message": "Success",
     "data": {
         "contianer_number": "string",
         "shipment_number": "string",

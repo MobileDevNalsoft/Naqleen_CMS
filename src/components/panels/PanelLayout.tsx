@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 interface PanelLayoutProps {
     title: string;
     category?: string;
+    titleBadge?: React.ReactNode;
     isOpen: boolean;
     onClose: () => void;
     children: React.ReactNode;
@@ -15,6 +16,7 @@ interface PanelLayoutProps {
 export default function PanelLayout({
     title,
     category = 'ACTION',
+    titleBadge,
     isOpen,
     onClose,
     children,
@@ -60,7 +62,7 @@ export default function PanelLayout({
         >
             {/* Header Section */}
             <div style={{
-                padding: '16px 24px 8px',
+                padding: '16px 16px 16px 16px',
                 background: '#4B686C',
                 position: 'relative',
                 boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08)',
@@ -83,19 +85,22 @@ export default function PanelLayout({
                                 {category}
                             </span>
                         </div>
-                        <h2 style={{
-                            fontSize: '24px',
-                            fontWeight: 800,
-                            margin: 0,
-                            background: 'white',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            textTransform: 'uppercase',
-                            letterSpacing: '-0.5px',
-                            lineHeight: 1.1
-                        }}>
-                            {title}
-                        </h2>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <h2 style={{
+                                fontSize: '24px',
+                                fontWeight: 800,
+                                margin: 0,
+                                background: 'white',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                textTransform: 'uppercase',
+                                letterSpacing: '-0.5px',
+                                lineHeight: 1.1
+                            }}>
+                                {title}
+                            </h2>
+                            {titleBadge}
+                        </div>
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         {headerActions}

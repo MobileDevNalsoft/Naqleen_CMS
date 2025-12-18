@@ -2348,3 +2348,379 @@ begin
       end;
    end loop;
 end;
+
+
+
+-- =============================================================================
+-- SCHEDULER MONITORING QUERIES
+-- =============================================================================
+
+/*
+   1. List All Scheduled Jobs for XXOTM
+   -----------------------------------
+   Displays the job name, current state (SCHEDULED, RUNNING, etc.), 
+   last start time, next scheduled run, and failure count.
+*/
+SELECT 
+    owner, 
+    job_name, 
+    state, 
+    last_start_date, 
+    next_run_date, 
+    failure_count 
+FROM 
+    all_scheduler_jobs 
+WHERE 
+    owner = 'XXOTM'
+ORDER BY 
+    job_name;
+
+
+/*
+   2. Check Status of Currently Running Jobs
+   ----------------------------------------
+   Shows jobs that are actively executing.
+*/
+SELECT 
+    owner, 
+    job_name, 
+    state, 
+    running_instance_count, 
+    elapsed_time 
+FROM 
+    all_scheduler_jobs 
+WHERE 
+    owner = 'XXOTM' 
+    AND state = 'RUNNING';
+
+
+/*
+   3. View Job Run History (Last 50 Runs)
+   -------------------------------------
+   Provides a log of recent job executions, including status (SUCCEEDED, FAILED),
+   start time, and run duration.
+*/
+SELECT 
+    job_name, 
+    log_date, 
+    status, 
+    error#, 
+    run_duration,
+    additional_info
+FROM 
+    all_scheduler_job_run_details 
+WHERE 
+    owner = 'XXOTM'
+ORDER BY 
+    log_date DESC 
+FETCH FIRST 50 ROWS ONLY;
+
+
+/*
+   4. View Failed Job Runs (With Error Messages)
+   --------------------------------------------
+   Specifically filters for failed jobs to help diagnose issues. 
+   Shows the error number and additional info (often contains the ORA error text).
+*/
+SELECT 
+    job_name, 
+    log_date, 
+    status, 
+    error#, 
+    additional_info,
+    output
+FROM 
+    all_scheduler_job_run_details 
+WHERE 
+    owner = 'XXOTM' 
+    AND status = 'FAILED'
+ORDER BY 
+    log_date DESC;
+
+
+/*
+   5. Check Package Compilation Errors
+   ----------------------------------
+   If jobs fail with ORA-04063 (package has errors), use this to find the 
+   specific syntax errors in the package. Replace package name as needed.
+*/
+SELECT 
+    name, 
+    line, 
+    position, 
+    text 
+FROM 
+    all_errors 
+WHERE 
+    owner = 'XXOTM' 
+    AND name = 'XX_NAQLEEN_OTM_DATA_SYNC_PKG' -- Replace with your package name
+ORDER BY 
+    line, position;
+
+-- =============================================================================
+-- GATE IN TRUCK DETAILS PROCEDURE
+-- =============================================================================
+create or replace procedure xx_otm_gate_in_truck_details (
+   p_truck_nbr in varchar2
+) as
+   l_shipment_name    varchar2(100);
+   l_shipment_nbr     varchar2(50);
+   l_container_nbr    varchar2(50);
+   l_container_type   varchar2(50);
+   l_customer_name    varchar2(50);
+   l_truck_nbr        varchar2(50);
+   l_driver_name      varchar2(100);
+   l_driver_iqama_nbr varchar2(50);
+   l_otm_order_nbr    varchar2(50);
+   l_data_found       boolean := false;
+   l_truck_type       varchar2(50);
+
+   -- Fallback variables
+   l_fallback_count   number;
+   l_shipment_attr2   varchar2(200);
+   l_ref_qual         varchar2(200);
+   l_ref_value        varchar2(200);
+   l_has_booking      boolean;
+   l_fetched_cus_name varchar2(200);
+   l_refnum_count     number;
+
+   -- API Variables
+   l_url              varchar2(4000);
+   l_response_clob    clob;
+   l_items_count      number;
+   l_status_type      varchar2(200);
+   l_status_value     varchar2(200);
+   l_is_active_trip   boolean;
+
+   type t_cust_map is table of varchar2(200) index by varchar2(200);
+   l_customers        t_cust_map;
+   l_cust_idx         varchar2(200);
+
+   cursor c_shipments is
+      select st.shipment_xid,
+             st.shipment_name,
+             st.cont_no,
+             st.container_type,
+             st.customer_name
+        from xxotm_shipments_t st
+       where ( st.power_unit = p_truck_nbr
+          or st.truck_3pl = p_truck_nbr );
+
+begin
+   apex_json.initialize_clob_output;
+   apex_json.open_object;
+   apex_json.write('response_message', 'Success');
+   apex_json.write('response_code', 200);
+   apex_json.open_object('data');
+
+   -- Iterate through shipments associated with the truck
+   for r_ship in c_shipments loop
+      l_is_active_trip := true; -- Assume active until proven Completed/Cancelled
+      l_data_found := false;    -- Reset for this shipment check
+
+      -- Construct API URL to get statuses
+      l_url := 'https://otmgtm-test-naqleen.otmgtm.me-jeddah-1.ocs.oraclecloud.com:443/logisticsRestApi/resources-int/v2/shipments/'
+               || 'NAQLEEN.' || r_ship.shipment_xid
+               || '/?expand=statuses';
+
+      apex_web_service.g_request_headers.delete;
+      apex_web_service.g_request_headers(1).name := 'Content-Type';
+      apex_web_service.g_request_headers(1).value := 'application/json';
+
+      begin
+         -- Make REST Request
+         l_response_clob := apex_web_service.make_rest_request(
+            p_url         => l_url,
+            p_http_method => 'GET',
+            p_username    => 'NAQLEEN.INTEGRATION',
+            p_password    => 'NaqleenInt@123',
+            p_wallet_path => 'file:/u01/app/oracle/product/wallet'
+         );
+
+         -- Parse JSON Response to check statuses
+         apex_json.parse(l_response_clob);
+         l_items_count := apex_json.get_count('statuses.items'); 
+
+         -- Iterate statuses
+         for i in 1..l_items_count loop
+            l_status_type := apex_json.get_varchar2('statuses.items[%d].statusTypeGid', i);
+            l_status_value := apex_json.get_varchar2('statuses.items[%d].statusValueGid', i);
+
+            if l_status_type = 'NAQLEEN.TRIP_STATUS' then
+               if l_status_value = 'NAQLEEN.TRIP_COMPLETED'
+               or l_status_value = 'NAQLEEN.TRIP_CANCELLED' then
+                  l_is_active_trip := false;
+                  l_data_found := false;
+                  exit; 
+               else 
+                  l_data_found := true;
+               end if;
+            end if;
+         end loop;
+
+      exception
+         when others then
+            l_is_active_trip := false; -- Assume API failure excludes this shipment
+            l_data_found := false;
+      end;
+
+      if l_is_active_trip and l_data_found then
+         -- Found Valid Active Shipment
+         l_shipment_nbr := r_ship.shipment_xid;
+         l_shipment_name := r_ship.shipment_name;
+         l_container_nbr := r_ship.cont_no;
+         l_container_type := r_ship.container_type;
+         l_customer_name := r_ship.customer_name;
+         l_truck_nbr := p_truck_nbr;
+
+         -- Get Driver Details
+         begin
+            select driver_name,
+                   driver_iqama
+              into l_driver_name,
+                   l_driver_iqama_nbr
+              from xxotm_vehicle_master_t
+             where truck_nbr = p_truck_nbr
+               and rownum = 1;
+         exception
+            when no_data_found then
+               l_driver_name := null;
+               l_driver_iqama_nbr := null;
+         end;
+
+         -- Get Order Release XID
+         begin
+            select order_release_xid
+              into l_otm_order_nbr
+              from xxotm_order_movements_t
+             where shipment_xid = l_shipment_nbr
+               and rownum = 1;
+         exception
+            when no_data_found then
+               l_otm_order_nbr := null;
+         end;
+
+         exit; -- Stop looking at other shipments
+      end if;
+
+   end loop;
+
+   if l_data_found then
+      -- Output Shipment Details
+      apex_json.write('shipment_name', l_shipment_name);
+      apex_json.write('shipment_nbr', l_shipment_nbr);
+      apex_json.write('container_nbr', l_container_nbr);
+      apex_json.write('customer_name', l_customer_name);
+      apex_json.write('container_type', l_container_type);
+      apex_json.write('truck_nbr', l_truck_nbr);
+      apex_json.write('driver_name', l_driver_name);
+      apex_json.write('driver_iqama_nbr', l_driver_iqama_nbr);
+      apex_json.write('otm_order_nbr', l_otm_order_nbr);
+   else
+      -- Fallback: Truck Details + Customer List
+      begin
+         select truck_nbr,
+                driver_name,
+                driver_iqama,
+                '3PL'
+           into l_truck_nbr,
+                l_driver_name,
+                l_driver_iqama_nbr,
+                l_truck_type
+           from xxotm_vehicle_master_t
+          where truck_nbr = p_truck_nbr
+            and rownum = 1;
+      exception
+         when no_data_found then
+            l_truck_nbr := p_truck_nbr;
+            l_driver_name := null;
+            l_driver_iqama_nbr := null;
+            l_truck_type := '3PL';
+      end;
+
+      apex_json.write('truck_nbr', l_truck_nbr);
+      apex_json.write('driver_name', l_driver_name);
+      apex_json.write('driver_iqama_nbr', l_driver_iqama_nbr);
+      apex_json.write('truck_type', l_truck_type);
+    
+      -- Fallback: 2. Get Customer List from API
+      l_url := 'https://otmgtm-test-naqleen.otmgtm.me-jeddah-1.ocs.oraclecloud.com:443/logisticsRestApi/resources-int/v2/shipments/';
+      l_url := l_url || '?q=attribute1 eq "TERMINAL"';
+      l_url := l_url || ' and perspective eq "B"';
+      l_url := l_url || ' and statuses.statusTypeGid eq "NAQLEEN.TRIP_STATUS"';
+      l_url := l_url || ' and statuses.statusValueGid eq "NAQLEEN.TRIP_NOT_STARTED"';
+      l_url := l_url || ' and (shipmentName eq "STUFFING" or shipmentName eq "DESTUFFING" or shipmentName eq "STORE_AS_IT_IS" or shipmentName eq "CRO" or shipmentName eq "LRO")';
+      l_url := l_url || '&expand=refnums';
+
+      apex_web_service.g_request_headers.delete;
+      apex_web_service.g_request_headers(1).name := 'Content-Type';
+      apex_web_service.g_request_headers(1).value := 'application/json';
+
+      begin
+         l_response_clob := apex_web_service.make_rest_request(
+            p_url         => l_url,
+            p_http_method => 'GET',
+            p_username    => 'NAQLEEN.INTEGRATION',
+            p_password    => 'NaqleenInt@123',
+            p_wallet_path => 'file:/u01/app/oracle/product/wallet'
+         );
+
+         apex_json.parse(l_response_clob);
+         l_fallback_count := apex_json.get_count('items');
+
+         for i in 1..l_fallback_count loop
+            l_fetched_cus_name := null;
+            l_shipment_attr2 := apex_json.get_varchar2('items[%d].attribute2', i);
+             
+            l_refnum_count := apex_json.get_count('items[%d].refnums.items', i);
+            for j in 1..l_refnum_count loop
+               l_ref_qual := apex_json.get_varchar2('items[%d].refnums.items[%d].shipmentRefnumQualGid', i, j);
+               l_ref_value := apex_json.get_varchar2('items[%d].refnums.items[%d].shipmentRefnumValue', i, j);
+               
+               if l_ref_qual = 'NAQLEEN.CUS_NAME' then
+                  l_fetched_cus_name := l_ref_value;
+               end if;
+            end loop;
+
+            if l_fetched_cus_name is not null and l_shipment_attr2 is not null then
+               l_customers(l_shipment_attr2) := l_fetched_cus_name;
+            end if;
+         end loop;
+
+      exception
+         when others then
+            null;
+      end;
+
+      apex_json.open_array('customer_list');
+      l_cust_idx := l_customers.first;
+      while l_cust_idx is not null loop
+         apex_json.open_object();
+         apex_json.write('customer_name', l_customers(l_cust_idx));
+         apex_json.write('customer_nbr', l_cust_idx);
+         apex_json.close_object();
+         l_cust_idx := l_customers.next(l_cust_idx);
+      end loop;
+      apex_json.close_array;
+   end if;
+
+   apex_json.close_object;
+   apex_json.close_object;
+
+   htp.prn(apex_json.get_clob_output);
+   apex_json.free_output;
+
+exception
+   when others then
+      apex_json.free_output;
+      apex_json.initialize_clob_output;
+      apex_json.open_object;
+      apex_json.write('response_message', 'Error: ' || sqlerrm);
+      apex_json.write('response_code', 500);
+      apex_json.open_array('data');
+      apex_json.close_array;
+      apex_json.close_object;
+      htp.prn(apex_json.get_clob_output);
+      apex_json.free_output;
+end xx_otm_gate_in_truck_details;
+/

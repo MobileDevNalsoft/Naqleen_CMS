@@ -121,8 +121,15 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
 
     // Initial Setup & Static Updates
     useEffect(() => {
+        // If we have no containers, we are technically "ready" (scene is empty)
+        // This prevents the loading screen from getting stuck at 90% if the API returns []
+        if (instanceData.length === 0) {
+            if (onReady) onReady();
+            return;
+        }
+
         const mesh = meshRef.current;
-        if (!mesh || instanceData.length === 0) return;
+        if (!mesh) return;
 
         // Create or update opacity attribute
         if (!opacityAttribute.current) {
@@ -147,6 +154,11 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         mesh.instanceMatrix.needsUpdate = true;
         if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
         if (opacityAttribute.current) opacityAttribute.current.needsUpdate = true;
+
+        // CRITICAL FIX: Set bounding sphere to infinity to ensure raycasting works for all instances
+        // regardless of position. By default, it uses the geometry's bounding sphere (at origin),
+        // causing far-away instances to be ignored by the raycaster.
+        mesh.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Infinity);
 
         if (onReady) onReady();
     }, [instanceData, dummy, onReady]);
@@ -298,6 +310,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
     const dragStart = useRef({ x: 0, y: 0 });
 
     const handlePointerDown = (e: any) => {
+        // e.stopPropagation(); // Don't stop propagation here to allow controls to work
         dragStart.current = { x: e.clientX, y: e.clientY };
     };
 
@@ -305,20 +318,23 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         e.stopPropagation();
         const dx = e.clientX - dragStart.current.x;
         const dy = e.clientY - dragStart.current.y;
-        if (Math.sqrt(dx * dx + dy * dy) > 5) return;
 
-        // Block interaction if Reserve Panel (or any panel?) is open
-        // User requested specifically for "reserve container panel"
-        const isReservePanelOpen = useUIStore.getState().activePanel === 'reserveContainers';
-        if (isReservePanelOpen) return;
+        // Relaxed threshold from 5 to 20 pixels to be more forgiving
+        if (Math.sqrt(dx * dx + dy * dy) > 20) return;
 
-        // Disable selection click if reserve view is active? Or allow finding?
-        // Let's assume selection is allowed but strictly for info
+        // REMOVED: Block interaction if Reserve Panel is open
+        // We now allow clicking to select containers even when panel is open
+        // const isReservePanelOpen = useUIStore.getState().activePanel === 'reserveContainers';
+        // if (isReservePanelOpen) return;
+
+        console.log('[Containers] Click detected on instance:', e.instanceId);
 
         const instanceId = e.instanceId;
         if (instanceId !== undefined && ids[instanceId]) {
             const clickedId = ids[instanceId];
             const clickedEntity = entities[clickedId];
+
+            console.log('[Containers] Selecting container:', clickedId);
 
             if (selectedBlock) {
                 if (clickedEntity?.blockId === selectedBlock) {
@@ -356,19 +372,20 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         };
     }, [controlsRef]);
 
-    // Clear hover when interacting or selecting
-    // REMOVED reserveContainerIds check to allow hover during reserve mode
+    // Clear hover only when actively interacting with camera
     useEffect(() => {
-        if (isInteracting || selectId || selectedBlock) {
+        if (isInteracting) {
             setHoverId(null);
             document.body.style.cursor = 'auto';
         }
-    }, [isInteracting, selectId, selectedBlock, setHoverId]);
+    }, [isInteracting, setHoverId]);
 
     const handlePointerMove = (e: any) => {
         e.stopPropagation();
-        // REMOVED reserveContainerIds check to allow hover during reserve mode
-        if (isInteracting || selectId || selectedBlock) return;
+
+        // Only block hover if we are actively dragging the camera
+        // REMOVED: || selectId || selectedBlock checks to allow hover inspection always
+        if (isInteracting) return;
 
         const instanceId = e.instanceId;
         if (instanceId !== undefined && ids[instanceId]) {
@@ -381,7 +398,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
     };
 
     const handlePointerOut = (e: any) => {
-        e.stopPropagation();
+        // e.stopPropagation();
         if (hoverId) {
             setHoverId(null);
             document.body.style.cursor = 'auto';
@@ -405,7 +422,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerOut={handlePointerOut}
-                frustumCulled={true}
+                frustumCulled={false}
             >
                 <boxGeometry args={[6.058, 2.591, 2.438]} />
                 <meshStandardMaterial
@@ -415,6 +432,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                     color="#ffffff"
                     transparent={true}
                     depthWrite={true}
+                    side={THREE.DoubleSide}
                     onBeforeCompile={(shader) => {
                         shader.vertexShader = shader.vertexShader.replace(
                             '#include <common>',
@@ -447,6 +465,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                     ref={highlightMeshRef}
                     position={selectedContainerInfo.selected.position}
                     scale={selectedContainerInfo.selected.scale}
+                    raycast={() => null}
                 >
                     <boxGeometry args={[6.058, 2.591, 2.438]} />
                     <meshBasicMaterial transparent opacity={0} depthWrite={false} />
@@ -459,6 +478,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                 <mesh
                     position={hoveredContainerInfo.position}
                     scale={hoveredContainerInfo.scale}
+                    raycast={() => null}
                 >
                     <boxGeometry args={[6.058, 2.591, 2.438]} />
                     <meshBasicMaterial transparent opacity={0} depthWrite={false} />
@@ -468,3 +488,4 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         </group>
     );
 }
+

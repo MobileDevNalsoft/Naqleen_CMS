@@ -273,4 +273,38 @@ begin
    commit;
 end;
 
+begin
+   ords.define_template(
+      p_module_name => 'otm_web',
+      p_pattern     => 'postReservationContainers'
+   );
+   ords.define_handler(
+      p_module_name   => 'otm_web',
+      p_pattern       => 'postReservationContainers',
+      p_method        => 'POST',
+      p_source_type   => ords.source_type_plsql,
+      p_source        => 'BEGIN XX_OTM_POST_RESERVATION_CONTAINERS(:body); END;',
+      p_mimes_allowed => 'application/json'
+   );
+
+   commit;
+end;
+
+begin
+   ords.define_template(
+      p_module_name => 'otm_web',
+      p_pattern     => 'swapReservationContainers'
+   );
+   ords.define_handler(
+      p_module_name   => 'otm_web',
+      p_pattern       => 'swapReservationContainers',
+      p_method        => 'POST',
+      p_source_type   => ords.source_type_plsql,
+      p_source        => 'BEGIN XX_OTM_SWAP_RESERVATION_CONTAINERS(:body); END;',
+      p_mimes_allowed => 'application/json'
+   );
+
+   commit;
+end;
+
 commit;

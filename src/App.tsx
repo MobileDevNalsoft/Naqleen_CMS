@@ -3,8 +3,9 @@ import { OrbitControls } from '@react-three/drei';
 import { useRef, useState, useEffect } from 'react';
 import Environment from './components/layout/Environment';
 import LoadingScreen from './components/ui/LoadingScreen';
-import ContainerDetailsPanel from './components/panels/ContainerDetailsPanel';
-import BlockDetailsPanel from './components/panels/BlockDetailsPanel';
+import LoginScreen from './components/ui/LoginScreen';
+import ContainerDetailsPanel from './components/panels/details/ContainerDetailsPanel';
+import BlockDetailsPanel from './components/panels/details/BlockDetailsPanel';
 import ModernHeader from './components/ui/ModernHeader';
 import HoverInfoPanel from './components/ui/HoverInfoPanel';
 import { CameraTransition } from './components/camera/CameraTransition';
@@ -16,19 +17,22 @@ import QuickActionsButton from './components/ui/QuickActionsButton';
 import IcdMarkings from './components/layout/IcdMarkings';
 import { useUIStore } from './store/uiStore';
 import { useStore } from './store/store';
-import GateInPanel from './components/panels/GateInPanel';
-import GateOutPanel from './components/panels/GateOutPanel';
-import StuffingPanel from './components/panels/StuffingPanel';
-import DestuffingPanel from './components/panels/DestuffingPanel';
-import PlugInOutPanel from './components/panels/PlugInOutPanel';
-import CFSTaskAssignmentPanel from './components/panels/CFSTaskAssignmentPanel';
-import PositionContainerPanel from './components/panels/PositionContainerPanel';
+import GateInPanel from './components/panels/actions/GateInPanel';
+import GateOutPanel from './components/panels/actions/GateOutPanel';
+import StuffingPanel from './components/panels/actions/StuffingPanel';
+import DestuffingPanel from './components/panels/actions/DestuffingPanel';
+import PlugInOutPanel from './components/panels/actions/PlugInOutPanel';
+import CFSTaskAssignmentPanel from './components/panels/actions/CFSTaskAssignmentPanel';
+import PositionContainerPanel from './components/panels/actions/PositionContainerPanel';
 import Dashboard from './components/ui/Dashboard';
 import Containers from './components/layout/Containers';
-import CustomerInventoryPanel from './components/panels/CustomerInventoryPanel';
-import ReserveContainersPanel from './components/panels/ReserveContainersPanel';
+import CustomerInventoryPanel from './components/panels/actions/CustomerInventoryPanel';
+import ReserveContainersPanel from './components/panels/actions/ReserveContainersPanel';
+import SwapConnectionLines from './components/layout/SwapConnectionLines';
+import ToastContainer from './components/ui/Toast';
 
 const App = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [selectedIcdId, setSelectedIcdId] = useState('naqleen-jeddah');
   const { data: layout, isLoading: layoutLoading } = useLayoutQuery(selectedIcdId);
   const { isLoading: containersLoading } = useContainersQuery(layout || null);
@@ -100,6 +104,11 @@ const App = () => {
     }
   }, [selectId, selectedBlock, closePanel]);
 
+  // Show login screen if not authenticated
+  if (!isAuthenticated) {
+    return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <div
       style={{
@@ -115,9 +124,24 @@ const App = () => {
 
       {/* Modern Branding Header - Fixed Overlay */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000, height: 0 }}>
-        <ModernHeader activeNav={activeNav} onNavChange={handleNavChange} isSearchVisible={true} selectedIcdId={selectedIcdId} onIcdChange={setSelectedIcdId} /> {/* put isDataLoading in place of true to hide search till loading completes*/}
+        <ModernHeader
+          activeNav={activeNav}
+          onNavChange={handleNavChange}
+          isSearchVisible={true}
+          isUIVisible={!showLoadingScreen}
+          selectedIcdId={selectedIcdId}
+          onIcdChange={setSelectedIcdId}
+          onLogout={() => {
+            setIsAuthenticated(false);
+            setShowLoadingScreen(true);
+            setActiveNav('3D View');
+          }}
+        />
         <HoverInfoPanel />
       </div>
+
+      {/* Global Toast Notifications */}
+      <ToastContainer />
 
       {/* Sliding Viewport Container */}
       <div
@@ -138,10 +162,8 @@ const App = () => {
           }}
         >
           {/* Loading Screen */}
-          {
-            // showLoadingScreen 
-            false
-            && (
+          {showLoadingScreen &&
+            (
               <LoadingScreen
                 isLoading={isDataLoading}
                 onComplete={() => setShowLoadingScreen(false)}
@@ -150,7 +172,7 @@ const App = () => {
 
           <Canvas
             style={{ width: '100%', height: '100%', display: 'block' }}
-            camera={{ position: [0, 150, 300], fov: 45 }}
+            camera={{ position: [0, 150, 300], fov: 45, near: 1.0 }}
             shadows
           >
             <color attach="background" args={['#E6F4F1']} />
@@ -158,14 +180,15 @@ const App = () => {
             <Environment />
             <DynamicLayoutEngine />
             <IcdMarkings />
-            {/* <Fencing />
-            <Gates /> */}
-            {/* <Containers
+            <Fencing />
+            <Gates />
+            <Containers
               controlsRef={controlsRef}
               onReady={() => setSceneReady(true)}
-            /> */}
+            />
+            <SwapConnectionLines />
 
-            <CameraTransition isLoading={isDataLoading} controlsRef={controlsRef} />
+            <CameraTransition isLoading={showLoadingScreen} controlsRef={controlsRef} />
 
             <OrbitControls
               ref={controlsRef}
@@ -174,7 +197,7 @@ const App = () => {
               dampingFactor={0.05}
               minPolarAngle={0}                    // Prevent looking straight down
               maxPolarAngle={Math.PI / 2 - 0.05}     // Prevent going below horizontal
-              minDistance={0}                        // Minimum zoom distance
+              minDistance={0}                       // Minimum zoom distance (Prevents clipping/going inside)
               maxDistance={600}                       // Maximum zoom distance (Restricted)
               enablePan={true}                        // Allow panning
               panSpeed={1}                            // Pan speed
@@ -218,7 +241,7 @@ const App = () => {
       </div>
 
       {/* Quick Actions Button - Fixed position relative to viewport */}
-      {activeNav === '3D View' && <QuickActionsButton />}
+      {activeNav === '3D View' && !showLoadingScreen && <QuickActionsButton />}
     </div>
   );
 }

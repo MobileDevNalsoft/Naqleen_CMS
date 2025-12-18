@@ -2,11 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mobileApiClient } from '../apiClient';
 import { API_CONFIG } from '../apiConfig';
 import type { ApiResponse } from '../types/commonTypes';
-import type { GateTruckDetails, GateShipment, GateInRequest, TruckDetailsApiResponse } from '../types/gateTypes';
-
-// --- API Functions ---
-
-// --- API Functions ---
+import type { GateTruckDetails, GateCustomerShipments, GateInRequest, TruckDetailsApiResponse } from '../types/gateTypes';
 
 /**
  * Fetch truck suggestions for Gate In
@@ -68,6 +64,14 @@ export async function getGateInTruckDetails(truckNbr: string): Promise<GateTruck
     }
 }
 
+// Raw API response interface for customer shipments
+interface CustomerShipmentsApiResponse {
+    shipment_nbr?: string;
+    shipment_name?: string;
+    container_nbr?: string;
+    container_type?: string;
+}
+
 /**
  * Fetch customer shipments
  */
@@ -75,15 +79,21 @@ export async function getCustomerShipments(
     customerNbr: string,
     pageNum: number = 0,
     searchText: string = ''
-): Promise<GateShipment[]> {
+): Promise<GateCustomerShipments[]> {
     try {
-        const response = await mobileApiClient.get<ApiResponse<GateShipment[]>>(
+        const response = await mobileApiClient.get<ApiResponse<CustomerShipmentsApiResponse[]>>(
             API_CONFIG.ENDPOINTS.CUSTOMER_SHIPMENTS,
             { params: { customerNbr, pageNum, searchText } }
         );
 
         if (response.data.response_code === 200 && response.data.data) {
-            return response.data.data;
+            // Transform snake_case API response to camelCase
+            return response.data.data.map(item => ({
+                shipmentNbr: item.shipment_nbr || '',
+                shipmentName: item.shipment_name,
+                containerNbr: item.container_nbr,
+                containerType: item.container_type
+            }));
         }
         return [];
     } catch (error) {
