@@ -149,7 +149,7 @@ export default function ContainerDetailsPanel() {
                         </span>
                         <div style={{ width: '1px', height: '10px', background: 'rgba(255,255,255,0.3)' }} />
                         <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
-                            Lot {selectedContainer?.lot !== undefined ? String(selectedContainer.lot + 1) : '--'}
+                            Lot {selectedContainer?.lot !== undefined ? String(selectedContainer.lot) : '--'}
                         </span>
                         <div style={{ width: '1px', height: '10px', background: 'rgba(255,255,255,0.3)' }} />
                         <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
@@ -157,7 +157,7 @@ export default function ContainerDetailsPanel() {
                         </span>
                         <div style={{ width: '1px', height: '10px', background: 'rgba(255,255,255,0.3)' }} />
                         <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
-                            Level {selectedContainer?.level !== undefined ? String(selectedContainer.level + 1) : '--'}
+                            Level {selectedContainer?.level !== undefined ? String(selectedContainer.level) : '--'}
                         </span>
                     </div>
                 </div>

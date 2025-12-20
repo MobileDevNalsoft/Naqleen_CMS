@@ -13,7 +13,7 @@ import type { ApiResponse } from '../types/commonTypes';
 import type {
     ContainerPosition,
     ContainerDetailsResponse,
-    SwapCandidateResponse,
+    SwapCandidate,
     CustomerContainerGroup,
     ContainerFromApi,
     RecommendedContainersResponse,
@@ -105,25 +105,20 @@ export async function getContainers(layout: DynamicIcdLayout): Promise<GetContai
         // Pass container type to ensure correct slot sizing (dynamic 20ft vs 40ft spacing)
         const pos = getDynamicContainerPosition(block, lotIndex, rowIndex, levelIndex);
 
-        // Force type for known 40ft blocks, otherwise default to 20ft
-        let finalType = '20ft';
-        if (terminal === 'TRS' && blockLetter === 'D') {
-            finalType = '40ft';
-        }
 
         return {
             id: c.container_nbr,
             x: pos.x,
             y: pos.y,
             z: pos.z,
-            status: 'active',
+            status: c.status, // Use status from API ('R' or 'N'), default to 'active'
             terminal: terminal,       // Store terminal for easy access
             block: blockLetter,       // Store block letter for easy access
             blockId: mappedBlockId,   // Use mapped ID so UI finds the correct block entity (part1/part2)
             lot: c.position.lot,      // Store as 1-based (matches API/UI)
             row: rowIndex,            // Store as 0-based in app state
             level: c.position.level,  // Store as 1-based (matches API/UI)
-            type: finalType,
+            type: c.type,
             customerName: c.customer_name // Embedded customer link
         } as ContainerPosition;
     }).filter((c): c is ContainerPosition => c !== null);
@@ -179,7 +174,7 @@ export const getContainersToSwap = async (
     type: string,
     query: string,
     offset: number
-): Promise<SwapCandidateResponse[]> => {
+): Promise<SwapCandidate[]> => {
     try {
         const response = await apiClient.get<ApiResponse<string[]>>(
             API_CONFIG.ENDPOINTS.GET_CONTAINERS_OF_TYPE,
@@ -193,11 +188,21 @@ export const getContainersToSwap = async (
         );
 
         if (response.data.response_code === 200 && Array.isArray(response.data.data)) {
-            return response.data.data.map((nbr: string) => ({
-                container_nbr: nbr,
-                container_type: type,
-                position: 'N/A'
-            }));
+            const entities = useStore.getState().entities;
+            return response.data.data.map((nbr: string) => {
+                const ent = entities[nbr];
+                let positionStr = 'Yard';
+                if (ent) {
+                    // Format: TERMINAL-BLOCK-LOT-ROW-LEVEL
+                    // Note: row is 0-indexed in store, so +1. Lot and Level are 1-indexed.
+                    positionStr = `${ent.terminal}-${ent.block}-${ent.lot}-${String.fromCharCode(64 + (ent.row + 1))}-${ent.level}`;
+                }
+                return {
+                    container_nbr: nbr,
+                    container_type: type,
+                    position: positionStr
+                };
+            });
         }
 
         return [];
@@ -250,11 +255,11 @@ export const useRecommendedContainersQuery = (bookingId: string | null, requirem
     });
 };
 
-export const useSwapContainersQuery = (type: string | null, query: string, offset: number) => {
+export const useSwapContainersQuery = (type: string | null, query: string, offset: number, fetchAll: boolean = false) => {
     return useQuery({
-        queryKey: ['swapContainers', type, query, offset],
+        queryKey: ['swapContainers', type, query, offset, fetchAll],
         queryFn: () => getContainersToSwap(type!, query, offset),
-        enabled: !!type && query.length >= 3,
+        enabled: !!type && (fetchAll || query.length >= 3),
         staleTime: 1000 * 60,
     });
 };

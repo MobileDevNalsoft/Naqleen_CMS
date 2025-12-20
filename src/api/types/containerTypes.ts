@@ -32,7 +32,7 @@ export interface RecommendedContainersResponse {
     recommended_containers: string[];
 }
 
-export interface SwapCandidateResponse {
+export interface SwapCandidate {
     container_nbr: string;
     container_type: string;
     position: string;
@@ -56,6 +56,8 @@ export interface GetContainersResponse {
 // Raw container from API (nested inside customer group)
 export interface ContainerFromApi {
     container_nbr: string;
+    type?: string;
+    status?: string;
     position: {
         terminal: string;
         block: string;

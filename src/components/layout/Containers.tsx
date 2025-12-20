@@ -64,10 +64,18 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
             const e = entities[id];
             const color = new THREE.Color();
 
-            // Always use deterministic color
-            const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-            const colorIndex = hash % containerColors.length;
-            color.setHex(containerColors[colorIndex]);
+            // Color Logic based on Type and Status
+            if (e?.status === 'R') {
+                // Reserved: Use a distinct Green
+                color.setHex(0x15803d); // Deep Green (similar to UI panel)
+            } else {
+                // Available: Color based on Container Type
+                // Use type to determine color hash, ensuring consistent color for same type
+                const typeStr = e?.type || 'UNKNOWN';
+                const hash = typeStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                const colorIndex = hash % containerColors.length;
+                color.setHex(containerColors[colorIndex]);
+            }
 
             // Get block to determine scaling based on SLOT SIZE not container size
             const block = e?.blockId ? blockMap.get(e.blockId) : null;
