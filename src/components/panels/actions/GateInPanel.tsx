@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import PanelLayout from '../PanelLayout';
-import { Truck, FileText, Loader2, ChevronDown, Upload, X, Building2, Package, CheckCircle } from 'lucide-react';
+import { Truck, FileText, Loader2, ChevronDown, Upload, X, Building2, Package, CheckCircle, Printer } from 'lucide-react';
 import { useGateInTrucksQuery, useCustomerShipmentsQuery, useSubmitGateInMutation, getGateInTruckDetails } from '../../../api';
 import type { GateTruckDetails, GateCustomer, GateCustomerShipments, GateDocument } from '../../../api/types';
+import { showToast } from '../../ui/Toast';
 
 interface GateInPanelProps {
     isOpen: boolean;
@@ -42,6 +43,9 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
     // Document upload state
     const [documents, setDocuments] = useState<GateDocument[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Gate In Steps: 'search' | 'success'
+    const [step, setStep] = useState<'search' | 'success'>('search');
 
     // Debounced search
     const debouncedSearch = useDebounce(truckNumber, 300);
@@ -88,6 +92,7 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
             setSelectedShipment(null);
             setDocuments([]);
             setShowSuggestions(false);
+            setStep('search');
         }
     }, [isOpen]);
 
@@ -192,10 +197,11 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                 documents: documents
             });
 
-            // Success - close panel
-            onClose();
+            showToast('success', 'Gate In submitted successfully');
+            setStep('success');
         } catch (error) {
             console.error('Error submitting gate in:', error);
+            showToast('error', 'Failed to submit Gate In');
         }
     };
 
@@ -248,54 +254,102 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
         borderBottom: '1px solid rgba(75, 104, 108, 0.08)'
     };
 
+    // Footer Logic
+    const renderFooter = () => {
+        if (step === 'success') {
+            const showSlip = truckDetails?.shipmentName === 'INBOUND_CONTAINER';
+            return (
+                <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+                    {showSlip && (
+                        <button
+                            onClick={() => window.print()}
+                            style={{
+                                flex: 1,
+                                padding: '10px 24px',
+                                background: '#ffffff',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '12px',
+                                color: 'var(--text-color)',
+                                fontSize: '14px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px'
+                            }}
+                        >
+                            <Printer size={16} /> Print Slip
+                        </button>
+                    )}
+                    <button
+                        onClick={onClose}
+                        style={{
+                            flex: 1,
+                            padding: '10px 24px',
+                            background: 'var(--secondary-gradient)',
+                            border: 'none',
+                            borderRadius: '12px',
+                            color: 'var(--primary-color)',
+                            fontSize: '14px',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Done
+                    </button>
+                </div>
+            );
+        }
+
+        const isEnabled = (truckDetails ? canSubmit : truckNumber.length >= 3) && !submitMutation.isPending && !isLoadingDetails;
+        return (
+            <button
+                onClick={truckDetails ? handleSubmitGateIn : handleGetDetails}
+                disabled={!isEnabled}
+                style={{
+                    padding: '10px 24px',
+                    background: isEnabled ? 'var(--secondary-gradient)' : 'rgba(75, 104, 108, 0.15)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: isEnabled ? 'var(--primary-color)' : 'rgba(75, 104, 108, 0.4)',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    cursor: isEnabled ? 'pointer' : 'not-allowed',
+                    boxShadow: isEnabled ? '0 4px 12px rgba(247, 207, 155, 0.3)' : 'none',
+                    transition: 'all 0.2s',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    width: '100%'
+                }}
+                onMouseEnter={e => {
+                    if (isEnabled) {
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(247, 207, 155, 0.4)';
+                    }
+                }}
+                onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = isEnabled ? '0 4px 12px rgba(247, 207, 155, 0.3)' : 'none';
+                }}
+            >
+                {(isLoadingDetails || submitMutation.isPending) && <Loader2 size={16} className="animate-spin" />}
+                {truckDetails ? 'Confirm Gate In' : 'Get Details'}
+            </button>
+        );
+    };
+
     return (
         <PanelLayout
             title="Gate In"
             category="GATE OPERATION"
             isOpen={isOpen}
             onClose={onClose}
-            footerActions={
-                (() => {
-                    const isEnabled = (truckDetails ? canSubmit : truckNumber.length >= 3) && !submitMutation.isPending && !isLoadingDetails;
-                    return (
-                        <button
-                            onClick={truckDetails ? handleSubmitGateIn : handleGetDetails}
-                            disabled={!isEnabled}
-                            style={{
-                                padding: '10px 24px',
-                                background: isEnabled ? 'var(--secondary-gradient)' : 'rgba(75, 104, 108, 0.15)',
-                                border: 'none',
-                                borderRadius: '12px',
-                                color: isEnabled ? 'var(--primary-color)' : 'rgba(75, 104, 108, 0.4)',
-                                fontSize: '14px',
-                                fontWeight: 700,
-                                cursor: isEnabled ? 'pointer' : 'not-allowed',
-                                boxShadow: isEnabled ? '0 4px 12px rgba(247, 207, 155, 0.3)' : 'none',
-                                transition: 'all 0.2s',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.5px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px'
-                            }}
-                            onMouseEnter={e => {
-                                if (isEnabled) {
-                                    e.currentTarget.style.transform = 'translateY(-1px)';
-                                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(247, 207, 155, 0.4)';
-                                }
-                            }}
-                            onMouseLeave={e => {
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = isEnabled ? '0 4px 12px rgba(247, 207, 155, 0.3)' : 'none';
-                            }}
-                        >
-                            {(isLoadingDetails || submitMutation.isPending) && <Loader2 size={16} className="animate-spin" />}
-                            {truckDetails ? 'Confirm Gate In' : 'Get Details'}
-                        </button>
-                    );
-                })()
-            }
+            footerActions={renderFooter()}
         >
             {/* Truck Search Section */}
             <div style={{ marginBottom: '20px' }}>
@@ -601,41 +655,25 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                 </div>
             )}
 
-            {/* Success state indicator */}
-            {submitMutation.isSuccess && (
-                <div style={{
-                    padding: '12px 16px',
-                    background: 'rgba(34, 197, 94, 0.1)',
-                    border: '1px solid rgba(34, 197, 94, 0.3)',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    color: '#22c55e',
-                    fontSize: '13px',
-                    fontWeight: 500
-                }}>
-                    <CheckCircle size={16} />
-                    Gate In submitted successfully
-                </div>
-            )}
-
-            {/* Error state indicator */}
-            {submitMutation.isError && (
-                <div style={{
-                    padding: '12px 16px',
-                    background: 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    color: '#ef4444',
-                    fontSize: '13px',
-                    fontWeight: 500
-                }}>
-                    <X size={16} />
-                    Failed to submit Gate In. Please try again.
+            {/* Success View */}
+            {step === 'success' && (
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                    <div style={{
+                        width: '64px',
+                        height: '64px',
+                        background: 'rgba(34, 197, 94, 0.1)',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 16px'
+                    }}>
+                        <CheckCircle size={32} color="#22c55e" />
+                    </div>
+                    <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--primary-color)', marginBottom: '8px' }}>Gate In Successful</h3>
+                    <p style={{ color: 'var(--text-color)', opacity: 0.7, fontSize: '14px' }}>
+                        Truck <strong>{truckDetails?.truckNumber}</strong> has been gated in.
+                    </p>
                 </div>
             )}
         </PanelLayout>

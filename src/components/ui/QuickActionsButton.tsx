@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Eye, X, MoreHorizontal, Grid3x3, MapPin, ClipboardList, PackageOpen, Truck, Power, ArrowRightLeft, ShieldCheck } from 'lucide-react';
+import { Zap, Eye, X, MoreHorizontal, Grid3x3, MapPin, ClipboardList, PackageOpen, Truck, Power, ArrowRightLeft, ShieldCheck, LayoutList } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 
 interface QuickActionsButtonProps { }
@@ -91,9 +91,10 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
     ];
 
     const actionModes = [
-        // { id: 'position', label: 'Position Container', icon: MapPin },
-        // { id: 'gateIn', label: 'Gate In', icon: Truck },
-        // { id: 'gateOut', label: 'Gate Out', icon: ArrowRightLeft },
+        { id: 'position', label: 'Position Container', icon: MapPin },
+        { id: 'gateIn', label: 'Gate In', icon: Truck },
+        { id: 'gateOut', label: 'Gate Out', icon: ArrowRightLeft },
+        // { id: 'restack', label: 'Restack Container', icon: LayoutList },
         // { id: 'stuffing', label: 'Assign Stuffing', icon: PackageOpen },
         // { id: 'destuffing', label: 'Assign Destuffing', icon: PackageOpen },
         // { id: 'plugInOut', label: 'Plug In / Out', icon: Power },

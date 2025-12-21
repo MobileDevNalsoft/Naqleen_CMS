@@ -39,6 +39,12 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
     const entities = useStore((state) => state.entities);
     const ids = useStore((state) => state.ids);
     const setSelectId = useStore((state) => state.setSelectId);
+    const setSelectedCustomer = useStore((state) => state.setSelectedCustomer);
+
+    // Search Mode State
+    type SearchMode = 'Container' | 'Customer' | 'Position';
+    const [searchMode, setSearchMode] = useState<SearchMode>('Container');
+    const [isSearchModeDropdownOpen, setIsSearchModeDropdownOpen] = useState(false);
 
     // Refs for dropdown containers
     const icdDropdownRef = useRef<HTMLDivElement>(null);
@@ -105,24 +111,103 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
         }
     }, [isSearchOpen]);
 
+    // Helper: Convert row index to letter (A-K) with reversal logic for B & D blocks
+    const rowIndexToLetter = (rowIndex: number, blockId: string) => {
+        const totalRows = 11;
+        const blockLetter = blockId?.match(/block_([a-d])/i)?.[1]?.toUpperCase() || '';
+        const shouldReverse = blockLetter === 'B' || blockLetter === 'D';
+        const labelIndex = shouldReverse ? (totalRows - 1 - rowIndex) : rowIndex;
+        return String.fromCharCode(65 + labelIndex);
+    };
+
+    // Helper: Get unique customers
+    const getUniqueCustomers = (query: string) => {
+        const uniqueCustomers = new Set<string>();
+        const lowerQuery = query.toLowerCase();
+
+        // Iterate all entities to find customers
+        // Optimization: In a real app, we'd maintain a unique list of customers in store
+        Object.values(entities).forEach(entity => {
+            if (entity.customerName && entity.customerName.toLowerCase().includes(lowerQuery)) {
+                uniqueCustomers.add(entity.customerName);
+            }
+        });
+        return Array.from(uniqueCustomers).sort();
+    };
+
     // Handle search query changes
     const handleSearchChange = (query: string) => {
         setSearchQuery(query);
 
-        if (query.length > 1) {
-            const results = ids.filter(id =>
-                id.toLowerCase().includes(query.toLowerCase())
-            );
-            setSearchResults(results);
-        } else {
+        if (query.length === 0) {
             setSearchResults([]);
+            // Clear all selections when query is cleared
+            setSelectId(null);
+            setSelectedCustomer(null);
+            return;
+        }
+
+        const lowerQuery = query.toLowerCase();
+
+        if (searchMode === 'Container') {
+            if (query.length > 2) {
+                const results = ids.filter(id => id.toLowerCase().includes(lowerQuery));
+                setSearchResults(results);
+            } else {
+                setSearchResults([]);
+            }
+        }
+        else if (searchMode === 'Customer') {
+            if (query.length > 1) {
+                const results = getUniqueCustomers(query);
+                setSearchResults(results);
+            } else {
+                setSearchResults([]);
+            }
+        }
+        else if (searchMode === 'Position') {
+            // Position format: TRM-Block-Lot-Row-Level (e.g., TRM-A-1-A-1)
+            // We'll also support simpler: Block A Row K
+            if (query.length > 2) {
+                // Try exact match on constructed strings first
+                const results = ids.filter(id => {
+                    const entity = entities[id];
+                    if (!entity) return false;
+
+                    const rowLabel = rowIndexToLetter(entity.row, entity.blockId);
+
+                    // Format 1: TRM-BLOCK-LOT-ROW-LEVEL (Matches API/User Request)
+                    // Note: entity.lot and entity.level are 1-based integers
+                    const strictFormat = `${entity.terminal}-${entity.block}-${entity.lot}-${rowLabel}-${entity.level}`;
+
+                    // Format 2: Natural Language
+                    const naturalFormat = `Block ${entity.block} Row ${rowLabel} Lot ${entity.lot}`;
+
+                    return strictFormat.toLowerCase().includes(lowerQuery) || naturalFormat.toLowerCase().includes(lowerQuery);
+                });
+                setSearchResults(results);
+            } else {
+                setSearchResults([]);
+            }
         }
     };
 
     // Handle search result selection
-    const handleResultClick = (containerId: string) => {
-        setSelectId(containerId);
-        handleSearchClose();
+    const handleResultClick = (result: string) => {
+        // Clear previous states first
+        setSelectId(null);
+        setSelectedCustomer(null);
+
+        if (searchMode === 'Customer') {
+            setSelectedCustomer(result);
+            // Don't close immediately, let user see the highlighting? 
+            // Or close to show the view. Closing is standard.
+            handleSearchClose();
+        } else {
+            // Container or Position mode -> result is a Container ID
+            setSelectId(result);
+            handleSearchClose();
+        }
     };
 
     // Handle notification panel close with animation
@@ -358,7 +443,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
             }}>
                 {/* Search Button & Expandable Field */}
-                {isSearchVisible && isUIVisible && (
+                {activeNav !== 'Dashboard' && isSearchVisible && isUIVisible && (
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }} ref={searchContainerRef}>
                         {/* Search Icon Button */}
                         {!isSearchOpen && !isSearchClosing && (
@@ -404,19 +489,92 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                 border: '1px solid rgba(247, 207, 155, 0.3)',
                                 borderRadius: '50px',
                                 padding: '6px 12px',
-                                width: '300px',
+                                width: '320px', // Wider to accommodate selector
                                 animation: isSearchClosing
                                     ? 'collapseSearch 0.25s cubic-bezier(0.4, 0, 1, 1) forwards'
                                     : 'expandSearch 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
                                 boxShadow: '0 8px 24px rgba(247, 207, 155, 0.2)',
                             }}>
-                                <Search size={18} color="var(--secondary-color)" strokeWidth={2} />
+                                {/* Search Icon (Prefix) */}
+                                <Search size={18} color="var(--secondary-color)" strokeWidth={2} style={{ pointerEvents: 'none' }} />
+
                                 <input
                                     ref={searchInputRef}
                                     type="text"
-                                    placeholder="Search containers..."
+                                    placeholder={
+                                        searchMode === 'Container' ? "Container Number..." :
+                                            searchMode === 'Customer' ? "Customer Name..." :
+                                                "TRM-Block-Lot-Row-Level..."
+                                    }
                                     value={searchQuery}
-                                    onChange={(e) => handleSearchChange(e.target.value)}
+                                    onChange={(e) => {
+                                        let val = e.target.value;
+                                        if (searchMode === 'Position') {
+                                            val = val.toUpperCase();
+
+                                            // Smart Formatting for TRM-Block-Lot-Row-Level
+                                            // 1. Remove existing dashes to process raw expectation
+                                            const raw = val.replace(/-/g, '');
+                                            let formatted = '';
+
+                                            if (raw.length > 0) {
+                                                // Terminal (First 3 chars)
+                                                formatted = raw.substring(0, 3);
+                                                if (raw.length >= 3) formatted += '-';
+
+                                                // Block (Next 1 char)
+                                                if (raw.length > 3) {
+                                                    formatted += raw.substring(3, 4);
+                                                    if (raw.length >= 4) formatted += '-';
+                                                }
+
+                                                // Lot (Numbers) -> Row (Letter) transition
+                                                // We extract the part after Block
+                                                if (raw.length > 4) {
+                                                    const remaining = raw.substring(4);
+                                                    // Look for the first letter in the remaining part to identify Row start
+                                                    const rowMatch = remaining.match(/([0-9]+)([A-Z].*)/);
+
+                                                    if (rowMatch) {
+                                                        // We found a number-to-letter transition (Lot -> Row)
+                                                        const lot = rowMatch[1];
+                                                        const rowAndLevel = rowMatch[2];
+
+                                                        formatted += lot + '-';
+
+                                                        // Row (First char of remainder)
+                                                        formatted += rowAndLevel.substring(0, 1);
+                                                        if (rowAndLevel.length >= 1) formatted += '-';
+
+                                                        // Level (Rest)
+                                                        if (rowAndLevel.length > 1) {
+                                                            formatted += rowAndLevel.substring(1, 2);
+                                                        }
+                                                    } else {
+                                                        // No transition yet, just append remaining (Lot part)
+                                                        formatted += remaining;
+                                                    }
+                                                }
+                                            }
+
+                                            // Edge case: Prevent double dashes or trailing dashes from logic if user backspaced?
+                                            // Actually, if user types 'TRM-A-', formatted logic might output 'TRM-A-' correctly.
+                                            // If user backspaces the dash in 'TRM-A-', input becomes 'TRM-A', Raw is 'TRMA', Formatted 'TRM-A-'.
+                                            // This prevents deleting the dash.
+                                            // To allow deletion, we check if the new length is shorter than old searchQuery
+                                            if (val.length < searchQuery.length) {
+                                                // User is deleting, respect the raw value they sent (don't re-add dash immediately)
+                                                // But we still want uppercase.
+                                                // A simple way is to ONLY auto-append if we are adding char.
+                                                handleSearchChange(val); // Just update with uppercase val
+                                                return;
+                                            }
+                                            val = formatted;
+                                        }
+                                        handleSearchChange(val);
+                                    }}
+                                    // Close mode dropdown if typing starts
+                                    onFocus={() => setIsSearchModeDropdownOpen(false)}
                                     style={{
                                         flex: 1,
                                         background: 'transparent',
@@ -425,41 +583,148 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                         color: 'white',
                                         fontSize: '14px',
                                         fontWeight: 400,
-                                        padding: '4px 0',
+                                        padding: '4px 8px',
+                                        minWidth: '0'
                                     }}
                                 />
-                                {searchQuery && (
-                                    <div
-                                        onClick={() => {
-                                            setSearchQuery('');
-                                            setSearchResults([]);
-                                        }}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            width: '20px',
-                                            height: '20px',
-                                            borderRadius: '50%',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s',
-                                            color: 'rgba(255, 255, 255, 0.6)',
-                                        }}
-                                        onMouseEnter={e => {
-                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                                            e.currentTarget.style.color = 'white';
-                                        }}
-                                        onMouseLeave={e => {
-                                            e.currentTarget.style.background = 'transparent';
-                                            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)';
-                                        }}
-                                    >
-                                        <X size={14} />
+
+                                {/* Right Actions Group */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+
+                                    {/* Clear Button */}
+                                    {searchQuery && (
+                                        <div
+                                            onClick={() => {
+                                                setSearchQuery('');
+                                                setSearchResults([]);
+                                                setSelectId(null);
+                                                setSelectedCustomer(null);
+                                            }}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                width: '20px',
+                                                height: '20px',
+                                                borderRadius: '50%',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s',
+                                                color: 'rgba(255, 255, 255, 0.6)',
+                                            }}
+                                            onMouseEnter={e => {
+                                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                                e.currentTarget.style.color = 'white';
+                                            }}
+                                            onMouseLeave={e => {
+                                                e.currentTarget.style.background = 'transparent';
+                                                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)';
+                                            }}
+                                        >
+                                            <X size={14} />
+                                        </div>
+                                    )}
+
+                                    {/* Divider */}
+                                    <div style={{
+                                        width: '1px',
+                                        height: '20px',
+                                        background: 'rgba(255, 255, 255, 0.15)',
+                                    }} />
+
+                                    {/* Mode Selector (Suffix) */}
+                                    <div style={{ position: 'relative' }}>
+                                        <div
+                                            onClick={(e) => {
+                                                e.stopPropagation(); // Prevent search container click logic
+                                                setIsSearchModeDropdownOpen(!isSearchModeDropdownOpen);
+                                            }}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                width: '28px',
+                                                height: '28px',
+                                                borderRadius: '50%',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s',
+                                                background: isSearchModeDropdownOpen ? 'rgba(247, 207, 155, 0.2)' : 'transparent',
+                                                color: searchMode === 'Container' ? 'var(--secondary-color)' : 'white'
+                                            }}
+                                            title={`Search Mode: ${searchMode}`}
+                                            onMouseEnter={e => {
+                                                if (!isSearchModeDropdownOpen) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                            }}
+                                            onMouseLeave={e => {
+                                                if (!isSearchModeDropdownOpen) e.currentTarget.style.background = 'transparent';
+                                            }}
+                                        >
+                                            {searchMode === 'Container' && <Package size={16} />}
+                                            {searchMode === 'Customer' && <User size={16} />}
+                                            {searchMode === 'Position' && <MapPin size={16} />}
+                                        </div>
+
+                                        {/* Mode Dropdown */}
+                                        {isSearchModeDropdownOpen && (
+                                            <div style={{
+                                                position: 'absolute',
+                                                top: 'calc(100% + 21px)',
+                                                right: -8,
+                                                minWidth: '140px',
+                                                background: 'rgba(75, 104, 108, 0.98)',
+                                                backdropFilter: 'blur(20px)',
+                                                border: '1px solid rgba(247, 207, 155, 0.3)',
+                                                borderRadius: '12px',
+                                                boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+                                                overflow: 'hidden',
+                                                animation: 'fadeIn 0.2s ease-out',
+                                                zIndex: 1100,
+                                            }}>
+                                                {[
+                                                    { id: 'Container', icon: <Package size={14} />, label: 'Container' },
+                                                    { id: 'Customer', icon: <User size={14} />, label: 'Customer' },
+                                                    { id: 'Position', icon: <MapPin size={14} />, label: 'Position' },
+                                                ].map((mode) => (
+                                                    <div
+                                                        key={mode.id}
+                                                        onClick={() => {
+                                                            setSearchMode(mode.id as SearchMode);
+                                                            setIsSearchModeDropdownOpen(false);
+                                                            setSearchQuery('');
+                                                            setSearchResults([]);
+                                                            searchInputRef.current?.focus();
+                                                        }}
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '10px',
+                                                            padding: '10px 14px',
+                                                            cursor: 'pointer',
+                                                            fontSize: '13px',
+                                                            fontWeight: 500,
+                                                            color: searchMode === mode.id ? 'var(--secondary-color)' : 'white',
+                                                            background: searchMode === mode.id ? 'rgba(247, 207, 155, 0.1)' : 'transparent',
+                                                            transition: 'all 0.2s',
+                                                        }}
+                                                        onMouseEnter={e => {
+                                                            if (searchMode !== mode.id) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                                                        }}
+                                                        onMouseLeave={e => {
+                                                            if (searchMode !== mode.id) e.currentTarget.style.background = 'transparent';
+                                                        }}
+                                                    >
+                                                        {mode.icon}
+                                                        {mode.label}
+                                                        {searchMode === mode.id && <div style={{ marginLeft: 'auto', width: '4px', height: '4px', borderRadius: '50%', background: 'var(--secondary-color)' }} />}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
-                                )}
+                                </div>
+
 
                                 {/* Search Results Dropdown */}
-                                {searchResults.length > 0 && (
+                                {(searchResults.length > 0 || (searchQuery.length > (searchMode === 'Customer' ? 1 : 2))) && (
                                     <div style={{
                                         position: 'absolute',
                                         top: 'calc(100% + 15px)',
@@ -475,50 +740,115 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                         animation: 'fadeIn 0.2s ease-out',
                                         zIndex: 1000,
                                     }}>
-                                        {searchResults.map((id) => (
-                                            <div
-                                                key={id}
-                                                onClick={() => handleResultClick(id)}
-                                                style={{
-                                                    padding: '12px 16px',
-                                                    cursor: 'pointer',
-                                                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                                                    transition: 'all 0.2s',
-                                                }}
-                                                onMouseEnter={e => {
-                                                    e.currentTarget.style.background = 'rgba(247, 207, 155, 0.1)';
-                                                }}
-                                                onMouseLeave={e => {
-                                                    e.currentTarget.style.background = 'transparent';
-                                                }}
-                                            >
-                                                <div style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '12px',
-                                                }}>
-                                                    <Package size={16} color="var(--secondary-color)" />
-                                                    <div style={{ flex: 1 }}>
-                                                        <div style={{
-                                                            fontSize: '14px',
-                                                            fontWeight: 600,
-                                                            color: 'white',
-                                                            marginBottom: '2px',
-                                                        }}>
-                                                            {id}
-                                                        </div>
-                                                        {entities[id]?.blockId && (
-                                                            <div style={{
-                                                                fontSize: '12px',
-                                                                color: 'rgba(255, 255, 255, 0.6)',
-                                                            }}>
-                                                                Block {entities[id].blockId} • Row {entities[id].row} • Level {entities[id].level}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
+                                        {searchResults.length === 0 ? (
+                                            <div style={{
+                                                padding: '24px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                color: 'rgba(255, 255, 255, 0.5)',
+                                                gap: '8px'
+                                            }}>
+                                                <AlertCircle size={24} />
+                                                <span style={{ fontSize: '13px' }}>No matches found</span>
                                             </div>
-                                        ))}
+                                        ) : (
+                                            searchMode === 'Customer' ? (
+                                                // Customer Mode Results
+                                                searchResults.map((customerName) => (
+                                                    <div
+                                                        key={customerName}
+                                                        onClick={() => handleResultClick(customerName)}
+                                                        style={{
+                                                            padding: '12px 16px',
+                                                            cursor: 'pointer',
+                                                            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                                                            transition: 'all 0.2s',
+                                                        }}
+                                                        onMouseEnter={e => {
+                                                            e.currentTarget.style.background = 'rgba(247, 207, 155, 0.1)';
+                                                        }}
+                                                        onMouseLeave={e => {
+                                                            e.currentTarget.style.background = 'transparent';
+                                                        }}
+                                                    >
+                                                        <div style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '12px',
+                                                        }}>
+                                                            <User size={16} color="var(--secondary-color)" />
+                                                            <div style={{
+                                                                fontSize: '14px',
+                                                                fontWeight: 600,
+                                                                color: 'white',
+                                                            }}>
+                                                                {customerName}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                // Container / Position Mode Results
+                                                searchResults.map((id) => {
+                                                    const entity = entities[id];
+                                                    const rowLabel = entity ? rowIndexToLetter(entity.row, entity.blockId) : '?';
+
+                                                    return (
+                                                        <div
+                                                            key={id}
+                                                            onClick={() => handleResultClick(id)}
+                                                            style={{
+                                                                padding: '12px 16px',
+                                                                cursor: 'pointer',
+                                                                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                                                                transition: 'all 0.2s',
+                                                            }}
+                                                            onMouseEnter={e => {
+                                                                e.currentTarget.style.background = 'rgba(247, 207, 155, 0.1)';
+                                                            }}
+                                                            onMouseLeave={e => {
+                                                                e.currentTarget.style.background = 'transparent';
+                                                            }}
+                                                        >
+                                                            <div style={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '12px',
+                                                            }}>
+                                                                <Package size={16} color="var(--secondary-color)" />
+                                                                <div style={{ flex: 1 }}>
+                                                                    {/* Container Number & Customer Name */}
+                                                                    <div style={{
+                                                                        fontSize: '14px',
+                                                                        fontWeight: 600,
+                                                                        color: 'white',
+                                                                        marginBottom: '2px',
+                                                                        display: 'flex',
+                                                                        justifyContent: 'space-between'
+                                                                    }}>
+                                                                        <span>{id}</span>
+                                                                        {entity?.customerName && (
+                                                                            <span style={{ fontSize: '11px', color: 'var(--secondary-color)', fontWeight: 400 }}>
+                                                                                {entity.customerName}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    {/* Detailed Position Info */}
+                                                                    <div style={{
+                                                                        fontSize: '13px',
+                                                                        color: 'rgba(255, 255, 255, 0.6)',
+                                                                        marginTop: '2px'
+                                                                    }}>
+                                                                        {entity.terminal}-{entity.block}-{entity.lot}-{rowLabel}-{entity.level}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }))
+                                        )}
                                     </div>
                                 )}
                             </div>

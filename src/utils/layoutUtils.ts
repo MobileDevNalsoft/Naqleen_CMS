@@ -61,6 +61,7 @@ export const getContainerPosition = (
     const containerLength = is20ft ? 6.058 : 12.192;
     const containerWidth = 2.438;
     const containerHeight = 2.591;
+    const levelGap = 0.02; // Small gap to prevent z-fighting between stacked containers
 
     const gapX = terminal.lot_gap || 0.5; // Gap between lots
     const gapZ = 0.3; // Gap between rows
@@ -76,7 +77,7 @@ export const getContainerPosition = (
     const startZ = -totalDepth / 2 + containerWidth / 2;
 
     const x = startX + lotIndex * (containerLength + gapX);
-    const y = terminal.position.y + containerHeight / 2 + levelIndex * containerHeight;
+    const y = terminal.position.y + containerHeight / 2 + levelIndex * (containerHeight + levelGap);
     const z = startZ + rowIndex * (containerWidth + gapZ);
 
     // Apply terminal position and rotation
@@ -159,6 +160,7 @@ export const getDynamicContainerPosition = (
     const containerLength = is20ft ? 6.058 : 12.192;
     const containerWidth = 2.438;
     const containerHeight = 2.591;
+    const levelGap = 0.02; // Small gap to prevent z-fighting between stacked containers
 
     const gapX = props.lot_gap || 0.5; // Gap between lots
     const gapZ = 0.3; // Gap between rows
@@ -174,7 +176,7 @@ export const getDynamicContainerPosition = (
     const startZ = -totalDepth / 2 + containerWidth / 2;
 
     const x = startX + lotIndex * (containerLength + gapX);
-    const y = entity.position.y + containerHeight / 2 + levelIndex * containerHeight;
+    const y = entity.position.y + containerHeight / 2 + levelIndex * (containerHeight + levelGap);
     const z = startZ + rowIndex * (containerWidth + gapZ);
 
     // Apply terminal position and rotation

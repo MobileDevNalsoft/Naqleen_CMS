@@ -12,6 +12,8 @@ interface PanelLayoutProps {
     footerActions?: React.ReactNode;
     headerActions?: React.ReactNode;
     width?: string;
+    allowExpansion?: boolean;
+    fitContent?: boolean; // If true, panel height fits content instead of full height
 }
 
 export default function PanelLayout({
@@ -24,7 +26,9 @@ export default function PanelLayout({
     children,
     footerActions,
     headerActions,
-    width = '420px'
+    width = '420px',
+    allowExpansion = false,
+    fitContent = false
 }: PanelLayoutProps) {
     const [isVisible, setIsVisible] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
@@ -52,7 +56,8 @@ export default function PanelLayout({
                 right: '24px',
                 width: isExpanded ? '900px' : width,
                 maxWidth: 'calc(100vw - 48px)', // Prevent overflow on small screens
-                height: isExpanded ? 'calc(100vh - 114px)' : 'calc(100vh - 114px)',
+                height: fitContent ? 'auto' : (isExpanded ? 'calc(100vh - 114px)' : 'calc(100vh - 114px)'),
+                maxHeight: fitContent ? 'calc(100vh - 114px)' : undefined,
                 backgroundColor: 'rgba(253, 246, 235, 0.95)',
                 backdropFilter: 'blur(24px) saturate(180%)',
                 borderRadius: '24px',
@@ -118,40 +123,42 @@ export default function PanelLayout({
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         {headerActions}
 
-                        {/* Expand/Collapse Button */}
-                        <button
-                            onClick={() => setIsExpanded(!isExpanded)}
-                            style={{
-                                background: 'rgba(255, 255, 255, 0.1)',
-                                border: '1px solid rgba(255, 255, 255, 0.2)',
-                                borderRadius: '50%',
-                                width: '36px',
-                                height: '36px',
-                                minWidth: '36px',
-                                minHeight: '36px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
-                                padding: '0',
-                                margin: '0',
-                                color: 'rgba(255, 255, 255, 0.8)'
-                            }}
-                            onMouseEnter={e => {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                                e.currentTarget.style.transform = 'scale(1.1)';
-                                e.currentTarget.style.color = 'white';
-                            }}
-                            onMouseLeave={e => {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                                e.currentTarget.style.transform = 'scale(1)';
-                                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
-                            }}
-                            title={isExpanded ? "Restore" : "Maximize"}
-                        >
-                            {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-                        </button>
+                        {/* Expand/Collapse Button - Only shown if allowed (e.g. for ReserveContainersPanel) */}
+                        {allowExpansion && (
+                            <button
+                                onClick={() => setIsExpanded(!isExpanded)}
+                                style={{
+                                    background: 'rgba(255, 255, 255, 0.1)',
+                                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                                    borderRadius: '50%',
+                                    width: '36px',
+                                    height: '36px',
+                                    minWidth: '36px',
+                                    minHeight: '36px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    padding: '0',
+                                    margin: '0',
+                                    color: 'rgba(255, 255, 255, 0.8)'
+                                }}
+                                onMouseEnter={e => {
+                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                                    e.currentTarget.style.transform = 'scale(1.1)';
+                                    e.currentTarget.style.color = 'white';
+                                }}
+                                onMouseLeave={e => {
+                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                    e.currentTarget.style.transform = 'scale(1)';
+                                    e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+                                }}
+                                title={isExpanded ? "Restore" : "Maximize"}
+                            >
+                                {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                            </button>
+                        )}
 
                         <button
                             onClick={onClose}
@@ -192,7 +199,7 @@ export default function PanelLayout({
             {/* Content */}
             <div style={{
                 flex: 1,
-                overflowY: 'hidden', // Changed to hidden to allow virtual list to scroll
+                overflowY: 'auto', // Changed to auto to enable scrolling
                 padding: '24px',
                 display: 'flex',
                 flexDirection: 'column',

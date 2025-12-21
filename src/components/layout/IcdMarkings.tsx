@@ -127,16 +127,16 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
                         pos.add(blockPos);
 
                         // Check if this slot matches the selected container
+                        // REMOVED: extraLift logic to keep the marking on the ground
+                        /*
                         let extraLift = 0;
                         if (selectedEntity) {
-                            // We compare world positions. 
-                            // pos is the slot center in world space.
-                            // selectedEntity.x/z are container center in world space.
                             if (Math.abs(pos.x - selectedEntity.x) < 0.5 && Math.abs(pos.z - selectedEntity.z) < 0.5) {
                                 extraLift = lotLiftHeight.current;
                             }
                         }
                         pos.y += extraLift;
+                        */
 
                         dummy.position.copy(pos);
                         dummy.rotation.set(-Math.PI / 2, blockRot.y, 0, 'YXZ');

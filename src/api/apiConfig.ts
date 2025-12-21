@@ -25,9 +25,19 @@ export const API_CONFIG = {
         CUSTOMER_SHIPMENTS: '/customerShipments',
         SHIPMENT_DETAILS: '/shipmentDetails',
         SUBMIT_GATE_IN: '/submitGateIn',
+        // Gate Out endpoints
+        GATE_OUT_TRUCKS: '/gateOutTrucks',
+        GATE_OUT_TRUCK_DETAILS: '/gateOutTruckDetails',
+        SUBMIT_GATE_OUT: '/submitGateOut',
         // Reservation endpoints
         POST_RESERVATION_CONTAINERS: '/postReservationContainers',
         DELETE_RESERVATION_CONTAINERS: '/deleteReservationContainers',
         SWAP_RESERVATION_CONTAINERS: '/swapReservationContainers',
+        // Yard endpoints
+        positionTrucksEndpoint: '/positionTrucks',
+        positionTruckDetails: '/positionTruckDetails',
+        getAvailablePositionLov: '/getAvailablePositionLov',
+        submitContainerPosition: '/submitContainerPosition',
+        restackContainer: '/restackContainer',
     }
 } as const;

@@ -14,6 +14,7 @@ interface StoreState {
   ids: string[];
   selectId: string | null;
   selectedBlock: string | null;
+  selectedCustomer: string | null;
   hoverId: string | null;
   hoverSource: string | null;
   layout: DynamicIcdLayout | null;
@@ -24,11 +25,13 @@ interface StoreState {
   patchPositions: (posUpdates: { id: string; x: number; y: number; z: number }[]) => void;
   setSelectId: (id: string | null) => void;
   setSelectedBlock: (blockId: string | null) => void;
+  setSelectedCustomer: (customerName: string | null) => void;
   setHoverId: (id: string | null, source?: string) => void;
   setLayout: (layout: DynamicIcdLayout) => void;
   setReserveContainers: (containers: { container_nbr: string }[]) => void;
   setSwapConnections: (connections: SwapConnection[]) => void;
   setCustomerByContainer: (map: Record<string, string>) => void;
+  updateEntityStatus: (updates: { id: string; status: string }[]) => void;
 }
 
 
@@ -38,6 +41,7 @@ export const useStore = create<StoreState>((set) => ({
   ids: [],
   selectId: null,
   selectedBlock: null,
+  selectedCustomer: null,
   hoverId: null,
   hoverSource: null,
   layout: null,
@@ -69,10 +73,22 @@ export const useStore = create<StoreState>((set) => ({
 
   setSelectId: (id) => set({ selectId: id }),
   setSelectedBlock: (blockId) => set({ selectedBlock: blockId }),
+  setSelectedCustomer: (customerName) => set({ selectedCustomer: customerName }),
   setHoverId: (id, source) => set({ hoverId: id, hoverSource: source || null }),
   setLayout: (layout) => set({ layout }),
   setReserveContainers: (containers) => set({ reserveContainers: containers }),
   setSwapConnections: (connections) => set({ swapConnections: connections }),
   setCustomerByContainer: (map) => set({ customerByContainer: map }),
+  updateEntityStatus: (updates) => set((state) => {
+    const entities = { ...state.entities };
+    let changed = false;
+    updates.forEach(({ id, status }) => {
+      if (entities[id]) {
+        entities[id] = { ...entities[id], status };
+        changed = true;
+      }
+    });
+    return changed ? { entities } : {};
+  }),
 }));
 

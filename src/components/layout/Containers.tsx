@@ -1,7 +1,6 @@
 import { useRef, useEffect, useMemo, useState, type RefObject } from 'react';
 import * as THREE from 'three';
 import { useStore } from '../../store/store';
-import { useUIStore } from '../../store/uiStore';
 import { useTexture, Outlines } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import type { DynamicEntity } from '../../utils/layoutUtils';
@@ -176,6 +175,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
     const lotLiftHeight = useRef(0);
     const prevHasSelection = useRef(false);
     const highlightMeshRef = useRef<THREE.Mesh>(null);
+    const hoverMeshRef = useRef<THREE.Mesh>(null); // Ref for hover highlight
 
     // Main Animation Loop (Lift & Opacity)
     useFrame((_, delta) => {
@@ -183,6 +183,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         if (!mesh || instanceData.length === 0) return;
 
         const reserveActive = reserveContainers.length > 0;
+        const selectedCustomer = useStore.getState().selectedCustomer;
 
         // --- Handle Block Lift Animation ---
         const targetLift = selectedBlock ? 16 : 0;
@@ -198,7 +199,8 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         }
 
         // --- Handle Lot Lift Animation (Selected Stack) ---
-        const targetLotLift = selectId ? 10 : 0;
+        // Increased lift height as requested (was 10)
+        const targetLotLift = selectId ? 16 : 0;
         const lotDiff = targetLotLift - lotLiftHeight.current;
         const isLotLifting = Math.abs(lotDiff) > 0.01;
 
@@ -212,11 +214,11 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         let needsMatrixUpdate = false;
 
         // Added reserveActive check for matrix update to ensure opacity updates correctly even without lift
-        if (isLifting || isLotLifting || (selectedBlock && liftHeight.current !== 0) || (selectId && lotLiftHeight.current !== 0) || reserveActive) {
+        if (isLifting || isLotLifting || (selectedBlock && liftHeight.current !== 0) || (selectId && lotLiftHeight.current !== 0) || reserveActive || selectedCustomer) {
             needsMatrixUpdate = true;
         }
 
-        const hasSelection = !!selectedBlock || !!selectId || reserveActive;
+        const hasSelection = !!selectedBlock || !!selectId || reserveActive || !!selectedCustomer;
         const selectionCleared = prevHasSelection.current && !hasSelection;
         prevHasSelection.current = hasSelection;
 
@@ -230,6 +232,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                 let scaleX = data.scale[0];
                 let scaleY = data.scale[1];
                 let scaleZ = data.scale[2];
+                let opacity = 1.0; // Default opacity
 
                 if (reserveActive) {
                     // Reserve Mode Logic: No Lift
@@ -247,10 +250,52 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                     // Check if this container is in the selected stack/lot
                     let isInSelectedStack = false;
                     if (selectedPos) {
+                        // Match block, row, and lot (ignore level/Y)
+                        // Allow slight tolerance/exact match on X/Z for stack identification
+                        // This logic assumes `data` has `blockId`, `lot`, `row` properties which are not explicitly defined in `instanceData` type.
+                        // Using the original X/Z position check for stack identification.
                         isInSelectedStack = Math.abs(x - selectedPos[0]) < 0.1 && Math.abs(z - selectedPos[2]) < 0.1;
                     }
-                    // Base Y + Block Lift + Lot Lift
-                    currentY = y + (isInDataBlock ? liftHeight.current : 0) + (isInSelectedStack ? lotLiftHeight.current : 0);
+
+                    // Apply block lift
+                    if (isInDataBlock) {
+                        currentY += liftHeight.current;
+                    }
+
+                    // Apply lot lift (only if in the selected stack)
+                    if (isInSelectedStack) {
+                        currentY += lotLiftHeight.current;
+                    }
+
+                    // --- Opacity Logic ---
+                    if (selectedCustomer) {
+                        // Customer Mode
+                        const entity = entities[data.id];
+                        if (entity?.customerName === selectedCustomer) {
+                            opacity = 1.0;
+                        } else {
+                            opacity = 0.1; // Ghost mode for others
+                        }
+                    } else if (selectedBlock) {
+                        // Block Mode
+                        if (isInDataBlock) {
+                            opacity = 1.0;
+                        } else {
+                            opacity = 0.3;
+                        }
+                    }
+                    // Handle individual opacity (when a single container is selected)
+                    // This takes precedence over block/customer selection if active
+                    if (selectId) { // Check selectId last to ensure it overrides other modes
+                        if (data.id === selectId) {
+                            opacity = 1.0;
+                        } else {
+                            // If selectId is active, dim others more aggressively than block/customer mode
+                            // unless they are part of the selected block/customer and already dimmed.
+                            // This ensures the single selected container stands out.
+                            opacity = 0.1;
+                        }
+                    }
                 }
 
                 dummy.position.set(x, currentY, z);
@@ -258,33 +303,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                 dummy.updateMatrix();
                 mesh.setMatrixAt(i, dummy.matrix);
 
-                // 2. Opacity (Dimming)
-                let opacity = 1.0;
-
-                if (reserveActive) {
-                    // Reserve Mode: Highlight reserve, others are invisible
-                    if (isReserve) {
-                        opacity = 1.0;
-                    } else {
-                        opacity = 0.0;
-                    }
-                } else if (selectedBlock) {
-                    if (data.blockId === selectedBlock) {
-                        opacity = 1.0;
-                    } else {
-                        opacity = 0.1;
-                    }
-                } else if (selectId && selectedPos) {
-                    if (data.id !== selectId) {
-                        const dx = x - selectedPos[0];
-                        const dz = z - selectedPos[2];
-                        const distance = Math.sqrt(dx * dx + dz * dz);
-                        if (distance < 15) {
-                            opacity = 0.2;
-                        }
-                    }
-                }
-
+                // Update Opacity Attribute
                 if (opacityAttribute.current) {
                     opacityAttribute.current.setX(i, opacity);
                 }
@@ -300,6 +319,15 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
             const [x, y, z] = selectedContainerInfo.selected.position;
             const currentLift = liftHeight.current + lotLiftHeight.current;
             highlightMeshRef.current.position.set(x, y + currentLift, z);
+        }
+
+        // Update Hover Highlight Mesh Position (include block lift)
+        if (hoverMeshRef.current && hoveredContainerInfo) {
+            const [x, y, z] = hoveredContainerInfo.position;
+            // Add block lift if hovered container is in selected block
+            const isInSelectedBlock = hoveredContainerInfo.blockId === selectedBlock;
+            const hoverLift = isInSelectedBlock ? liftHeight.current : 0;
+            hoverMeshRef.current.position.set(x, y + hoverLift, z);
         }
     });
 
@@ -419,6 +447,14 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         return instanceData.find(d => d.id === hoverId);
     }, [hoverId, instanceData]);
 
+    // CRITICAL: Callback ref to set bounding sphere IMMEDIATELY when geometry mounts
+    // This ensures raycasting works for all instances regardless of their distance from origin
+    const setBoundingSphereOnMount = (geometry: THREE.BoxGeometry | null) => {
+        if (geometry) {
+            geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Infinity);
+        }
+    };
+
     if (ids.length === 0) return null;
 
     return (
@@ -432,7 +468,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                 onPointerOut={handlePointerOut}
                 frustumCulled={false}
             >
-                <boxGeometry args={[6.058, 2.591, 2.438]} />
+                <boxGeometry ref={setBoundingSphereOnMount} args={[6.058, 2.591, 2.438]} />
                 <meshStandardMaterial
                     map={texture}
                     metalness={0.4}
@@ -484,6 +520,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
             {/* Highlight for hovered container (Yellow/Gold) - Enabled during reserve mode if needed */}
             {hoveredContainerInfo && !selectedContainerInfo && (
                 <mesh
+                    ref={hoverMeshRef}
                     position={hoveredContainerInfo.position}
                     scale={hoveredContainerInfo.scale}
                     raycast={() => null}

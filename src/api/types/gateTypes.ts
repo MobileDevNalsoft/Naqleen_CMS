@@ -57,3 +57,9 @@ export interface TruckDetailsApiResponse {
         customer_name: string;
     }>;
 }
+
+// Gate Out Types
+export interface GateOutRequest {
+    shipment_nbr: string;
+    truck_nbr: string;
+}

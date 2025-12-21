@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mobileApiClient } from '../apiClient';
 import { API_CONFIG } from '../apiConfig';
 import type { ApiResponse } from '../types/commonTypes';
-import type { GateTruckDetails, GateCustomerShipments, GateInRequest, TruckDetailsApiResponse } from '../types/gateTypes';
+import type { GateTruckDetails, GateCustomerShipments, GateInRequest, TruckDetailsApiResponse, GateOutRequest } from '../types/gateTypes';
 
 /**
  * Fetch truck suggestions for Gate In
@@ -139,6 +139,88 @@ export async function submitGateIn(request: GateInRequest): Promise<boolean> {
     }
 }
 
+// --- Gate Out API ---
+
+/**
+ * Fetch truck suggestions for Gate Out
+ */
+export async function getGateOutTrucks(searchText: string): Promise<string[]> {
+    if (searchText.length < 3) return [];
+
+    try {
+        const response = await mobileApiClient.get<ApiResponse<string[]>>(
+            API_CONFIG.ENDPOINTS.GATE_OUT_TRUCKS,
+            { params: { searchText } }
+        );
+
+        if (response.data.response_code === 200 && response.data.data) {
+            return response.data.data;
+        }
+        return [];
+    } catch (error) {
+        console.error('Error fetching gate out trucks:', error);
+        return [];
+    }
+}
+
+/**
+ * Fetch truck details for Gate Out
+ * Reuses GateTruckDetails interface as structure is likely similar
+ */
+export async function getGateOutTruckDetails(truckNbr: string): Promise<GateTruckDetails | null> {
+    try {
+        const response = await mobileApiClient.get<ApiResponse<TruckDetailsApiResponse>>(
+            API_CONFIG.ENDPOINTS.GATE_OUT_TRUCK_DETAILS,
+            { params: { truckNbr } }
+        );
+
+        if (response.data.response_code === 200 && response.data.data) {
+            const raw = response.data.data;
+            // Map raw response to clean interface
+            return {
+                truckNumber: raw.truck_nbr || '',
+                driverName: raw.driver_name || '',
+                driverIqama: raw.driver_iqama_nbr || '',
+                truckType: raw.truck_type || '',
+                shipmentName: raw.shipment_name || '',
+                shipmentNumber: raw.shipment_nbr || '',
+                containerNumber: raw.container_nbr || '',
+                containerType: raw.container_type || '',
+                orderNumber: raw.otm_order_nbr || '',
+                customerName: raw.customer_name || '',
+                // Gate Out likely doesn't have ambiguity list, but we keep structure consistent
+                customerList: raw.customer_list?.map(c => ({
+                    customerNbr: c.customer_nbr,
+                    customerName: c.customer_name
+                }))
+            };
+        }
+
+        console.warn('Gate Out truck details not found:', truckNbr);
+        return null;
+    } catch (error) {
+        console.error('Error fetching gate out truck details:', error);
+        return null;
+    }
+}
+
+/**
+ * Submit Gate Out
+ */
+export async function submitGateOut(request: GateOutRequest): Promise<boolean> {
+    try {
+        const response = await mobileApiClient.post<ApiResponse<any>>(
+            API_CONFIG.ENDPOINTS.SUBMIT_GATE_OUT,
+            request
+        );
+
+        return response.data.response_code === 200;
+    } catch (error) {
+        console.error('Error submitting gate out:', error);
+        throw error;
+    }
+}
+
 // --- React Query Hooks ---
 
 export function useGateInTrucksQuery(searchText: string, enabled: boolean = true) {
@@ -173,6 +255,7 @@ export function useCustomerShipmentsQuery(
     });
 }
 
+// Restore useSubmitGateInMutation
 export function useSubmitGateInMutation() {
     const queryClient = useQueryClient();
 
@@ -184,3 +267,37 @@ export function useSubmitGateInMutation() {
         }
     });
 }
+
+
+// --- Gate Out Hooks ---
+
+export function useGateOutTrucksQuery(searchText: string, enabled: boolean = true) {
+    return useQuery({
+        queryKey: ['gate-out-trucks', searchText],
+        queryFn: () => getGateOutTrucks(searchText),
+        enabled: enabled && searchText.length >= 3,
+        staleTime: 30000
+    });
+}
+
+export function useGateOutTruckDetailsQuery(truckNbr: string, enabled: boolean = true) {
+    return useQuery({
+        queryKey: ['gate-out-truck-details', truckNbr],
+        queryFn: () => getGateOutTruckDetails(truckNbr),
+        enabled: enabled && !!truckNbr,
+        staleTime: 60000
+    });
+}
+
+export function useSubmitGateOutMutation() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: submitGateOut,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['gate-out-trucks'] });
+            queryClient.invalidateQueries({ queryKey: ['gate-out-truck-details'] });
+        }
+    });
+}
+

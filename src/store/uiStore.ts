@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export type ActivePanel =
     | null
     | 'position'
+    | 'restack'
     | 'gateIn'
     | 'gateOut'
     | 'stuffing'
@@ -14,12 +15,14 @@ export type ActivePanel =
 
 interface UIState {
     activePanel: ActivePanel;
-    openPanel: (panel: ActivePanel) => void;
+    panelData: any;
+    openPanel: (panel: ActivePanel, data?: any) => void;
     closePanel: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
     activePanel: null,
-    openPanel: (panel) => set({ activePanel: panel }),
-    closePanel: () => set({ activePanel: null }),
+    panelData: null,
+    openPanel: (panel, data = null) => set({ activePanel: panel, panelData: data }),
+    closePanel: () => set({ activePanel: null, panelData: null }),
 }));

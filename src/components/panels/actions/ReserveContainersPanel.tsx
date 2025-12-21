@@ -35,9 +35,10 @@ interface SwapWorkspaceProps {
     recommendedContainers: { container_type: string, recommended_containers: string[] }[];
     swapSource: 'recommended' | 'reserved';
     onRemoveItem: (id: string) => void;
+    isProcessing?: boolean;
 }
 
-function SwapWorkspace({ toSwap, bookingRequirements, onConfirm, onCancel, recommendedContainers, swapSource, onRemoveItem }: SwapWorkspaceProps) {
+function SwapWorkspace({ toSwap, bookingRequirements, onConfirm, onCancel, recommendedContainers, swapSource, onRemoveItem, isProcessing = false }: SwapWorkspaceProps) {
     // State to track replacements: { [originalId]: SwapCandidate }
     const [replacements, setReplacements] = useState<Record<string, SwapCandidate>>({});
     const [searchTerm, setSearchTerm] = useState('');
@@ -230,7 +231,7 @@ function SwapWorkspace({ toSwap, bookingRequirements, onConfirm, onCancel, recom
     }, [toSwap, swapListSearchTerm]);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f8fafc', overflow: 'hidden', borderRadius: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: '#f8fafc', overflow: 'hidden', borderRadius: '16px' }}>
             {/* Header */}
             <div style={{ padding: '12px 16px', background: '#4B686C', borderBottom: '1px solid #354d50ff', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -377,7 +378,7 @@ function SwapWorkspace({ toSwap, bookingRequirements, onConfirm, onCancel, recom
             </div>
 
             {/* Search & Results (Takes remaining space) */}
-            <div style={{ flex: 1, padding: '12px', display: 'flex', flexDirection: 'column', minHeight: 0, background: '#f8fafc' }}>
+            <div style={{ flex: 1, padding: '12px', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', background: '#f8fafc' }}>
                 <div style={{ position: 'relative', marginBottom: '8px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {/* Input Area (Container Search or Cascading Dropdowns) */}
                     <div style={{
@@ -713,20 +714,29 @@ function SwapWorkspace({ toSwap, bookingRequirements, onConfirm, onCancel, recom
                     Cancel
                 </button>
                 <button
-                    disabled={!isComplete}
+                    disabled={!isComplete || isProcessing}
                     onClick={() => onConfirm(replacements)}
                     style={{
                         flex: 1, padding: '10px', borderRadius: '8px', border: 'none',
-                        background: isComplete ? '#4B686C' : '#e2e8f0',
-                        color: isComplete ? 'white' : '#94a3b8',
-                        cursor: isComplete ? 'pointer' : 'not-allowed',
+                        background: isComplete && !isProcessing ? '#4B686C' : '#e2e8f0',
+                        color: isComplete && !isProcessing ? 'white' : '#94a3b8',
+                        cursor: isComplete && !isProcessing ? 'pointer' : 'not-allowed',
                         fontWeight: 600,
                         transition: 'all 0.2s',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                     }}
                 >
-                    <RefreshCw size={14} />
-                    Confirm Swap
+                    {isProcessing ? (
+                        <>
+                            <Loader2 size={14} className="spin" />
+                            Processing...
+                        </>
+                    ) : (
+                        <>
+                            <RefreshCw size={14} />
+                            Confirm Swap
+                        </>
+                    )}
                 </button>
             </div>
         </div >
@@ -851,13 +861,21 @@ export default function ReserveContainersPanel({ isOpen, onClose }: ReserveConta
 
             if (result.response_code === 200) {
                 showToast('success', result.response_message || `Successfully unreserved ${result.success_count} containers`);
+                // Update 3D view colors immediately
+                const updateEntityStatus = useStore.getState().updateEntityStatus;
+                updateEntityStatus(containersToDelete.map(id => ({ id, status: '' })));
                 // Clear selections and refresh
                 setSelectedReservedIds(new Set());
                 queryClient.invalidateQueries({ queryKey: ['customersAndBookings'] });
+                queryClient.invalidateQueries({ queryKey: ['containers'] }); // Refresh 3D view colors
             } else if (result.response_code === 207) {
                 showToast('warning', result.response_message || `Partial success: ${result.success_count} unreserved, ${result.fail_count} failed`);
+                // Update 3D view colors for potentially succeeded items
+                const updateEntityStatus = useStore.getState().updateEntityStatus;
+                updateEntityStatus(containersToDelete.map(id => ({ id, status: '' })));
                 setSelectedReservedIds(new Set()); // Consider keeping if you want retry, but usually refresh is safer
                 queryClient.invalidateQueries({ queryKey: ['customersAndBookings'] });
+                queryClient.invalidateQueries({ queryKey: ['containers'] }); // Refresh 3D view colors
             } else {
                 showToast('error', result.response_message || 'Failed to unreserve containers');
             }
@@ -881,7 +899,15 @@ export default function ReserveContainersPanel({ isOpen, onClose }: ReserveConta
             });
         }
 
-        const newContainersToReserve = containerIds.filter(id => !alreadyReservedIds.has(id));
+        // Filter out discarded containers (from all types)
+        const allDiscardedIds = new Set<string>();
+        Object.values(discardedByType).forEach(discardedSet => {
+            discardedSet.forEach(id => allDiscardedIds.add(id));
+        });
+
+        const newContainersToReserve = containerIds.filter(id =>
+            !alreadyReservedIds.has(id) && !allDiscardedIds.has(id)
+        );
 
         if (newContainersToReserve.length === 0) {
             showToast('error', 'No new containers selected for reservation');
@@ -896,9 +922,13 @@ export default function ReserveContainersPanel({ isOpen, onClose }: ReserveConta
 
             if (result.response_code === 200) {
                 showToast('success', result.response_message || `Successfully reserved ${result.success_count} containers`);
+                // Update 3D view colors immediately
+                const updateEntityStatus = useStore.getState().updateEntityStatus;
+                updateEntityStatus(newContainersToReserve.map(id => ({ id, status: 'R' })));
                 // Return to bookings view and refresh data
                 handleClearSelection();
                 queryClient.invalidateQueries({ queryKey: ['customersAndBookings'] });
+                queryClient.invalidateQueries({ queryKey: ['containers'] }); // Refresh 3D view colors
             } else if (result.response_code === 207) {
                 // Partial success - stay on current view to allow retry
                 showToast('warning', result.response_message || `Partial success: ${result.success_count} reserved, ${result.fail_count} failed`);
@@ -1117,13 +1147,33 @@ export default function ReserveContainersPanel({ isOpen, onClose }: ReserveConta
                     // Clear state and refresh
                     setIsBulkSwapMode(false);
                     setSelectedReservedIds(new Set());
+                    // Invalidate all relevant queries to refresh UI and 3D view
                     queryClient.invalidateQueries({ queryKey: ['customersAndBookings'] });
+                    queryClient.invalidateQueries({ queryKey: ['recommendedContainers'] });
+                    queryClient.invalidateQueries({ queryKey: ['containers'] });
+                    // Update 3D view colors immediately
+                    const updateEntityStatus = useStore.getState().updateEntityStatus;
+                    const statusUpdates = [
+                        ...unreserveList.map(id => ({ id, status: '' })),  // Mark unreserved as available
+                        ...reserveList.map(id => ({ id, status: 'R' }))    // Mark new reservations as Reserved
+                    ];
+                    updateEntityStatus(statusUpdates);
                 } else if (result.response_code === 207) {
                     showToast('warning', result.response_message || `Partial swap: ${result.success_count} swapped, ${result.fail_count} failed`);
                     // Might want to close or keep open depending on UX. Closing for now.
                     setIsBulkSwapMode(false);
                     setSelectedReservedIds(new Set());
+                    // Invalidate all relevant queries to refresh UI and 3D view
                     queryClient.invalidateQueries({ queryKey: ['customersAndBookings'] });
+                    queryClient.invalidateQueries({ queryKey: ['recommendedContainers'] });
+                    queryClient.invalidateQueries({ queryKey: ['containers'] });
+                    // Update 3D view colors immediately (partial success - still update what succeeded)
+                    const updateEntityStatus = useStore.getState().updateEntityStatus;
+                    const statusUpdates = [
+                        ...unreserveList.map(id => ({ id, status: '' })),
+                        ...reserveList.map(id => ({ id, status: 'R' }))
+                    ];
+                    updateEntityStatus(statusUpdates);
                 } else {
                     showToast('error', result.response_message || 'Failed to swap containers');
                 }
@@ -1294,7 +1344,8 @@ export default function ReserveContainersPanel({ isOpen, onClose }: ReserveConta
                 style={{
                     position: 'fixed', top: '90px', right: '24px', width: '400px', maxHeight: 'calc(100vh - 114px)',
                     borderRadius: '24px', zIndex: 1000, overflow: 'hidden',
-                    transition: 'all 0.4s', transform: 'translateX(0)', opacity: 1
+                    transition: 'all 0.4s', transform: 'translateX(0)', opacity: 1,
+                    display: 'flex', flexDirection: 'column'
                 }}
             >
                 <SwapWorkspace
@@ -1304,6 +1355,7 @@ export default function ReserveContainersPanel({ isOpen, onClose }: ReserveConta
                     swapSource={swapSource}
                     onConfirm={handleBulkConfirm}
                     onCancel={() => setIsBulkSwapMode(false)}
+                    isProcessing={swapReservationMutation.isPending}
                     onRemoveItem={(idToRemove) => {
                         if (swapSource === 'reserved') {
                             const newSet = new Set(selectedReservedIds);
@@ -1385,6 +1437,7 @@ export default function ReserveContainersPanel({ isOpen, onClose }: ReserveConta
                 ) : undefined}
                 isOpen={isOpen}
                 onClose={handleClose}
+                allowExpansion={true}
                 headerActions={
                     selectedBookingId ? (
                         <button
@@ -1512,7 +1565,7 @@ export default function ReserveContainersPanel({ isOpen, onClose }: ReserveConta
                                                 {reservationMutation.isPending ? (
                                                     <>
                                                         <Loader2 size={16} className="spin" />
-                                                        Creating...
+                                                        Processing...
                                                     </>
                                                 ) : 'Reserve'}
                                             </button>
@@ -2303,10 +2356,10 @@ export default function ReserveContainersPanel({ isOpen, onClose }: ReserveConta
                                                             key={container.id}
                                                             onClick={() => toggleSelection(container.id)}
                                                             style={{
-                                                                background: isSelected ? '#c7d2fe' : (container.isSwapped ? '#f0fdf4' : '#eef2ff'),
+                                                                background: isSelected ? '#c7d2fe' : (container.isSwapped ? '#fff7ed' : '#eef2ff'),
                                                                 borderRadius: '12px',
                                                                 padding: '6px 10px',
-                                                                border: isSelected ? '1px solid #6366f1' : (container.isSwapped ? '1px solid #86efac' : '1px solid #a5b4fc'),
+                                                                border: isSelected ? '1px solid #6366f1' : (container.isSwapped ? '1px solid #fdba74' : '1px solid #a5b4fc'),
                                                                 position: 'relative',
                                                                 overflow: 'hidden',
                                                                 cursor: 'pointer',
@@ -2323,12 +2376,12 @@ export default function ReserveContainersPanel({ isOpen, onClose }: ReserveConta
                                                                 </div>
                                                             )}
                                                             <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: '8px' }}>
-                                                                <Box size={18} color={isSelected ? "#4338ca" : (container.isSwapped ? "#15803d" : "#4f46e5")} strokeWidth={2} />
-                                                                <span style={{ fontSize: '13px', fontFamily: 'monospace', fontWeight: 700, color: container.isSwapped ? '#064e3b' : '#312e81' }}>
+                                                                <Box size={18} color={isSelected ? "#4338ca" : (container.isSwapped ? "#ea580c" : "#4f46e5")} strokeWidth={2} />
+                                                                <span style={{ fontSize: '13px', fontFamily: 'monospace', fontWeight: 700, color: container.isSwapped ? '#7c2d12' : '#312e81' }}>
                                                                     {container.id}
                                                                 </span>
                                                             </div>
-                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '6px', fontSize: '10px', color: container.isSwapped ? '#16a34a' : '#4f46e5' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '6px', fontSize: '10px', color: container.isSwapped ? '#9a3412' : '#4f46e5' }}>
                                                                 <MapPin size={10} />
                                                                 <span>{formatPosition(entities[container.id])}</span>
                                                             </div>
