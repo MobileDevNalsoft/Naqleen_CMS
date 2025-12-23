@@ -36,16 +36,16 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         tex.generateMipmaps = true;
     });
 
-    // Realistic Industrial Color Palette (Mid-bright tones)
+    // Bright Industrial Color Palette (Vibrant tones, no blue tint)
     const containerColors = useMemo(() => [
-        0x4F7F7F, // Teal Gray
-        0x2E5AAF, // Deeper Royal Blue
-        0xB85D26, // Burnt Sienna
-        0x829D2A, // Yellowish Olive
-        0xBF3F3F, // Crimson Red
-        0x70A7C8, // Cornflower Blue
-        0xE09249, // Copper Orange
-        0x90A2B7  // Cool Gray
+        0x00D4AA, // Bright Teal
+        0x7FE035, // Lime Green
+        0xFF6B35, // Bright Orange
+        0xFFD23F, // Bright Yellow
+        0xFF4040, // Bright Red
+        0x00E5CC, // Bright Cyan
+        0xFFAA00, // Golden Orange
+        0x8B3A3A  // Maroon Rusty
     ], []);
 
     // Memoize instance data with scaling for 40ft containers
