@@ -1,7 +1,6 @@
 import { useRef, useEffect, useMemo, useState, type RefObject } from 'react';
 import * as THREE from 'three';
 import { useStore } from '../../store/store';
-import { useUIStore } from '../../store/uiStore';
 import { useTexture, Outlines } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import type { DynamicEntity } from '../../utils/layoutUtils';

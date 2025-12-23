@@ -29,5 +29,9 @@ export const API_CONFIG = {
         POST_RESERVATION_CONTAINERS: '/postReservationContainers',
         DELETE_RESERVATION_CONTAINERS: '/deleteReservationContainers',
         SWAP_RESERVATION_CONTAINERS: '/swapReservationContainers',
+        // Release Container endpoints
+        RELEASE_CONTAINER_TRUCK_SUGGESTIONS: '/releaseContainerTruckSuggestions',
+        RELEASE_CONTAINER_TRUCK_DETAILS: '/releaseContainerTruckDetails',
+        SUBMIT_RELEASE_CONTAINER: '/submitReleaseContainer',
     }
 } as const;

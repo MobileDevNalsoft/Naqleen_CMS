@@ -28,6 +28,7 @@ import Dashboard from './components/ui/Dashboard';
 import Containers from './components/layout/Containers';
 import CustomerInventoryPanel from './components/panels/actions/CustomerInventoryPanel';
 import ReserveContainersPanel from './components/panels/actions/ReserveContainersPanel';
+import ReleaseContainerPanel from './components/panels/actions/ReleaseContainerPanel';
 import SwapConnectionLines from './components/layout/SwapConnectionLines';
 import ToastContainer from './components/ui/Toast';
 
@@ -220,6 +221,7 @@ const App = () => {
           <PlugInOutPanel isOpen={activePanel === 'plugInOut'} onClose={closePanel} />
           <CFSTaskAssignmentPanel isOpen={activePanel === 'cfsTask'} onClose={closePanel} />
           <ReserveContainersPanel isOpen={activePanel === 'reserveContainers'} onClose={closePanel} />
+          <ReleaseContainerPanel isOpen={activePanel === 'releaseContainer'} onClose={closePanel} />
           <CustomerInventoryPanel isOpen={activePanel === 'customerInventory'} onClose={closePanel} />
         </section>
 
