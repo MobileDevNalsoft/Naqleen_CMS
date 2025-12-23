@@ -9,6 +9,29 @@ export interface SwapConnection {
   to: string;    // Replacement container ID
 }
 
+export interface RestackLine {
+  fromId: string;
+  toPosition: { x: number; y: number; z: number };
+}
+
+export interface FocusPosition {
+  positionString: string;  // e.g., "TRM-A-01-5-1"
+  x: number;
+  y: number;
+  z: number;
+  cameraX?: number;
+  cameraY?: number;
+  cameraZ?: number;
+}
+
+export interface GhostContainer {
+  x: number;
+  y: number;
+  z: number;
+  containerType: string;  // '20ft' or '40ft'
+  blockId: string;        // For determining rotation
+}
+
 interface StoreState {
   entities: Record<string, ContainerEntity>;
   ids: string[];
@@ -20,8 +43,9 @@ interface StoreState {
   layout: DynamicIcdLayout | null;
   reserveContainers: { container_nbr: string }[];
   swapConnections: SwapConnection[];
+  restackLine: RestackLine | null; // New state for restack visualization
   customerByContainer: Record<string, string>; // Reverse lookup: container_nbr -> customer_name
-  setEntitiesBatch: (updates: Partial<ContainerEntity> & { id: string }[]) => void;
+  setEntitiesBatch: (updates: (Partial<ContainerEntity> & { id: string })[]) => void;
   patchPositions: (posUpdates: { id: string; x: number; y: number; z: number }[]) => void;
   setSelectId: (id: string | null) => void;
   setSelectedBlock: (blockId: string | null) => void;
@@ -30,8 +54,13 @@ interface StoreState {
   setLayout: (layout: DynamicIcdLayout) => void;
   setReserveContainers: (containers: { container_nbr: string }[]) => void;
   setSwapConnections: (connections: SwapConnection[]) => void;
+  setRestackLine: (line: RestackLine | null) => void; // New action
   setCustomerByContainer: (map: Record<string, string>) => void;
   updateEntityStatus: (updates: { id: string; status: string }[]) => void;
+  focusPosition: FocusPosition | null;
+  setFocusPosition: (position: FocusPosition | null) => void;
+  ghostContainer: GhostContainer | null;
+  setGhostContainer: (container: GhostContainer | null) => void;
 }
 
 
@@ -47,7 +76,10 @@ export const useStore = create<StoreState>((set) => ({
   layout: null,
   reserveContainers: [],
   swapConnections: [],
+  restackLine: null,
   customerByContainer: {},
+  focusPosition: null,
+  ghostContainer: null,
 
   setEntitiesBatch: (updates) => set((state) => {
     const entities = { ...state.entities };
@@ -78,6 +110,7 @@ export const useStore = create<StoreState>((set) => ({
   setLayout: (layout) => set({ layout }),
   setReserveContainers: (containers) => set({ reserveContainers: containers }),
   setSwapConnections: (connections) => set({ swapConnections: connections }),
+  setRestackLine: (line) => set({ restackLine: line }),
   setCustomerByContainer: (map) => set({ customerByContainer: map }),
   updateEntityStatus: (updates) => set((state) => {
     const entities = { ...state.entities };
@@ -90,5 +123,7 @@ export const useStore = create<StoreState>((set) => ({
     });
     return changed ? { entities } : {};
   }),
+  setFocusPosition: (position) => set({ focusPosition: position }),
+  setGhostContainer: (container) => set({ ghostContainer: container }),
 }));
 

@@ -1,6 +1,7 @@
 import { useRef, useEffect, useMemo, useState, type RefObject } from 'react';
 import * as THREE from 'three';
 import { useStore } from '../../store/store';
+import { useUIStore } from '../../store/uiStore';
 import { useTexture, Outlines } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import type { DynamicEntity } from '../../utils/layoutUtils';
@@ -24,6 +25,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
     const setHoverId = useStore(state => state.setHoverId);
     const hoverId = useStore(state => state.hoverId);
     const reserveContainers = useStore(state => state.reserveContainers);
+    const ghostContainer = useStore(state => state.ghostContainer);
 
     const { camera } = useThree();
 
@@ -37,14 +39,14 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
 
     // Realistic Industrial Color Palette (Mid-bright tones)
     const containerColors = useMemo(() => [
-        0x4F7F7F, // Teal Gray
-        0x2E5AAF, // Deeper Royal Blue
-        0xB85D26, // Burnt Sienna
-        0x829D2A, // Yellowish Olive
-        0xBF3F3F, // Crimson Red
-        0x70A7C8, // Cornflower Blue
-        0xE09249, // Copper Orange
-        0x90A2B7  // Cool Gray
+        0x00D4AA, // Bright Teal
+        0x7FE035, // Lime Green
+        0xFF6B35, // Bright Orange
+        0xFFD23F, // Bright Yellow
+        0xFF4040, // Bright Red
+        0x00E5CC, // Bright Cyan
+        0xFFAA00, // Golden Orange
+        0x8B3A3A  // Maroon Rusty
     ], []);
 
     // Memoize instance data with scaling for 40ft containers
@@ -138,9 +140,13 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         const mesh = meshRef.current;
         if (!mesh) return;
 
-        // Create or update opacity attribute
-        if (!opacityAttribute.current) {
-            const opacities = new Float32Array(instanceData.length);
+        // Check if opacity attribute needs to be created or resized
+        const currentCount = instanceData.length;
+        const currentAttr = opacityAttribute.current;
+
+        // Recreate attribute if it doesn't exist OR if size doesn't match current count
+        if (!currentAttr || currentAttr.count !== currentCount) {
+            const opacities = new Float32Array(currentCount);
             opacityAttribute.current = new THREE.InstancedBufferAttribute(opacities, 1);
             mesh.geometry.setAttribute('instanceOpacity', opacityAttribute.current);
         }
@@ -158,6 +164,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
             }
         });
 
+        mesh.count = currentCount; // Ensure mesh count is updated
         mesh.instanceMatrix.needsUpdate = true;
         if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
         if (opacityAttribute.current) opacityAttribute.current.needsUpdate = true;
@@ -219,10 +226,15 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         }
 
         const hasSelection = !!selectedBlock || !!selectId || reserveActive || !!selectedCustomer;
+        const hasGhost = !!ghostContainer;
         const selectionCleared = prevHasSelection.current && !hasSelection;
         prevHasSelection.current = hasSelection;
 
-        if (needsMatrixUpdate || hasSelection || selectionCleared) {
+        // Transparency radius for focus points (ghost or selected container)
+        const TRANSPARENCY_RADIUS = 15; // Meters
+        const TRANSPARENCY_MIN_OPACITY = 0.1;
+
+        if (needsMatrixUpdate || hasSelection || hasGhost || selectionCleared) {
             instanceData.forEach((data, i) => {
                 const isReserve = reserveActive && reserveContainers.some(c => c.container_nbr === data.id);
 
@@ -290,10 +302,33 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                         if (data.id === selectId) {
                             opacity = 1.0;
                         } else {
-                            // If selectId is active, dim others more aggressively than block/customer mode
-                            // unless they are part of the selected block/customer and already dimmed.
-                            // This ensures the single selected container stands out.
-                            opacity = 0.1;
+                            // Calculate distance to selected container for radius-based transparency
+                            const dx = x - selectedPos![0];
+                            const dy = y - selectedPos![1];
+                            const dz = z - selectedPos![2];
+                            const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                            if (distance < TRANSPARENCY_RADIUS) {
+                                // Containers within radius: fade based on distance
+                                const t = distance / TRANSPARENCY_RADIUS;
+                                opacity = TRANSPARENCY_MIN_OPACITY + t * (0.6 - TRANSPARENCY_MIN_OPACITY);
+                            } else {
+                                opacity = 0.6; // Slightly dimmed outside radius
+                            }
+                        }
+                    }
+
+                    // Ghost container transparency (highest priority when active)
+                    if (ghostContainer) {
+                        const dx = x - ghostContainer.x;
+                        const dy = y - ghostContainer.y;
+                        const dz = z - ghostContainer.z;
+                        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                        if (distance < TRANSPARENCY_RADIUS) {
+                            // Containers within radius: fade based on distance
+                            const t = distance / TRANSPARENCY_RADIUS;
+                            opacity = Math.min(opacity, TRANSPARENCY_MIN_OPACITY + t * (0.5 - TRANSPARENCY_MIN_OPACITY));
                         }
                     }
                 }
@@ -358,10 +393,9 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         // Relaxed threshold from 5 to 20 pixels to be more forgiving
         if (Math.sqrt(dx * dx + dy * dy) > 20) return;
 
-        // REMOVED: Block interaction if Reserve Panel is open
-        // We now allow clicking to select containers even when panel is open
-        // const isReservePanelOpen = useUIStore.getState().activePanel === 'reserveContainers';
-        // if (isReservePanelOpen) return;
+        // Block interaction if Position Container panel is open
+        const isPositionPanelOpen = useUIStore.getState().activePanel === 'position';
+        if (isPositionPanelOpen) return;
 
         console.log('[Containers] Click detected on instance:', e.instanceId);
 
@@ -422,6 +456,10 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         // Only block hover if we are actively dragging the camera
         // REMOVED: || selectId || selectedBlock checks to allow hover inspection always
         if (isInteracting) return;
+
+        // Block hover/interaction if Position Container panel is open
+        const isPositionPanelOpen = useUIStore.getState().activePanel === 'position';
+        if (isPositionPanelOpen) return;
 
         const instanceId = e.instanceId;
         if (instanceId !== undefined && ids[instanceId]) {

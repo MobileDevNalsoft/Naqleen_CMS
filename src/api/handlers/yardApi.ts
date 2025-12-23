@@ -25,11 +25,32 @@ export const yardApi = {
 
     getPositionTruckDetails: async (request: PositionTruckDetailsRequest): Promise<PositionTruckDetailsResponse> => {
         const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.positionTruckDetails, { params: { truckNbr: request.truckNbr } });
-        return response.data;
+        const raw = response.data;
+
+        if (raw.response_code === 200 && raw.data) {
+            return {
+                responseCode: raw.response_code,
+                responseMessage: raw.response_message,
+                data: {
+                    truckNbr: raw.data.truck_nbr,
+                    driverNbr: raw.data.driver_nbr,
+                    driverIqama: raw.data.driver_iqama,
+                    shipmentName: raw.data.shipment_name,
+                    containerNbr: raw.data.container_nbr,
+                    containerType: raw.data.container_type,
+                    shipmentNbr: raw.data.shipment_nbr
+                }
+            };
+        }
+
+        return {
+            responseCode: raw.response_code || 500,
+            responseMessage: raw.response_message || 'Unknown error',
+            data: undefined
+        };
     },
 
     getAvailablePositionLov: async (request: AvailablePositionRequest): Promise<AvailablePositionResponse> => {
-        // Map request to query params matching Flutter: 'row_no' instead of 'row'
         const params: any = {
             flag: request.flag,
             container_type: request.containerType,

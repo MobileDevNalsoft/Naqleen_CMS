@@ -53,14 +53,14 @@ export interface AvailablePositionResponse {
 }
 
 export interface SubmitContainerPositionRequest {
-    shipmentNbr: string;
-    containerNbr: string;
+    shipment_nbr: string;
+    container_nbr: string;
     position: string;
 }
 
 export interface SubmitContainerPositionResponse {
-    responseCode: number;
-    responseMessage: string;
+    response_code: number;
+    response_message: string;
     data?: any;
 }
 
@@ -74,7 +74,7 @@ export interface RestackContainerRequest {
 }
 
 export interface RestackContainerResponse {
-    responseCode: number;
-    responseMessage: string;
+    response_code: number;
+    response_message: string;
     data?: any;
 }

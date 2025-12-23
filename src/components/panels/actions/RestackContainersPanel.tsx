@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, MapPin, Container, CheckCircle, Printer, Loader2 } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { showToast } from '../../ui/Toast';
 import { yardApi } from '../../../api/handlers/yardApi';
 import PanelLayout from '../PanelLayout';
 import { useUIStore } from '../../../store/uiStore';
+import { useStore } from '../../../store/store';
+import { getDynamicContainerPosition } from '../../../utils/layoutUtils';
 
 interface RestackContainersPanelProps {
     isOpen: boolean;
@@ -23,15 +25,77 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
     // Target Position State
     const [newPosition, setNewPosition] = useState('');
 
+    // Store for updating container position
+    const setEntitiesBatch = useStore((state) => state.setEntitiesBatch);
+
     // Submit Restack Mutation
     const { mutate: submitRestack, isPending: isSubmitting } = useMutation({
         mutationFn: yardApi.restackContainer,
         onSuccess: (res) => {
-            if (res.responseCode === 200) {
-                showToast('success', 'Restack submitted successfully');
-                setStep('success');
+            if (res.response_code === 200) {
+                showToast('success', 'Container restacked successfully');
+
+                // Update container position in 3D scene using EXACT coordinates
+                if (containerId && newPosition) {
+                    // Parse position string: TRM-A-1-B-2 -> terminal, block, lot, row, level
+                    const parts = newPosition.split('-');
+                    const terminal = parts[0] || '';
+                    const block = parts[1] || '';
+                    const lot = parseInt(parts[2] || '1');
+                    const rowLabel = parts[3] || 'A';
+                    const level = parseInt(parts[4] || '1');
+                    const rowIndex = rowLabel.charCodeAt(0) - 'A'.charCodeAt(0);
+
+                    // Get block definition from layout
+                    const layoutState = useStore.getState().layout;
+                    const expectedBlockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
+                    const blockEntity = layoutState?.entities?.find(e =>
+                        e.type?.includes('block') &&
+                        e.id.toLowerCase() === expectedBlockId
+                    );
+
+                    if (blockEntity) {
+                        try {
+                            // Apply row reversal for Blocks B and D
+                            const blockRows = blockEntity.props?.rows || 11;
+                            const shouldReverseRow = block.toUpperCase() === 'B' || block.toUpperCase() === 'D';
+                            const actualRowIndex = shouldReverseRow ? (blockRows - 1 - rowIndex) : rowIndex;
+
+                            // Calculate EXACT position using the layout engine
+                            const positionVector = getDynamicContainerPosition(
+                                blockEntity,
+                                lot - 1,          // 0-based lot index
+                                actualRowIndex,   // 0-based row index (reversed for B/D)
+                                level - 1         // 0-based level index
+                            );
+
+                            // Update container entity with new position
+                            setEntitiesBatch([{
+                                id: containerId,
+                                x: positionVector.x,
+                                y: positionVector.y,
+                                z: positionVector.z,
+                                terminal,
+                                block,
+                                blockId: `${terminal.toLowerCase()}_block_${block.toLowerCase()}`,
+                                lot,
+                                row: actualRowIndex,
+                                level
+                            } as any]);
+
+                            console.log('Container restacked in scene:', containerId, positionVector);
+                        } catch (e) {
+                            console.error('Error calculating restack position:', e);
+                        }
+                    } else {
+                        console.warn('Block entity not found for restack:', expectedBlockId);
+                    }
+                }
+
+                // Close panel and return to ContainerDetails (selectId is already set)
+                onClose();
             } else {
-                showToast('error', res.responseMessage || 'Restack failed');
+                showToast('error', res.response_message || 'Restack failed');
             }
         },
         onError: (err: any) => showToast('error', err.message || 'Restack failed')
@@ -48,11 +112,23 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
     const handleRestack = () => {
         if (!containerId || !newPosition) return;
 
+        // Format timestamp to match Flutter's DateTime.now().toIso8601String()
+        // Flutter: "2025-12-22T18:28:55.123456" (local time, no Z suffix)
+        // JS toISOString: "2025-12-22T12:58:55.123Z" (UTC time, with Z)
+        const now = new Date();
+        const timestamp = now.getFullYear() + '-' +
+            String(now.getMonth() + 1).padStart(2, '0') + '-' +
+            String(now.getDate()).padStart(2, '0') + 'T' +
+            String(now.getHours()).padStart(2, '0') + ':' +
+            String(now.getMinutes()).padStart(2, '0') + ':' +
+            String(now.getSeconds()).padStart(2, '0') + '.' +
+            String(now.getMilliseconds()).padStart(3, '0');
+
         submitRestack({
             container_nbr: containerId,
             newPosition: newPosition,
             currentPosition: currentPosition,
-            timestamp: new Date().toISOString()
+            timestamp: timestamp
         });
     };
 
@@ -192,7 +268,7 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
             isOpen={isOpen}
             onClose={handleClose}
             footerActions={renderFooter()}
-            fitContent
+        // Remvoed fitContent to allow full height
         >
             <style>{`
                 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
@@ -291,6 +367,13 @@ const PositionSelectors = ({ containerType, onPositionChange }: { containerType:
 
     return (
         <div>
+            {/* Shimmer keyframes */}
+            <style>{`
+                @keyframes shimmer {
+                    100% { transform: translateX(100%); }
+                }
+            `}</style>
+
             <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>
                 New Location
             </div>
@@ -377,38 +460,86 @@ interface DropdownProps {
 }
 
 const Dropdown = ({ label, value, options, onChange, disabled, isLoading, isOpen, onToggle, flex }: DropdownProps) => {
+    const dropdownListRef = useRef<HTMLDivElement>(null);
+
+    // Auto-scroll to reveal dropdown when opened
+    useEffect(() => {
+        if (isOpen && dropdownListRef.current) {
+            // Use setTimeout to ensure scroll happens after render
+            setTimeout(() => {
+                if (dropdownListRef.current) {
+                    dropdownListRef.current.scrollTop = 0;
+                    // Scroll the dropdown list into view to ensure it's visible in the panel
+                    dropdownListRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }, 50);
+        }
+    }, [isOpen, options.length]);
+
     return (
         <div style={{ flex: flex || 'none', position: 'relative' }}>
             <div
                 onClick={() => !disabled && !isLoading && onToggle(!isOpen)}
                 style={{
-                    padding: '10px 12px', background: disabled ? '#f1f5f9' : 'white', borderRadius: '8px',
-                    border: '1px solid #cbd5e1', cursor: disabled || isLoading ? 'not-allowed' : 'pointer',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                    padding: '10px 12px',
+                    background: disabled ? '#f1f5f9' : 'white',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    cursor: disabled || isLoading ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    position: 'relative',
+                    overflow: 'hidden'
                 }}
             >
-                <span style={{ fontSize: '13px', color: value ? '#0f172a' : '#94a3b8', fontWeight: value ? 600 : 400 }}>
-                    {value || label}
-                </span>
                 {isLoading ? (
-                    <Loader2 size={14} className="animate-spin" color="#4B686C" />
+                    <>
+                        {/* Shimmer Effect Overlay */}
+                        <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            background: 'linear-gradient(90deg, transparent, rgba(75, 104, 108, 0.12), transparent)',
+                            transform: 'translateX(-100%)',
+                            animation: 'shimmer 1.5s infinite'
+                        }} />
+                        <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 400 }}>Loading...</span>
+                    </>
                 ) : (
-                    <ChevronDown size={14} color="#94a3b8" />
+                    <span style={{ fontSize: '13px', color: value ? '#0f172a' : '#94a3b8', fontWeight: value ? 600 : 400 }}>
+                        {value || label}
+                    </span>
                 )}
+                <ChevronDown
+                    size={14}
+                    color="#94a3b8"
+                    style={{
+                        transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s'
+                    }}
+                />
             </div>
             {isOpen && !isLoading && (
-                <div style={{
-                    position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
-                    background: 'white', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    zIndex: 200, maxHeight: '200px', overflowY: 'auto'
-                }}>
+                <div
+                    ref={dropdownListRef}
+                    style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
+                        background: 'white', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        zIndex: 200, maxHeight: '200px', overflowY: 'auto'
+                    }}
+                >
                     {options.length === 0 ? (
-                        <div style={{ padding: '8px 12px', fontSize: '13px', color: '#94a3b8' }}>No options</div>
+                        <div style={{ padding: '12px', fontSize: '13px', color: '#94a3b8', textAlign: 'center' }}>
+                            No options available
+                        </div>
                     ) : (
                         options.map((opt: string) => (
                             <div key={opt}
                                 onClick={() => { onChange(opt); onToggle(false); }}
-                                style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}
+                                style={{ padding: '10px 12px', fontSize: '13px', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}
                                 onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
                                 onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
                             >

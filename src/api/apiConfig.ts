@@ -23,6 +23,8 @@ export const API_CONFIG = {
         GATE_IN_TRUCKS: '/gateInTrucks',
         GATE_IN_TRUCK_DETAILS: '/gateInTruckDetails',
         CUSTOMER_SHIPMENTS: '/customerShipments',
+        CUSTOMER_BOOKINGS: '/getCustomerBookings',
+        BOOKING_SHIPMENTS: '/getBookingShipments',
         SHIPMENT_DETAILS: '/shipmentDetails',
         SUBMIT_GATE_IN: '/submitGateIn',
         // Gate Out endpoints

@@ -504,7 +504,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                     placeholder={
                                         searchMode === 'Container' ? "Container Number..." :
                                             searchMode === 'Customer' ? "Customer Name..." :
-                                                "TRM-Block-Lot-Row-Level..."
+                                                "Terminal-Block-Lot-Row-Level..."
                                     }
                                     value={searchQuery}
                                     onChange={(e) => {

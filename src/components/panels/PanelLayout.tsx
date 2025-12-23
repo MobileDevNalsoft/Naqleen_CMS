@@ -70,7 +70,8 @@ export default function PanelLayout({
                 transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
                 transform: isOpen ? 'translateX(0)' : 'translateX(120%)',
                 opacity: isOpen ? 1 : 0,
-                overflow: 'hidden'
+                overflow: 'hidden',
+                pointerEvents: isOpen ? 'auto' : 'none' // Prevent interaction when closing/closed
             }}
         >
             {/* Header Section */}

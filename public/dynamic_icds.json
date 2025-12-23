@@ -268,10 +268,10 @@
           }
         },
         {
-          "id": "trs_block_d_part1",
+          "id": "trs_block_d",
           "type": "container_block_d",
           "position": {
-            "x": -172,
+            "x": -86.2,
             "y": 0.3,
             "z": 59,
             "unit": "meters"
@@ -279,16 +279,19 @@
           "rotation": 0,
           "dimensions": {
             "height": 24.38,
-            "width": 14,
+            "width": 184,
             "unit": "meters"
           },
           "props": {
             "color": "#607D8B",
             "description": "TRS Block D",
             "container_type": "40ft",
-            "lots": 1,
+            "lots": 12,
             "rows": 10,
             "lot_gap": 1.75,
+            "lot_gaps": {
+              "1": 20
+            },
             "row_labels": [
               "A",
               "B",
@@ -302,45 +305,7 @@
               "J"
             ],
             "lot_numbers": [
-              1
-            ]
-          }
-        },
-        {
-          "id": "trs_block_d_part2",
-          "type": "container_block_d",
-          "position": {
-            "x": -70,
-            "y": 0.3,
-            "z": 59,
-            "unit": "meters"
-          },
-          "rotation": 0,
-          "dimensions": {
-            "height": 24.38,
-            "width": 150,
-            "unit": "meters"
-          },
-          "props": {
-            "color": "#607D8B",
-            "description": "TRS Block D",
-            "container_type": "40ft",
-            "lots": 11,
-            "rows": 10,
-            "lot_gap": 1.75,
-            "row_labels": [
-              "A",
-              "B",
-              "C",
-              "D",
-              "E",
-              "F",
-              "G",
-              "H",
-              "I",
-              "J"
-            ],
-            "lot_numbers": [
+              1,
               2,
               3,
               4,

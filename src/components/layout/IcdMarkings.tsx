@@ -11,7 +11,7 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
     const dummy = useMemo(() => new THREE.Object3D(), []);
     const selectedBlock = useStore((state) => state.selectedBlock);
     const selectId = useStore((state) => state.selectId);
-    const entities = useStore((state) => state.entities);
+
 
     // Track state for each block to handle smooth animation
     const blockStates = useRef<Record<string, { startIndex: number; count: number; currentY: number }>>({});
@@ -35,17 +35,32 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
             const containerWidth = 2.438;
             const gapX = props.lot_gap || 0.5;
             const gapZ = 0.3;
-            const totalWidth = (props.lots || 1) * (containerLength + gapX);
-            const totalDepth = (props.rows || 1) * (containerWidth + gapZ);
+            const lotGaps: Record<string, number> = props.lot_gaps || {};
+            const lots = props.lots || 1;
+            const rows = props.rows || 1;
+            const lotNumbers: number[] = props.lot_numbers || Array.from({ length: lots }, (_, i) => i + 1);
+
+            // Calculate total width with custom lot gaps
+            let totalWidth = 0;
+            for (let i = 0; i < lots; i++) {
+                totalWidth += containerLength;
+                if (i < lots - 1) {
+                    const lotNum = lotNumbers[i];
+                    totalWidth += lotGaps[String(lotNum)] ?? gapX;
+                }
+            }
+            const totalDepth = rows * (containerWidth + gapZ);
             const startX = -totalWidth / 2 + containerLength / 2;
             const startZ = -totalDepth / 2 + containerWidth / 2;
 
             const blockPos = new THREE.Vector3(block.position.x, block.position.y, block.position.z);
             const blockRot = new THREE.Euler(0, ((block.rotation || 0) * Math.PI) / 180, 0);
 
-            for (let b = 0; b < (props.lots || 1); b++) {
-                for (let r = 0; r < (props.rows || 1); r++) {
-                    const x = startX + b * (containerLength + gapX);
+            // Calculate cumulative X offset for each lot
+            let xOffset = 0;
+            for (let b = 0; b < lots; b++) {
+                for (let r = 0; r < rows; r++) {
+                    const x = startX + xOffset;
                     const z = startZ + r * (containerWidth + gapZ);
 
                     const pos = new THREE.Vector3(x, 0.02, z);
@@ -60,6 +75,9 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
                     mesh.setMatrixAt(index++, dummy.matrix);
                     count++;
                 }
+                // Add gap after this lot for next iteration
+                const lotNum = lotNumbers[b];
+                xOffset += containerLength + (lotGaps[String(lotNum)] ?? gapX);
             }
 
             states[block.id] = { startIndex, count, currentY: 0 };
@@ -86,7 +104,7 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
             lotLiftHeight.current = targetLotLift;
         }
 
-        const selectedEntity = selectId ? entities[selectId] : null;
+
 
         blocks.forEach(block => {
             const state = blockStates.current[block.id];
@@ -108,8 +126,21 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
                 const containerWidth = 2.438;
                 const gapX = props.lot_gap || 0.5;
                 const gapZ = 0.3;
-                const totalWidth = (props.lots || 1) * (containerLength + gapX);
-                const totalDepth = (props.rows || 1) * (containerWidth + gapZ);
+                const lotGaps: Record<string, number> = props.lot_gaps || {};
+                const lots = props.lots || 1;
+                const rows = props.rows || 1;
+                const lotNumbers: number[] = props.lot_numbers || Array.from({ length: lots }, (_, i) => i + 1);
+
+                // Calculate total width with custom lot gaps
+                let totalWidth = 0;
+                for (let i = 0; i < lots; i++) {
+                    totalWidth += containerLength;
+                    if (i < lots - 1) {
+                        const lotNum = lotNumbers[i];
+                        totalWidth += lotGaps[String(lotNum)] ?? gapX;
+                    }
+                }
+                const totalDepth = rows * (containerWidth + gapZ);
                 const startX = -totalWidth / 2 + containerLength / 2;
                 const startZ = -totalDepth / 2 + containerWidth / 2;
 
@@ -117,9 +148,10 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
                 const blockRot = new THREE.Euler(0, ((block.rotation || 0) * Math.PI) / 180, 0);
 
                 let idx = state.startIndex;
-                for (let b = 0; b < (props.lots || 1); b++) {
-                    for (let r = 0; r < (props.rows || 1); r++) {
-                        const x = startX + b * (containerLength + gapX);
+                let xOffset = 0;
+                for (let b = 0; b < lots; b++) {
+                    for (let r = 0; r < rows; r++) {
+                        const x = startX + xOffset;
                         const z = startZ + r * (containerWidth + gapZ);
 
                         const pos = new THREE.Vector3(x, 0.02, z);
@@ -145,6 +177,9 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
 
                         mesh.setMatrixAt(idx++, dummy.matrix);
                     }
+                    // Add gap after this lot for next iteration
+                    const lotNum = lotNumbers[b];
+                    xOffset += containerLength + (lotGaps[String(lotNum)] ?? gapX);
                 }
             }
         });
@@ -175,7 +210,19 @@ const BlockLabels = ({ block }: { block: DynamicEntity }) => {
     const gapX = props.lot_gap || 0.5;
     const gapZ = 0.3;
 
-    const totalWidth = (props.lots || 1) * (containerLength + gapX);
+    const lotGaps: Record<string, number> = props.lot_gaps || {};
+    const lots = props.lots || 1;
+    const lotNumbers: number[] = props.lot_numbers || Array.from({ length: lots }, (_, i) => i + 1);
+
+    // Calculate total width accounting for custom lot gaps
+    let totalWidth = 0;
+    for (let i = 0; i < lots; i++) {
+        totalWidth += containerLength;
+        if (i < lots - 1) {
+            const lotNum = lotNumbers[i];
+            totalWidth += lotGaps[String(lotNum)] ?? gapX;
+        }
+    }
     const totalDepth = (props.rows || 1) * (containerWidth + gapZ);
 
     // Calculate maximum stack height (assuming up to 5 levels for containers)
@@ -187,7 +234,7 @@ const BlockLabels = ({ block }: { block: DynamicEntity }) => {
 
     // Blocks that should have labels at the bottom instead of top
     const isBottomLabel = block.id === 'trs_block_c' || block.id === 'trm_block_c' ||
-        block.id === 'trs_block_d_part2' || block.id === 'trm_block_d' || block.id === 'trs_block_d_part1';
+        block.id === 'trs_block_d_part2' || block.id === 'trm_block_d' || block.id === 'trs_block_d_part1' || block.id === 'trs_block_d';
 
     // Position terminal label at bottom for specified blocks, top for others
     const terminalLabelZOffset = isBottomLabel ? totalDepth / 2 + 4 : -totalDepth / 2 - 4;
@@ -235,8 +282,9 @@ const BlockLabels = ({ block }: { block: DynamicEntity }) => {
     const isTrmBlockB = block.id === 'trm_block_b';
     const lotZPosition = isTrsBlockB || isTrmBlockB ? -totalDepth / 2 - 2 : totalDepth / 2 + 2;
 
-    for (let b = 0; b < (props.lots || 1); b++) {
-        const x = -totalWidth / 2 + containerLength / 2 + b * (containerLength + gapX);
+    let xOffset = 0;
+    for (let b = 0; b < lots; b++) {
+        const x = -totalWidth / 2 + containerLength / 2 + xOffset;
         const pos = new THREE.Vector3(x, 0, lotZPosition);
         pos.applyEuler(new THREE.Euler(0, ((block.rotation || 0) * Math.PI) / 180, 0));
         pos.add(new THREE.Vector3(block.position.x, block.position.y, block.position.z));
@@ -245,6 +293,10 @@ const BlockLabels = ({ block }: { block: DynamicEntity }) => {
             text: props.lot_numbers?.[b]?.toString() || (b + 1).toString(),
             position: pos
         });
+
+        // Add gap after this lot for next iteration
+        const lotNum = lotNumbers[b];
+        xOffset += containerLength + (lotGaps[String(lotNum)] ?? gapX);
     }
 
     const setSelectedBlock = useStore(state => state.setSelectedBlock);

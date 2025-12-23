@@ -162,20 +162,37 @@ export const getDynamicContainerPosition = (
     const containerHeight = 2.591;
     const levelGap = 0.02; // Small gap to prevent z-fighting between stacked containers
 
-    const gapX = props.lot_gap || 0.5; // Gap between lots
+    const gapX = props.lot_gap || 0.5; // Default gap between lots
     const gapZ = 0.3; // Gap between rows
+    const lotGaps: Record<string, number> = props.lot_gaps || {}; // Per-lot gap overrides
 
     // Calculate local position within the block
     const lots = props.lots || 1;
     const rows = props.rows || 1;
+    const lotNumbers: number[] = props.lot_numbers || Array.from({ length: lots }, (_, i) => i + 1);
 
-    const totalWidth = lots * (containerLength + gapX);
+    // Calculate total width accounting for custom lot gaps
+    let totalWidth = 0;
+    for (let i = 0; i < lots; i++) {
+        totalWidth += containerLength;
+        if (i < lots - 1) {
+            const lotNum = lotNumbers[i];
+            totalWidth += lotGaps[String(lotNum)] ?? gapX;
+        }
+    }
     const totalDepth = rows * (containerWidth + gapZ);
+
+    // Calculate X offset with cumulative gaps
+    let xOffset = 0;
+    for (let i = 0; i < lotIndex; i++) {
+        const lotNum = lotNumbers[i];
+        xOffset += containerLength + (lotGaps[String(lotNum)] ?? gapX);
+    }
 
     const startX = -totalWidth / 2 + containerLength / 2;
     const startZ = -totalDepth / 2 + containerWidth / 2;
 
-    const x = startX + lotIndex * (containerLength + gapX);
+    const x = startX + xOffset;
     const y = entity.position.y + containerHeight / 2 + levelIndex * (containerHeight + levelGap);
     const z = startZ + rowIndex * (containerWidth + gapZ);
 

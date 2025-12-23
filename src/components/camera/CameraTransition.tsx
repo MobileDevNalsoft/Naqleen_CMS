@@ -19,6 +19,7 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
     const selectId = useStore((state) => state.selectId);
     const entities = useStore((state) => state.entities);
     const layout = useStore((state) => state.layout);
+    const focusPosition = useStore((state) => state.focusPosition);
     // UI Store
     const activePanel = useUIStore((state) => state.activePanel);
 
@@ -263,6 +264,47 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
             window.removeEventListener('resetCameraToInitial', handleResetToInitial);
         };
     }, [isLoading]);
+
+    // 4. Handle Focus Position (from Position Panel)
+    useEffect(() => {
+        if (isLoading) return;
+
+        if (focusPosition) {
+            // Move camera to the focused position
+            const positionVec = new THREE.Vector3(focusPosition.x, focusPosition.y, focusPosition.z);
+
+            // Camera offsets similar to container focus
+            const camOffsetX = -15;
+            const camOffsetY = 30;
+            const camOffsetZ = 30;
+            const totalLift = 0;
+            const shiftX = 8;
+
+            const targetLookAt = new THREE.Vector3(
+                positionVec.x + shiftX,
+                positionVec.y + totalLift,
+                positionVec.z
+            );
+
+            const targetPos = new THREE.Vector3(
+                targetLookAt.x + camOffsetX,
+                targetLookAt.y + camOffsetY,
+                targetLookAt.z + camOffsetZ
+            );
+
+            lastSelectionChangeTime.current = Date.now();
+            animateCamera(targetPos, targetLookAt);
+        } else {
+            // When focusPosition is cleared (e.g., closing Position Panel), reset to main view
+            // Only if no other specific selection is active
+            const currentSelectedBlock = useStore.getState().selectedBlock;
+            const currentSelectId = useStore.getState().selectId;
+
+            if (!currentSelectedBlock && !currentSelectId) {
+                animateCamera(standardPos, center);
+            }
+        }
+    }, [focusPosition, isLoading]);
 
     return null;
 }

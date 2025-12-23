@@ -30,6 +30,7 @@ import Containers from './components/layout/Containers';
 import CustomerInventoryPanel from './components/panels/actions/CustomerInventoryPanel';
 import ReserveContainersPanel from './components/panels/actions/ReserveContainersPanel';
 import SwapConnectionLines from './components/layout/SwapConnectionLines';
+import GhostContainer from './components/layout/GhostContainer';
 import ToastContainer from './components/ui/Toast';
 
 const App = () => {
@@ -190,7 +191,7 @@ const App = () => {
               shadow-mapSize-width={2048}
               shadow-mapSize-height={2048}
             />
-            <Environment preset="city" />
+            <Environment />
             <DynamicLayoutEngine />
             <IcdMarkings />
             <Fencing />
@@ -200,6 +201,7 @@ const App = () => {
               onReady={() => setSceneReady(true)}
             />
             <SwapConnectionLines />
+            <GhostContainer />
 
             <CameraTransition isLoading={showLoadingScreen} controlsRef={controlsRef} />
 

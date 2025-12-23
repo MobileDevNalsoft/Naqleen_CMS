@@ -61,34 +61,18 @@ export async function getContainers(layout: DynamicIcdLayout): Promise<GetContai
 
     const positions = flatContainers.map((c) => {
         // Use block_id directly from API response
-        let mappedBlockId = c.position.block_id;
+        const mappedBlockId = c.position.block_id;
         const terminal = c.position.terminal?.toUpperCase() || '';
         const blockLetter = c.position.block?.toUpperCase() || '';
 
-        // Handle split block 'trs_block_d' (TRS terminal, Block D)
-        if (terminal === 'TRS' && blockLetter === 'D') {
-            // Lot 1 is part 1, Lots 2+ are part 2
-            if (c.position.lot === 1) {
-                mappedBlockId = 'trs_block_d_part1';
-            } else {
-                mappedBlockId = 'trs_block_d_part2';
-            }
-        }
-
         const block = blockMap.get(mappedBlockId);
         if (!block) {
-            console.warn(`Block not found for container ${c.container_nbr} (${c.position.block_id} -> ${mappedBlockId})`);
+            console.warn(`Block not found for container ${c.container_nbr} (${c.position.block_id})`);
             return null; // Filter out invalid
         }
 
-        // Localize lot index based on block part
-        let localLotIndex = c.position.lot - 1; // Default 0-based index
-        if (mappedBlockId === 'trs_block_d_part2') {
-            // Part 2 starts at Lot 2, so Lot 2 should be index 0
-            localLotIndex = c.position.lot - 2;
-        }
-
-        const lotIndex = Math.max(0, localLotIndex);
+        // Lot index is always 0-based from 1-based API value
+        const lotIndex = Math.max(0, c.position.lot - 1);
         let rowIndex = Math.max(0, c.position.row - 1);
         const levelIndex = Math.max(0, c.position.level - 1);
 

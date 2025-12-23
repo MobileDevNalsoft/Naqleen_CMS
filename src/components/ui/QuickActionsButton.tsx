@@ -91,16 +91,16 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
     ];
 
     const actionModes = [
-        { id: 'position', label: 'Position Container', icon: MapPin },
         { id: 'gateIn', label: 'Gate In', icon: Truck },
-        { id: 'gateOut', label: 'Gate Out', icon: ArrowRightLeft },
+        { id: 'position', label: 'Position Container', icon: MapPin },
         // { id: 'restack', label: 'Restack Container', icon: LayoutList },
+        // { id: 'plugInOut', label: 'Plug In / Out', icon: Power },
         // { id: 'stuffing', label: 'Assign Stuffing', icon: PackageOpen },
         // { id: 'destuffing', label: 'Assign Destuffing', icon: PackageOpen },
-        // { id: 'plugInOut', label: 'Plug In / Out', icon: Power },
         // { id: 'cfsTask', label: 'CFS Task Assignment', icon: ClipboardList },
-        { id: 'reserveContainers', label: 'Reserve Containers', icon: ShieldCheck },
         // { id: 'customerInventory', label: 'Customer Inventory', icon: ClipboardList },
+        { id: 'reserveContainers', label: 'Reserve Containers', icon: ShieldCheck },
+        { id: 'gateOut', label: 'Gate Out', icon: ArrowRightLeft },
     ];
 
     // Store icon components instead of pre-rendered JSX so we can control size centrally
@@ -425,10 +425,10 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
                     width: '64px',
                     height: '64px',
                     borderRadius: '50%',
-                    background: isOpen ? '#1e293b' : 'var(--secondary-gradient)',
+                    background: 'var(--secondary-gradient)',
                     border: 'none',
                     outline: 'none',
-                    color: isOpen ? '#F7CF9B' : 'var(--primary-color)',
+                    color: 'var(--primary-color)',
                     boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
                     cursor: 'pointer',
                     display: 'flex',
