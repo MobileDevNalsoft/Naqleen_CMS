@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import PanelLayout from '../PanelLayout';
 import { Truck, FileText, Loader2, ChevronDown, Upload, X, Building2, Package, CheckCircle, BookOpen, Search, ArrowLeft, Download, User } from 'lucide-react';
-import { useGateInTrucksQuery, useCustomerBookingsQuery, useBookingShipmentsQuery, useSubmitGateInMutation, getGateInTruckDetails } from '../../../api';
+import { useGateInTrucksQuery, useCustomerBookingsQuery, useBookingShipmentsQuery, useSubmitGateInMutation, getGateInTruckDetails, yardApi } from '../../../api';
 import type { GateTruckDetails, GateCustomer, GateCustomerShipments, GateDocument } from '../../../api/types';
 import { showToast } from '../../ui/Toast';
 import { toPng } from 'html-to-image';
@@ -50,6 +50,48 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
     // Driver slip generation
     const slipRef = useRef<HTMLDivElement>(null);
     const [isGeneratingSlip, setIsGeneratingSlip] = useState(false);
+
+    // Container Validation State
+    const [isValidatingContainer, setIsValidatingContainer] = useState(false);
+    const [containerValidationStatus, setContainerValidationStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
+
+    // Validation logic for container number
+    useEffect(() => {
+        if (!containerNumber) {
+            setContainerValidationStatus('idle');
+            return;
+        }
+
+        // Reset validation status when user edits
+        if (containerValidationStatus !== 'idle' && containerNumber.length < 11) {
+            setContainerValidationStatus('idle');
+        }
+
+        // Trigger validation only when length is 11 and not already validated for this number (implied by dependency on containerNumber)
+        // However, we only want to trigger once when it reaches 11.
+        if (containerNumber.length === 11 && containerValidationStatus === 'idle' && !isValidatingContainer) {
+            const validate = async () => {
+                setIsValidatingContainer(true);
+                try {
+                    const response = await yardApi.validateCfsContainer({ containerNbr: containerNumber });
+                    if (response.data?.is_valid) {
+                        setContainerValidationStatus('valid');
+                        showToast('success', response.data.validation_message || 'Container number is valid');
+                    } else {
+                        setContainerValidationStatus('invalid');
+                        showToast('error', response.data?.validation_message || 'Invalid container number');
+                    }
+                } catch (error) {
+                    console.error('Validation failed', error);
+                    setContainerValidationStatus('invalid');
+                    showToast('error', 'Failed to validate container number');
+                } finally {
+                    setIsValidatingContainer(false);
+                }
+            };
+            validate();
+        }
+    }, [containerNumber]);
 
     // Gate In Steps: 'truck_list' | 'details' | 'success'
     const [step, setStep] = useState<'truck_list' | 'details' | 'success'>('truck_list');
@@ -128,6 +170,7 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
         if (isBookingSelectionRequired && !selectedBooking) return false;
         if (isShipmentSelectionRequired && !selectedShipment) return false;
         if (!isCroOrLro && !isValidContainerNumber) return false;
+        if (!isCroOrLro && containerValidationStatus !== 'valid') return false;
         return true;
     }, [truckDetails, isCustomerSelectionRequired, selectedCustomer, isBookingSelectionRequired, selectedBooking, isShipmentSelectionRequired, selectedShipment, isCroOrLro, isValidContainerNumber]);
 
@@ -463,28 +506,30 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
         if (step === 'success') {
             return (
                 <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-                    <button
-                        onClick={handleGenerateSlip}
-                        disabled={isGeneratingSlip}
-                        style={{
-                            flex: 1,
-                            padding: '10px 24px',
-                            background: '#ffffff',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: '12px',
-                            color: 'var(--text-color)',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            cursor: isGeneratingSlip ? 'wait' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px'
-                        }}
-                    >
-                        {isGeneratingSlip ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                        {isGeneratingSlip ? 'Generating...' : 'Download Slip'}
-                    </button>
+                    {isInboundContainer && (
+                        <button
+                            onClick={handleGenerateSlip}
+                            disabled={isGeneratingSlip}
+                            style={{
+                                flex: 1,
+                                padding: '10px 24px',
+                                background: '#ffffff',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '12px',
+                                color: 'var(--text-color)',
+                                fontSize: '14px',
+                                fontWeight: 600,
+                                cursor: isGeneratingSlip ? 'wait' : 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px'
+                            }}
+                        >
+                            {isGeneratingSlip ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                            {isGeneratingSlip ? 'Generating...' : 'Download Slip'}
+                        </button>
+                    )}
                     <button
                         onClick={handleDone}
                         style={{
@@ -1186,38 +1231,73 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                         )
                     }
 
-                    {/* Container Number Input - only for non-CRO/LRO */}
+                    {/* Container Number Input - only for non-CRO/LRO and when shipment is selected */}
                     {
-                        !isCroOrLro && (
+                        !isCroOrLro && (selectedShipment || truckDetails?.shipmentNumber) && (
                             <div style={{ marginBottom: '16px' }}>
                                 <label style={labelStyle}>Container Number *</label>
-                                <input
-                                    type="text"
-                                    placeholder="ABCD1234567"
-                                    value={containerNumber}
-                                    onChange={(e) => {
-                                        // Auto-uppercase and strict alphanumeric filter
-                                        const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-                                        if (val.length <= 11) {
-                                            setContainerNumber(val);
-                                        }
-                                    }}
-                                    style={{
-                                        width: '100%',
-                                        padding: '12px',
-                                        background: 'rgba(75, 104, 108, 0.05)',
-                                        border: `1px solid ${isValidContainerNumber ? 'rgba(75, 104, 108, 0.2)' : containerNumber ? '#ef4444' : 'rgba(75, 104, 108, 0.2)'}`,
-                                        borderRadius: '10px',
-                                        fontSize: '14px',
-                                        color: 'var(--text-color)',
-                                        outline: 'none',
-                                        boxSizing: 'border-box',
-                                        letterSpacing: '1px',
-                                        fontWeight: 600
-                                    }}
-                                />
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        type="text"
+                                        placeholder="ABCD1234567"
+                                        value={containerNumber}
+                                        onChange={(e) => {
+                                            // Auto-uppercase and strict alphanumeric filter
+                                            const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                                            if (val.length <= 11) {
+                                                setContainerNumber(val);
+                                            }
+                                        }}
+                                        disabled={isValidatingContainer}
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px',
+                                            paddingRight: isValidatingContainer ? '36px' : '12px', // Make room for spinner
+                                            background: 'rgba(75, 104, 108, 0.05)',
+                                            border: `1px solid ${containerValidationStatus === 'valid'
+                                                    ? '#86efac' // Pastel green for valid
+                                                    : containerValidationStatus === 'invalid'
+                                                        ? '#ef4444' // Red for invalid
+                                                        : isValidContainerNumber
+                                                            ? 'rgba(75, 104, 108, 0.2)'
+                                                            : containerNumber
+                                                                ? '#ef4444'
+                                                                : 'rgba(75, 104, 108, 0.2)'
+                                                }`,
+                                            borderRadius: '10px',
+                                            fontSize: '14px',
+                                            color: 'var(--text-color)',
+                                            outline: 'none',
+                                            boxSizing: 'border-box',
+                                            letterSpacing: '1px',
+                                            fontWeight: 600,
+                                            transition: 'border-color 0.2s',
+                                        }}
+                                        className="light-placeholder"
+                                    />
+                                    {isValidatingContainer && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            right: '10px',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            pointerEvents: 'none'
+                                        }}>
+                                            <Loader2 size={16} className="animate-spin" style={{ color: 'var(--primary-color)', opacity: 0.7 }} />
+                                        </div>
+                                    )}
+                                </div>
+                                <style>{`
+                                    .light-placeholder::placeholder {
+                                        opacity: 0.4;
+                                        color: var(--text-color);
+                                    }
+                                `}</style>
                                 {containerNumber && !isValidContainerNumber && (
-                                    <div style={{ fontSize: '11px', color: '#ef4444', marginTop: '4px' }}>
+                                    <div style={{ fontSize: '11px', color: '#ef4444', marginTop: '4px', opacity: 0.75 }}>
                                         Must be 4 letters followed by 7 digits
                                     </div>
                                 )}
@@ -1317,24 +1397,52 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
 
     // Render success view with driver slip ticket
     const renderSuccessView = () => {
-        if (!truckDetails) {
+        if (!truckDetails) return null;
+
+        // If not inbound container, just show success message (no slip)
+        if (!isInboundContainer) {
             return (
-                <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                    <div style={{
-                        width: '64px',
-                        height: '64px',
-                        background: 'rgba(34, 197, 94, 0.1)',
+                <div style={{
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexDirection: 'column',
+                    padding: '40px'
+                }}>
+                    <div className="animate-fade-in" style={{
+                        width: '120px',
+                        height: '120px',
+                        background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)',
                         borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        margin: '0 auto 16px'
+                        marginBottom: '32px',
+                        boxShadow: '0 10px 25px -5px rgba(34, 197, 94, 0.4)'
                     }}>
-                        <CheckCircle size={32} color="#22c55e" />
+                        <CheckCircle size={64} className="text-green-600" style={{ strokeWidth: 2.5 }} />
                     </div>
-                    <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--primary-color)', marginBottom: '8px' }}>Gate In Successful</h3>
-                    <p style={{ color: 'var(--text-color)', opacity: 0.7, fontSize: '14px' }}>
-                        Operation completed successfully.
+
+                    <h2 className="animate-slide-up" style={{
+                        fontSize: '24px',
+                        fontWeight: 800,
+                        color: 'var(--primary-color)',
+                        marginBottom: '12px',
+                        textAlign: 'center'
+                    }}>
+                        Gate In Successful
+                    </h2>
+
+                    <p className="animate-slide-up" style={{
+                        color: 'var(--text-color)',
+                        opacity: 0.7,
+                        fontSize: '15px',
+                        textAlign: 'center',
+                        maxWidth: '280px',
+                        lineHeight: '1.5'
+                    }}>
+                        The truck has been successfully gated in. No driver slip required for this shipment type.
                     </p>
                 </div>
             );

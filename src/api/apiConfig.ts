@@ -41,5 +41,8 @@ export const API_CONFIG = {
         getAvailablePositionLov: '/getAvailablePositionLov',
         submitContainerPosition: '/submitContainerPosition',
         restackContainer: '/restackContainer',
+        plugInOutContainer: '/plugInOutContainer',
+        plugInOutContainerDetails: '/plugInOutContainerDetails',
+        validateCfsContainer: '/validateCfsContainer',
     }
 } as const;

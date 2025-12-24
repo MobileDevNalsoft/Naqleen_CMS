@@ -30,6 +30,7 @@ import Containers from './components/layout/Containers';
 import CustomerInventoryPanel from './components/panels/actions/CustomerInventoryPanel';
 import ReserveContainersPanel from './components/panels/actions/ReserveContainersPanel';
 import SwapConnectionLines from './components/layout/SwapConnectionLines';
+import RestackConnectionLine from './components/layout/RestackConnectionLine';
 import GhostContainer from './components/layout/GhostContainer';
 import ToastContainer from './components/ui/Toast';
 
@@ -64,8 +65,8 @@ const App = () => {
       }
 
       // Clamp target X and Z positions to stay within environment radius
-      // We limit to 180 to keep the camera safely inside the icd area
-      const maxPanRadius = 180;
+      // We limit to 300 to keep the camera safely inside the icd area (Increased for TRS blocks)
+      const maxPanRadius = 300;
       const distance = Math.sqrt(target.x * target.x + target.z * target.z);
 
       if (distance > maxPanRadius) {
@@ -94,8 +95,8 @@ const App = () => {
   useEffect(() => {
     if (activePanel) {
       // When a panel opens, clear selection
-      // EXCEPT for 'restack' panel - we want to preserve selectId so Container Details can reappear
-      if (activePanel !== 'restack') {
+      // EXCEPT for 'restack' and 'plugInOut' panels - we want to preserve selectId so Container Details can reappear
+      if (activePanel !== 'restack' && activePanel !== 'plugInOut') {
         setSelectId(null);
       }
       setSelectedBlock(null);
@@ -202,14 +203,14 @@ const App = () => {
             />
             <SwapConnectionLines />
             <GhostContainer />
+            <RestackConnectionLine />
 
             <CameraTransition isLoading={showLoadingScreen} controlsRef={controlsRef} />
 
             <OrbitControls
               ref={controlsRef}
               makeDefault
-              enableDamping
-              dampingFactor={0.05}
+              enableDamping={false}
               minPolarAngle={0}                    // Prevent looking straight down
               maxPolarAngle={Math.PI / 2 - 0.05}     // Prevent going below horizontal
               minDistance={0}                       // Minimum zoom distance (Prevents clipping/going inside)
@@ -219,7 +220,7 @@ const App = () => {
               rotateSpeed={0.8}                       // Rotation speed
               onChange={handleControlsChange}         // Clamp target position
               enableZoom={true}
-              zoomSpeed={3}
+              zoomSpeed={6}
               zoomToCursor={true}
             />
           </Canvas>

@@ -8,5 +8,6 @@ export * from './handlers/layoutApi';
 export * from './handlers/containerApi';
 export * from './handlers/bookingApi';
 export * from './handlers/inventoryApi';
+export * from './handlers/yardApi';
 export * from './handlers/gateApi';
 

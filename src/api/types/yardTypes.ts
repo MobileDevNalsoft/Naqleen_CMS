@@ -78,3 +78,55 @@ export interface RestackContainerResponse {
     response_message: string;
     data?: any;
 }
+
+// Plug In/Out Types
+export interface PlugInOutRequest {
+    containerNbr: string;
+    type: 'Plugged' | 'Unplugged';
+    setPointTemp: string;
+    currentTemp: string;
+    remarks?: string;
+    timestamp: string;
+}
+
+export interface PlugInOutResponse {
+    response_code: number;
+    response_message: string;
+}
+
+export interface PlugInOutDetailsRequest {
+    containerNbr: string;
+}
+
+export interface PlugInOutHistoryItem {
+    timestamp: string;
+    type: string; // "Plugged" or "Unplugged"
+    setPointTemp?: string;
+    currentTemp?: string;
+    remarks?: string;
+}
+
+export interface PlugInOutDetailsData {
+    container_nbr: string;
+    history: PlugInOutHistoryItem[];
+}
+
+export interface PlugInOutDetailsResponse {
+    responseCode: number;
+    responseMessage: string;
+    data?: PlugInOutDetailsData;
+}
+
+export interface ValidateContainerRequest {
+    containerNbr: string;
+}
+
+export interface ValidateContainerResponse {
+    response_code: number;
+    response_message: string;
+    data?: {
+        is_valid: boolean;
+        container_nbr: string;
+        validation_message: string;
+    }
+}

@@ -37,16 +37,16 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         tex.generateMipmaps = true;
     });
 
-    // Realistic Industrial Color Palette (Mid-bright tones)
+    // Realistic Industrial Color Palette (Darker, heavy metal tones)
     const containerColors = useMemo(() => [
-        0x00D4AA, // Bright Teal
-        0x7FE035, // Lime Green
-        0xFF6B35, // Bright Orange
-        0xFFD23F, // Bright Yellow
-        0xFF4040, // Bright Red
-        0x00E5CC, // Bright Cyan
-        0xFFAA00, // Golden Orange
-        0x8B3A3A  // Maroon Rusty
+        0x00695C, // Dark Teal
+        0x2E7D32, // Forest Green
+        0xD84315, // Burnt Orange
+        0xF9A825, // Industrial Yellow
+        0xC62828, // Crimson Red
+        0x00838F, // Deep Cyan
+        0xEF6C00, // Dark Gold
+        0x6D4C41  // Lighter Brown (Industrial Rust)
     ], []);
 
     // Memoize instance data with scaling for 40ft containers
@@ -192,8 +192,15 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         const reserveActive = reserveContainers.length > 0;
         const selectedCustomer = useStore.getState().selectedCustomer;
 
+        const focusPosition = useStore.getState().focusPosition;
+
+        // Check if Restack Panel is open AND we have a valid focus position (visualization active)
+        // If so, DISABLE LIFTING to align with connection line
+        const isRestackOpen = useUIStore.getState().activePanel === 'restack';
+        const isRestackVisualizationFull = isRestackOpen && !!focusPosition;
+
         // --- Handle Block Lift Animation ---
-        const targetLift = selectedBlock ? 16 : 0;
+        const targetLift = (selectedBlock && !isRestackVisualizationFull) ? 16 : 0;
         const lerpSpeed = delta * 2;
 
         const diff = targetLift - liftHeight.current;
@@ -207,7 +214,8 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
 
         // --- Handle Lot Lift Animation (Selected Stack) ---
         // Increased lift height as requested (was 10)
-        const targetLotLift = selectId ? 16 : 0;
+        // DISABLE lift if in restack mode AND visualization is fully active
+        const targetLotLift = (selectId && !isRestackVisualizationFull) ? 16 : 0;
         const lotDiff = targetLotLift - lotLiftHeight.current;
         const isLotLifting = Math.abs(lotDiff) > 0.01;
 

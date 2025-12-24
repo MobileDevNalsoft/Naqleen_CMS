@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Truck, MapPin, FileText, Ship, Package, X, Check, ChevronsRight } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Truck, MapPin, FileText, Ship, Package, X, Check, ChevronsRight, Power } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useStore } from '../../../store/store';
 import { useUIStore } from '../../../store/uiStore';
@@ -56,6 +56,43 @@ export default function ContainerDetailsPanel() {
         enabled: !!selectId && isVisible,
         staleTime: 60000 // Cache for 1 min
     });
+
+    // Check if selected container is at the top of its stack (Y position comparison)
+    // Only top-level containers can be restacked
+    const isTopLevel = useMemo(() => {
+        if (!selectId || !selectedContainer) return false;
+
+        const currentX = selectedContainer.x ?? 0;
+        const currentY = selectedContainer.y ?? 0;
+        const currentZ = selectedContainer.z ?? 0;
+
+        // Get all container IDs from store
+        const allIds = useStore.getState().ids;
+        const allEntities = useStore.getState().entities;
+
+        // Find all containers at the same X,Z position (same stack)
+        for (const id of allIds) {
+            if (id === selectId) continue; // Skip self
+            const entity = allEntities[id];
+            if (!entity) continue;
+
+            const ex = entity.x ?? 0;
+            const ez = entity.z ?? 0;
+            const ey = entity.y ?? 0;
+
+            // Check if in same stack (within 0.5 unit tolerance for floating point)
+            if (Math.abs(ex - currentX) < 0.5 && Math.abs(ez - currentZ) < 0.5) {
+                // Found a container in the same stack
+                if (ey > currentY) {
+                    // There's a container above us - we are NOT top level
+                    return false;
+                }
+            }
+        }
+
+        // No container found above us - we ARE top level
+        return true;
+    }, [selectId, selectedContainer, entities]);
 
     const openPanel = useUIStore(state => state.openPanel);
     const activePanel = useUIStore(state => state.activePanel);
@@ -305,7 +342,41 @@ export default function ContainerDetailsPanel() {
                             }} />
                         )}
                     </button>
+
                 ))}
+
+                {/* Reefer Control Button (Only for RT containers) */}
+                {details?.container_type?.includes('RT') && (
+                    <button
+                        onClick={() => openPanel('plugInOut', {
+                            containerId: details.container_number,
+                            containerType: details.container_type,
+                            status: details.plug_in_status
+                        })}
+                        style={{
+                            marginLeft: 'auto',
+                            marginTop: 'auto',
+                            marginBottom: 'auto',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: details.plug_in_status === 'Plugged' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            border: 'none',
+                            padding: '6px 12px',
+                            borderRadius: '20px',
+                            color: details.plug_in_status === 'Plugged' ? '#15803d' : '#b91c1c',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <Power size={14} />
+                        {details.plug_in_status === 'Plugged' ? 'Plugged' : 'Unplugged'}
+                    </button>
+                )}
             </div>
 
             {/* Content Area */}
@@ -423,7 +494,14 @@ export default function ContainerDetailsPanel() {
                 backdropFilter: 'blur(16px)',
                 boxShadow: 'inset 0 1px 0 rgba(247, 207, 155, 0.3), 0 -4px 12px rgba(0, 0, 0, 0.05)'
             }}>
-                <ActionButton icon={<Truck size={16} />} label="Restack" primary onClick={handleRestack} />
+                <ActionButton
+                    icon={<Truck size={16} />}
+                    label="Restack"
+                    primary={isTopLevel}
+                    onClick={isTopLevel ? handleRestack : undefined}
+                    disabled={!isTopLevel}
+                    tooltip={!isTopLevel ? "Cannot restack: Container has other containers stacked above it" : undefined}
+                />
                 <ActionButton icon={<Package size={16} />} label="Release" />
             </div>
         </div>
@@ -535,12 +613,16 @@ const LifecycleStage = ({ date, time, title, details, status, isLast }: {
     );
 };
 
-const ActionButton = ({ icon, label, primary, danger, onClick }: { icon: React.ReactNode, label: string, primary?: boolean, danger?: boolean, onClick?: () => void }) => {
+const ActionButton = ({ icon, label, primary, danger, onClick, disabled, tooltip }: { icon: React.ReactNode, label: string, primary?: boolean, danger?: boolean, onClick?: () => void, disabled?: boolean, tooltip?: string }) => {
     let bg = 'white';
     let color = '#1e293b';
     let border = '1px solid rgba(0, 0, 0, 0.1)';
 
-    if (primary) {
+    if (disabled) {
+        bg = '#e2e8f0';
+        color = '#94a3b8';
+        border = '1px solid rgba(0, 0, 0, 0.05)';
+    } else if (primary) {
         bg = 'var(--primary-gradient)';
         border = 'none';
         color = 'white';
@@ -552,7 +634,9 @@ const ActionButton = ({ icon, label, primary, danger, onClick }: { icon: React.R
 
     return (
         <button
-            onClick={onClick}
+            onClick={disabled ? undefined : onClick}
+            disabled={disabled}
+            title={tooltip}
             style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -565,15 +649,18 @@ const ActionButton = ({ icon, label, primary, danger, onClick }: { icon: React.R
                 border: border,
                 fontSize: '13px',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: disabled ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s',
-                boxShadow: primary ? '0 4px 12px rgba(75, 104, 108, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)'
+                boxShadow: primary && !disabled ? '0 4px 12px rgba(75, 104, 108, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)',
+                opacity: disabled ? 0.7 : 1
             }}
             onMouseEnter={e => {
+                if (disabled) return;
                 if (!primary && !danger) e.currentTarget.style.background = 'rgba(0, 0, 0, 0.02)';
                 e.currentTarget.style.transform = 'translateY(-1px)';
             }}
             onMouseLeave={e => {
+                if (disabled) return;
                 if (!primary && !danger) e.currentTarget.style.background = 'white';
                 e.currentTarget.style.transform = 'translateY(0)';
             }}

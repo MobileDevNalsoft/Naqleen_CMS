@@ -84,6 +84,20 @@ export default function Dropdown({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [value, options]);
 
+    const listRef = useRef<HTMLDivElement>(null);
+
+    // Auto-scroll to reveal dropdown when opened
+    useEffect(() => {
+        if (isOpen && listRef.current) {
+            setTimeout(() => {
+                if (listRef.current) {
+                    listRef.current.scrollTop = 0;
+                    listRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }, 50);
+        }
+    }, [isOpen]);
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value;
         setInputValue(val);
@@ -139,8 +153,8 @@ export default function Dropdown({
                 <div
                     onClick={() => {
                         if (!disabled) {
-                            setIsOpen(true);
-                            if (searchable && inputRef.current) {
+                            setIsOpen(!isOpen);
+                            if (!isOpen && searchable && inputRef.current) {
                                 inputRef.current.focus();
                             }
                         }
@@ -240,19 +254,21 @@ export default function Dropdown({
                 </div>
 
                 {isOpen && !disabled && (
-                    <div style={{
-                        position: 'absolute',
-                        top: 'calc(100% + 4px)',
-                        left: 0,
-                        right: 0,
-                        background: 'white',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                        overflow: 'hidden',
-                        zIndex: 100,
-                        animation: 'fadeIn 0.1s ease-out'
-                    }}>
+                    <div
+                        ref={listRef}
+                        style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 4px)',
+                            left: 0,
+                            right: 0,
+                            background: 'white',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                            overflow: 'hidden',
+                            zIndex: 100,
+                            animation: 'fadeIn 0.1s ease-out'
+                        }}>
                         <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
                             {filteredOptions.length > 0 ? (
                                 filteredOptions.map((option, index) => (

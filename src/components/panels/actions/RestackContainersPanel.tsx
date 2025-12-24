@@ -27,6 +27,11 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
 
     // Store for updating container position
     const setEntitiesBatch = useStore((state) => state.setEntitiesBatch);
+    const setGhostContainer = useStore((state) => state.setGhostContainer);
+    const setRestackLine = useStore((state) => state.setRestackLine);
+    const setFocusPosition = useStore((state) => state.setFocusPosition);
+    const entities = useStore((state) => state.entities);
+    const layout = useStore((state) => state.layout);
 
     // Submit Restack Mutation
     const { mutate: submitRestack, isPending: isSubmitting } = useMutation({
@@ -106,8 +111,116 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
         if (!isOpen) {
             setNewPosition('');
             setStep('select');
+            // Cleanup visualization
+            setGhostContainer(null);
+            setRestackLine(null);
+            setFocusPosition(null);
         }
-    }, [isOpen]);
+    }, [isOpen, setGhostContainer, setRestackLine, setFocusPosition]);
+
+    // Handle Visualization (Ghost, Line, Camera)
+    useEffect(() => {
+        if (!containerId || !newPosition) {
+            setGhostContainer(null);
+            setRestackLine(null);
+            // If we cleared the position, reset focus to default (which falls back to selection)
+            if (isOpen) setFocusPosition(null);
+            return;
+        }
+
+        // Parse position string: TRM-A-1-B-2
+        const parts = newPosition.split('-');
+        if (parts.length < 5) return; // Wait for full position
+
+        const terminal = parts[0] || '';
+        const block = parts[1] || '';
+        const lot = parseInt(parts[2] || '1');
+        const rowLabel = parts[3] || 'A';
+        const level = parseInt(parts[4] || '1');
+        const rowIndex = rowLabel.charCodeAt(0) - 'A'.charCodeAt(0);
+
+        const expectedBlockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
+        const blockEntity = layout?.entities?.find(e =>
+            e.type?.includes('block') &&
+            e.id.toLowerCase() === expectedBlockId
+        );
+
+        if (blockEntity) {
+            try {
+                // Apply row reversal for Blocks B and D
+                const blockRows = blockEntity.props?.rows || 11;
+                const shouldReverseRow = block.toUpperCase() === 'B' || block.toUpperCase() === 'D';
+                const actualRowIndex = shouldReverseRow ? (blockRows - 1 - rowIndex) : rowIndex;
+
+                // 1. Calculate Destination Position
+                const destPos = getDynamicContainerPosition(
+                    blockEntity,
+                    lot - 1,
+                    actualRowIndex,
+                    level - 1
+                );
+
+                // 2. Set Ghost Container
+                setGhostContainer({
+                    x: destPos.x,
+                    y: destPos.y,
+                    z: destPos.z,
+                    containerType,
+                    blockId: expectedBlockId
+                });
+
+                // 3. Calculate Source Position (from entities)
+                const sourceEntity = entities[containerId];
+                if (sourceEntity) {
+                    // Set Restack Line
+                    setRestackLine({
+                        fromId: containerId,
+                        toPosition: destPos
+                    });
+
+                    // 4. Calculate Optimal Camera View
+                    // Midpoint
+                    const sourceVec = { x: sourceEntity.x, y: sourceEntity.y, z: sourceEntity.z };
+                    const midX = (sourceVec.x + destPos.x) / 2;
+                    const midY = (sourceVec.y + destPos.y) / 2;
+                    const midZ = (sourceVec.z + destPos.z) / 2;
+
+                    // Distance
+                    const dx = sourceVec.x - destPos.x;
+                    const dy = sourceVec.y - destPos.y;
+                    const dz = sourceVec.z - destPos.z;
+                    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                    // Camera position: Midpoint offset back
+                    // Standard offset direction approx: (-0.5, 0.8, 1) normalized?
+                    // Let's use standard offset (-25, 120, 160) which implies a direction.
+                    // We'll scale the distance from midpoint based on object separation.
+
+                    const baseDist = 100;
+                    const zoomFactor = Math.max(1, dist / 80); // Zoom out if far apart
+
+                    // Direction vector for camera (looking down-left)
+                    const camDirX = -0.3;
+                    const camDirY = 0.8;
+                    const camDirZ = 1.0;
+
+                    const camDist = baseDist * zoomFactor;
+
+                    setFocusPosition({
+                        positionString: newPosition, // ID for uniqueness
+                        x: midX,
+                        y: midY,
+                        z: midZ,
+                        cameraX: midX + (camDirX * camDist),
+                        cameraY: midY + (camDirY * camDist),
+                        cameraZ: midZ + (camDirZ * camDist)
+                    });
+                }
+            } catch (e) {
+                console.error('Error calculating visualization:', e);
+            }
+        }
+    }, [containerId, newPosition, layout, entities, containerType, isOpen, setGhostContainer, setRestackLine, setFocusPosition]);
 
     const handleRestack = () => {
         if (!containerId || !newPosition) return;
@@ -255,8 +368,13 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
 
     // When closing restack panel, just close - Container Details will reopen automatically
     // because selectId remains set in the global store
+    // When closing restack panel, just close - Container Details will reopen automatically
+    // because selectId remains set in the global store
     const handleClose = () => {
-        onClose(); // Close this panel - ContainerDetailsPanel will show since selectId is still set
+        setGhostContainer(null);
+        setRestackLine(null);
+        setFocusPosition(null);
+        onClose();
     };
 
     return (
@@ -281,6 +399,7 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
                 <PositionSelectors
                     containerType={containerType}
                     onPositionChange={setNewPosition}
+                    currentPosition={currentPosition}
                 />
             )}
 
@@ -304,12 +423,22 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
 }
 
 // Position Selectors Component (same as PositionContainerPanel)
-const PositionSelectors = ({ containerType, onPositionChange }: { containerType: string, onPositionChange: (pos: string) => void }) => {
+const PositionSelectors = ({ containerType, onPositionChange, currentPosition }: { containerType: string, onPositionChange: (pos: string) => void, currentPosition: string }) => {
     const [terminal, setTerminal] = useState('');
     const [block, setBlock] = useState('');
     const [lot, setLot] = useState('');
     const [row, setRow] = useState('');
     const [level, setLevel] = useState('');
+
+    // Parse current position for filtering
+    // Format: TRM-A-1-A-2 (Terminal-Block-Lot-Row-Level)
+    const [curTerminal = '', curBlock = '', curLot = '', curRow = ''] = currentPosition ? currentPosition.split('-') : [];
+
+    // Check if current selection matches container's current location (Case Insensitive)
+    const isSameLocationForRow =
+        String(terminal).trim().toUpperCase() === String(curTerminal).trim().toUpperCase() &&
+        String(block).trim().toUpperCase() === String(curBlock).trim().toUpperCase() &&
+        String(lot).trim().toUpperCase() === String(curLot).trim().toUpperCase();
 
     // Track which dropdown is currently open (only one at a time)
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -339,7 +468,24 @@ const PositionSelectors = ({ containerType, onPositionChange }: { containerType:
         queryKey: ['posRow', lot],
         queryFn: () => yardApi.getAvailablePositionLov({ flag: 'L', containerType, terminal, block, lot }),
         enabled: !!lot,
-        select: res => res.data
+        select: (res) => {
+            // Debug filtering usage
+            if (isSameLocationForRow) {
+                console.log(`[RestackFilter] SAME LOCATION DETECTED. Filtering row "${curRow}"`, {
+                    current: { t: curTerminal, b: curBlock, l: curLot, r: curRow },
+                    selected: { t: terminal, b: block, l: lot }
+                });
+
+                if (!res.data) return res.data;
+                // Case insensitive filter for rows
+                const filteredRows = res.data.rows?.filter((r: string) => String(r).trim().toUpperCase() !== String(curRow).trim().toUpperCase()) || [];
+                return {
+                    ...res.data,
+                    rows: filteredRows
+                };
+            }
+            return res.data;
+        }
     });
 
     const { data: levelData, isLoading: isLoadingLevels } = useQuery({
@@ -364,6 +510,13 @@ const PositionSelectors = ({ containerType, onPositionChange }: { containerType:
             setLevel(levelData.level.toString());
         }
     }, [levelData]);
+
+    // Also trigger when row changes (in case levelData is already cached)
+    useEffect(() => {
+        if (levelData?.level && row) {
+            setLevel(levelData.level.toString());
+        }
+    }, [levelData, row]);
 
     return (
         <div>
@@ -423,9 +576,10 @@ const PositionSelectors = ({ containerType, onPositionChange }: { containerType:
                         options={rowData?.rows || []}
                         onChange={(v: string) => { setRow(v); setLevel(''); }}
                         disabled={!lot}
-                        isLoading={isLoadingRows}
+                        // Force refresh if current position match changes
                         isOpen={openDropdown === 'row'}
                         onToggle={(isOpen) => setOpenDropdown(isOpen ? 'row' : null)}
+                        isLoading={isLoadingRows}
                         flex={1}
                     />
                     <Dropdown

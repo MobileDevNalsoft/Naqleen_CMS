@@ -11,6 +11,7 @@ interface PanelLayoutProps {
     children: React.ReactNode;
     footerActions?: React.ReactNode;
     headerActions?: React.ReactNode;
+    tabsContent?: React.ReactNode; // Fixed content between header and scrollable area (e.g., tabs)
     width?: string;
     allowExpansion?: boolean;
     fitContent?: boolean; // If true, panel height fits content instead of full height
@@ -26,6 +27,7 @@ export default function PanelLayout({
     children,
     footerActions,
     headerActions,
+    tabsContent,
     width = '420px',
     allowExpansion = false,
     fitContent = false
@@ -196,6 +198,16 @@ export default function PanelLayout({
                     </div>
                 </div>
             </div>
+
+            {/* Tabs Content (fixed, non-scrolling) */}
+            {tabsContent && (
+                <div style={{
+                    padding: '0 24px',
+                    borderBottom: '1px solid rgba(0, 0, 0, 0.05)'
+                }}>
+                    {tabsContent}
+                </div>
+            )}
 
             {/* Content */}
             <div style={{

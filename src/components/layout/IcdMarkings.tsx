@@ -1,10 +1,273 @@
 import { useMemo, useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
-import { Text, Billboard } from '@react-three/drei';
-import { useFrame } from '@react-three/fiber';
+import { Text, Billboard, Html } from '@react-three/drei';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useStore } from '../../store/store';
 import { useUIStore } from '../../store/uiStore';
 import { type DynamicEntity, getAllDynamicBlocks } from '../../utils/layoutUtils';
+import { Layers } from 'lucide-react';
+
+// Block Marker Component - Premium pulsing annotation with hover tooltip
+interface BlockMarkerProps {
+    position: [number, number, number];
+    blockName: string;
+    onClick: () => void;
+    isHovered: boolean;
+    isOtherMarkerHovered: boolean; // True when a different marker is hovered
+    onPointerOver: () => void;
+    onPointerOut: () => void;
+}
+
+// CSS Keyframe styles injected into the document
+const pulseStyles = `
+@keyframes block-marker-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(247, 207, 155, 0.7), 0 0 0 0 rgba(75, 104, 108, 0.5);
+    }
+    40% {
+        box-shadow: 0 0 0 20px transparent, 0 0 0 0 rgba(75, 104, 108, 0.5);
+    }
+    80% {
+        box-shadow: 0 0 0 20px transparent, 0 0 0 12px transparent;
+    }
+    100% {
+        box-shadow: 0 0 0 0 transparent, 0 0 0 12px transparent;
+    }
+}
+
+@keyframes block-marker-glow {
+    0%, 100% {
+        filter: drop-shadow(0 0 8px rgba(247, 207, 155, 0.6));
+    }
+    50% {
+        filter: drop-shadow(0 0 16px rgba(247, 207, 155, 0.9));
+    }
+}
+
+@keyframes block-marker-float {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-3px);
+    }
+}
+
+.block-marker-container {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
+}
+
+.block-marker-container:hover {
+    z-index: 9999;
+}
+
+.block-marker-pulse {
+    width: 34px;
+    height: 34px;
+    border: 2.5px solid rgba(255, 255, 255, 0.9);
+    background: linear-gradient(145deg, #4B686C 0%, #3A5255 100%);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), 0 0 0 0 rgba(247, 207, 155, 0);
+}
+
+.block-marker-pulse:hover {
+    background: linear-gradient(145deg, #F7CF9B 0%, #E5B070 100%);
+    border-color: #ffffff;
+    transform: scale(1.2);
+    animation: block-marker-pulse 2s ease-out infinite, block-marker-glow 1.5s ease-in-out infinite;
+    box-shadow: 0 6px 28px rgba(247, 207, 155, 0.4);
+}
+
+.block-marker-icon {
+    font-size: 14px;
+    font-weight: 800;
+    color: #ffffff;
+    font-family: 'Outfit', system-ui, sans-serif;
+    letter-spacing: -0.5px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.block-marker-pulse:hover .block-marker-icon {
+    color: #4B686C;
+    text-shadow: none;
+    transform: scale(1.1);
+}
+
+.block-marker-tooltip {
+    position: absolute;
+    left: calc(100% + 16px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    padding: 12px 18px;
+    border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(247, 207, 155, 0.5);
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%) translateX(-10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 9999;
+}
+
+.block-marker-pulse:hover + .block-marker-tooltip,
+.block-marker-container:hover .block-marker-tooltip {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}
+
+.block-marker-tooltip-icon {
+    background: linear-gradient(135deg, #4B686C 0%, #5a9aa8 100%);
+    padding: 8px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(75, 104, 108, 0.3);
+}
+
+.block-marker-tooltip-text {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #ffffff;
+    font-family: 'Outfit', system-ui, sans-serif;
+    letter-spacing: 0.3px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Outer glow ring that pulses */
+.block-marker-outer-ring {
+    position: absolute;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 2px solid rgba(247, 207, 155, 0.3);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.block-marker-pulse:hover ~ .block-marker-outer-ring {
+    opacity: 1;
+    animation: block-marker-pulse 2s ease-out infinite;
+}
+
+/* Faded state when another marker is hovered */
+.block-marker-container.faded {
+    opacity: 0.15;
+    pointer-events: none;
+    transform: scale(0.9);
+    filter: grayscale(0.5);
+    z-index: 0;
+}
+`;
+
+// Inject styles once
+if (typeof document !== 'undefined' && !document.getElementById('block-marker-styles')) {
+    const styleSheet = document.createElement('style');
+    styleSheet.id = 'block-marker-styles';
+    styleSheet.textContent = pulseStyles;
+    document.head.appendChild(styleSheet);
+}
+
+const BlockMarker: React.FC<BlockMarkerProps> = ({
+    position,
+    blockName,
+    onClick,
+    isHovered: _isHovered, // Reserved for future use
+    isOtherMarkerHovered,
+    onPointerOver,
+    onPointerOut
+}) => {
+    const groupRef = useRef<THREE.Group>(null);
+    const { camera } = useThree();
+
+    const hoverSound = useMemo(() => {
+        const audio = new Audio('/sounds/hover.mp3');
+        audio.volume = 0.4;
+        return audio;
+    }, []);
+
+    // Distance-responsive scaling for the marker
+    useFrame(() => {
+        if (!groupRef.current) return;
+
+        const markerWorldPos = new THREE.Vector3(...position);
+        const distance = camera.position.distanceTo(markerWorldPos);
+
+        // Scale based on distance: closer = smaller, further = larger
+        const baseDistance = 100;
+        const minScale = 0.6;
+        const maxScale = 2.0;
+        const scaleFactor = Math.max(minScale, Math.min(maxScale, distance / baseDistance));
+
+        groupRef.current.scale.setScalar(scaleFactor);
+    });
+
+    return (
+        <Billboard position={position}>
+            <group ref={groupRef}>
+                {/* HTML-based premium marker with CSS animations */}
+                <Html
+                    center
+                    style={{
+                        pointerEvents: 'auto',
+                        transform: 'translate(-50%, -50%)'
+                    }}
+                    zIndexRange={[100, 0]}
+                >
+                    <div
+                        className={`block-marker-container ${isOtherMarkerHovered ? 'faded' : ''}`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onClick();
+                        }}
+                        onMouseEnter={() => {
+                            try {
+                                hoverSound.currentTime = 0;
+                                hoverSound.play().catch(() => { });
+                            } catch (e) { }
+                            onPointerOver();
+                        }}
+                        onMouseLeave={onPointerOut}
+                    >
+                        {/* Main Pulse Circle */}
+                        <div className="block-marker-pulse">
+                            <span className="block-marker-icon">i</span>
+                        </div>
+
+                        {/* Tooltip */}
+                        <div className="block-marker-tooltip">
+                            <span className="block-marker-tooltip-text">{blockName}</span>
+                        </div>
+
+                        {/* Outer Glow Ring */}
+                        <div className="block-marker-outer-ring"></div>
+                    </div>
+                </Html>
+            </group>
+        </Billboard>
+    );
+};
 
 const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
     const meshRef = useRef<THREE.InstancedMesh>(null);
@@ -201,7 +464,13 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
     );
 };
 
-const BlockLabels = ({ block }: { block: DynamicEntity }) => {
+interface BlockLabelsProps {
+    block: DynamicEntity;
+    hoveredBlockId: string | null;
+    setHoveredBlockId: (id: string | null) => void;
+}
+
+const BlockLabels = ({ block, hoveredBlockId, setHoveredBlockId }: BlockLabelsProps) => {
     const props = block.props || {};
     const is20ft = props.container_type === '20ft';
     const containerLength = is20ft ? 6.058 : 12.192;
@@ -230,7 +499,7 @@ const BlockLabels = ({ block }: { block: DynamicEntity }) => {
     const maxStackHeight = containerHeight * maxLevels;
 
     // Calculate text and button height to stay above maximum container level
-    const textButtonHeight = maxStackHeight + 5; // 10 units above highest container
+    const textButtonHeight = maxStackHeight + 15; // 10 units above highest container
 
     // Blocks that should have labels at the bottom instead of top
     const isBottomLabel = block.id === 'trs_block_c' || block.id === 'trm_block_c' ||
@@ -324,93 +593,31 @@ const BlockLabels = ({ block }: { block: DynamicEntity }) => {
 
     return (
         <group ref={groupRef}>
-            {/* Terminal Name - Billboard at center of block (always facing camera) */}
+            {/* Block Marker - Interaction circle with hover tooltip */}
             {!isSelected && (
-                <Billboard position={[terminalLabelPos.x, terminalLabelPos.y, terminalLabelPos.z]}>
-                    <group>
-                        <Text
-                            fontSize={4}
-                            color="white"
-                            anchorX="center"
-                            anchorY="middle"
-                            outlineWidth={0.1}
-                            outlineColor="#000000"
-                        >
-                            {displayName}
-                        </Text>
-
-                        {/* Interactive Info Button with Hover Effects */}
-                        <group
-                            position={[displayName.length * 1.5, 0, 0]}
-                            scale={isHovered ? 2.5 : 1.5}
-                        >
-                            <mesh
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    const isReservePanelOpen = useUIStore.getState().activePanel === 'reserveContainers';
-                                    if (isReservePanelOpen) return;
-                                    setSelectedBlock(block.id);
-                                }}
-                                onPointerOver={(e) => {
-                                    e.stopPropagation();
-                                    const isReservePanelOpen = useUIStore.getState().activePanel === 'reserveContainers';
-                                    if (isReservePanelOpen) return;
-                                    document.body.style.cursor = 'pointer';
-                                    setIsHovered(true);
-                                }}
-                                onPointerOut={() => {
-                                    document.body.style.cursor = 'auto';
-                                    setIsHovered(false);
-                                }}
-                                renderOrder={999}
-                                frustumCulled={false}
-                            >
-                                <circleGeometry args={[1.5, 32]} />
-                                <meshBasicMaterial
-                                    color={isHovered ? "#4B686C" : "#4B686C"}
-                                    transparent
-                                    opacity={isHovered ? 1 : 0.9}
-                                    depthTest={false}
-                                />
-                            </mesh>
-
-                            {/* White Light Border Ring (always visible for better visibility) */}
-                            <mesh renderOrder={999} frustumCulled={false}>
-                                <ringGeometry args={[1.5, 1.7, 32]} />
-                                <meshBasicMaterial
-                                    color="#FFFFFF"
-                                    transparent
-                                    opacity={0.8}
-                                    depthTest={false}
-                                />
-                            </mesh>
-
-                            {/* Bright Yellow Border Ring on Hover */}
-                            {isHovered && (
-                                <mesh renderOrder={1000} frustumCulled={false}>
-                                    <ringGeometry args={[1.7, 2.1, 32]} />
-                                    <meshBasicMaterial
-                                        color="#F7CF9B"
-                                        transparent
-                                        opacity={1}
-                                        depthTest={false}
-                                    />
-                                </mesh>
-                            )}
-
-                            {/* Info icon (i) */}
-                            <mesh position={[0, 0, 0.01]} renderOrder={1001} frustumCulled={false}>
-                                <planeGeometry args={[0.8, 2]} />
-                                <meshBasicMaterial
-                                    color="white"
-                                    transparent
-                                    opacity={1}
-                                    depthTest={false}
-                                />
-                            </mesh>
-                        </group>
-                    </group>
-                </Billboard>
+                <BlockMarker
+                    position={[terminalLabelPos.x, terminalLabelPos.y, terminalLabelPos.z]}
+                    blockName={displayName}
+                    isHovered={isHovered}
+                    isOtherMarkerHovered={hoveredBlockId !== null && hoveredBlockId !== block.id}
+                    onClick={() => {
+                        const isReservePanelOpen = useUIStore.getState().activePanel === 'reserveContainers';
+                        if (isReservePanelOpen) return;
+                        setSelectedBlock(block.id);
+                    }}
+                    onPointerOver={() => {
+                        const isReservePanelOpen = useUIStore.getState().activePanel === 'reserveContainers';
+                        if (isReservePanelOpen) return;
+                        document.body.style.cursor = 'pointer';
+                        setIsHovered(true);
+                        setHoveredBlockId(block.id);
+                    }}
+                    onPointerOut={() => {
+                        document.body.style.cursor = 'auto';
+                        setIsHovered(false);
+                        setHoveredBlockId(null);
+                    }}
+                />
             )}
 
             {/* Row Labels */}
@@ -448,6 +655,15 @@ const BlockLabels = ({ block }: { block: DynamicEntity }) => {
 
 export default function IcdMarkings() {
     const layout = useStore((state) => state.layout);
+    const selectedBlock = useStore((state) => state.selectedBlock);
+    const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
+
+    // Reset hover state when block is deselected (closed)
+    useEffect(() => {
+        if (selectedBlock === null) {
+            setHoveredBlockId(null);
+        }
+    }, [selectedBlock]);
 
     const blocks = useMemo(() => {
         if (!layout) return [];
@@ -460,7 +676,12 @@ export default function IcdMarkings() {
         <group>
             <SlotMarkings blocks={blocks} />
             {blocks.map(block => (
-                <BlockLabels key={block.id} block={block} />
+                <BlockLabels
+                    key={block.id}
+                    block={block}
+                    hoveredBlockId={hoveredBlockId}
+                    setHoveredBlockId={setHoveredBlockId}
+                />
             ))}
         </group>
     );

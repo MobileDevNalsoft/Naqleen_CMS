@@ -25,6 +25,7 @@ export interface ContainerDetailsResponse {
     booking_id: string | null;
     container_stored_time: string | null;
     shipment_name: string | null;
+    plug_in_status?: string | null;
 }
 
 export interface RecommendedContainersResponse {

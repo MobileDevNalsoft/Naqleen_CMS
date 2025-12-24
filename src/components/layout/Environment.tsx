@@ -397,9 +397,9 @@ export default function Environment() {
                 {/* Matches fence dimensions: Width 400, Depth 185 */}
                 <planeGeometry args={[400, 185]} />
                 <meshStandardMaterial
-                    color="#5A6C7D"
-                    roughness={0.8}
-                    metalness={0.08}
+                    color="#3A4A5A"
+                    roughness={0.85}
+                    metalness={0.05}
                 />
                 {/* Yard Border */}
                 <lineSegments position={[0, 0, 0.01]}>
