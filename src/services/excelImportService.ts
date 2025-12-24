@@ -66,11 +66,8 @@ export const parseInventoryExcel = async (file: File): Promise<InventoryPayloadI
                 };
 
                 const customer = getCellValue('B1') || '';
-                const email = getCellValue('D1') || ''; // Not currently in payload but good to have
-                const contact = getCellValue('F1') || ''; // Not currently in payload
                 const containerNbr = getCellValue('B2') || '';
                 const shipmentNbr = getCellValue('D2') || '';
-                const terminal = getCellValue('F2') || ''; // Not currently in payload
 
                 // 2. Parse Items Table
                 // Table headers are at Row 3 (Index 2). Data starts at Row 4 (Index 3).

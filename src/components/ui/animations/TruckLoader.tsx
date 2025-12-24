@@ -1,5 +1,5 @@
 
-import React from 'react';
+
 
 interface TruckLoaderProps {
     /** Custom message to display (default: "LOADING TRUCKS") */

@@ -1,4 +1,4 @@
-import { BarChart3, PieChart, Activity, Users, Box, TrendingUp } from 'lucide-react';
+import { PieChart } from 'lucide-react';
 
 export default function Dashboard() {
     return (
@@ -44,40 +44,7 @@ export default function Dashboard() {
     );
 }
 
-function KpiCard({ title, value, change, icon }: { title: string, value: string, change: string, icon: any }) {
-    const isPositive = change.startsWith('+');
-    return (
-        <div style={{
-            background: 'white',
-            borderRadius: '16px',
-            padding: '24px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px'
-        }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                <div style={{ padding: '12px', background: '#f1f5f9', borderRadius: '12px' }}>
-                    {icon}
-                </div>
-                <span style={{
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: isPositive ? '#10b981' : '#ef4444',
-                    background: isPositive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                    padding: '4px 8px',
-                    borderRadius: '20px'
-                }}>
-                    {change}
-                </span>
-            </div>
-            <div>
-                <div style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>{title}</div>
-                <div style={{ fontSize: '32px', fontWeight: '700', color: '#0f172a', marginTop: '4px' }}>{value}</div>
-            </div>
-        </div>
-    );
-}
+
 
 function ChartCard({ title, children }: { title: string, children: any }) {
     return (

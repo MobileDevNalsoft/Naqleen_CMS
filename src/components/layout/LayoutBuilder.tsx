@@ -181,7 +181,7 @@ const Terminal: React.FC<{ terminal: TerminalData; isDimmed: boolean }> = ({ ter
         }
     }, [terminal]);
 
-    useFrame((state, delta) => {
+    useFrame((_, delta) => {
         if (materialRef.current) {
             // Opacity Animation (Ghost Mode)
             const targetOpacity = isDimmed ? 0.1 : config.opacity;
@@ -237,7 +237,7 @@ const LayoutBuilder: React.FC = () => {
             }
         };
 
-        flattenTerminals(layoutData.terminals);
+        flattenTerminals(layoutData.entities);
 
         return { terminals: allTerminals, blocks };
     }, [layoutData]);

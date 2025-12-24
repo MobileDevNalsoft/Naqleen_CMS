@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Eye, X, MoreHorizontal, Grid3x3, MapPin, ClipboardList, PackageOpen, Truck, Power, ArrowRightLeft, ShieldCheck, LayoutList } from 'lucide-react';
+import { Zap, Eye, X, MoreHorizontal, Grid3x3, MapPin, ClipboardList, Truck, ArrowRightLeft, ShieldCheck } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 
 interface QuickActionsButtonProps { }

@@ -5,7 +5,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useStore } from '../../store/store';
 import { useUIStore } from '../../store/uiStore';
 import { type DynamicEntity, getAllDynamicBlocks } from '../../utils/layoutUtils';
-import { Layers } from 'lucide-react';
+
 
 // Block Marker Component - Premium pulsing annotation with hover tooltip
 interface BlockMarkerProps {

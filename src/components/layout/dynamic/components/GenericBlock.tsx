@@ -13,7 +13,7 @@ interface GenericBlockProps {
     color?: string; // Optional override
 }
 
-const GenericBlock: React.FC<GenericBlockProps> = ({ id, position, rotation, dimensions, corner_points, isSelected, color }) => {
+const GenericBlock: React.FC<GenericBlockProps> = ({ id: _id, position, rotation, dimensions, corner_points, isSelected, color: _color }) => {
     const meshRef = useRef<THREE.Mesh>(null);
     const materialRef = useRef<THREE.ShaderMaterial>(null);
 

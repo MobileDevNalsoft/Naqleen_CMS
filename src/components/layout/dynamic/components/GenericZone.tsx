@@ -17,7 +17,7 @@ interface GenericZoneProps {
 }
 
 const GenericZone: React.FC<GenericZoneProps> = ({
-    id,
+    id: _id,
     type,
     position,
     rotation,
@@ -51,7 +51,7 @@ const GenericZone: React.FC<GenericZoneProps> = ({
         }
     }, [corner_points, dimensions, position]);
 
-    useFrame((state, delta) => {
+    useFrame((_, delta) => {
         if (materialRef.current) {
             // Opacity Animation (Ghost Mode)
             const targetOpacity = isDimmed ? 0.1 : opacity;

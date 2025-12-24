@@ -29,7 +29,7 @@ const warehouseRoofGeometry = new THREE.ExtrudeGeometry(roofShape, {
     bevelEnabled: false
 });
 
-const hillGeometry = new THREE.SphereGeometry(10, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+// const hillGeometry = new THREE.SphereGeometry(10, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
 
 // --- Shared Materials ---
 // --- Shared Materials ---
@@ -55,10 +55,10 @@ const warehouseMaterials = warehouseColors.map(color =>
 );
 
 // Pre-create hill materials
-const hillColors = ['#8C8474', '#787265', '#6B6558', '#948D7F']; // Dusty earth tones
-const hillMaterials = hillColors.map(color =>
-    new THREE.MeshStandardMaterial({ color, roughness: 1, flatShading: true })
-);
+// const hillColors = ['#8C8474', '#787265', '#6B6558', '#948D7F']; // Dusty earth tones
+// const hillMaterials = hillColors.map(color =>
+//     new THREE.MeshStandardMaterial({ color, roughness: 1, flatShading: true })
+// );
 
 
 // More realistic tree with better proportions and wind animation
@@ -133,18 +133,19 @@ const Warehouse = ({ position, rotation = 0, colorIndex = 0 }: { position: [numb
 
 // Smooth rolling hill matching reference
 // Dusty Mound / Debris Pile instead of Green Hill
-const Hill = ({ position, scale = 1, colorIndex = 0 }: { position: [number, number, number]; scale?: number; colorIndex?: number }) => {
-    return (
-        <mesh
-            position={position}
-            scale={[scale, scale * 0.5, scale]} // Flatter, more spread out
-            receiveShadow
-            castShadow
-            geometry={hillGeometry}
-            material={hillMaterials[colorIndex % hillMaterials.length]}
-        />
-    );
-};
+// Commented out as currently unused - uncomment if hills are re-enabled
+// const _Hill = ({ position, scale = 1, colorIndex = 0 }: { position: [number, number, number]; scale?: number; colorIndex?: number }) => {
+//     return (
+//         <mesh
+//             position={position}
+//             scale={[scale, scale * 0.5, scale]} // Flatter, more spread out
+//             receiveShadow
+//             castShadow
+//             geometry={hillGeometry}
+//             material={hillMaterials[colorIndex % hillMaterials.length]}
+//         />
+//     );
+// };
 
 // Helper function to calculate terrain height at a given x, z position
 // This ensures that objects (trees, warehouses) are placed on the ground
@@ -173,7 +174,7 @@ const getTerrainHeight = (x: number, z: number) => {
 };
 
 export default function Environment() {
-    const { scene } = useThree();
+    useThree();
     const terrainRef = useRef<THREE.Mesh>(null);
     const dragStart = useRef({ x: 0, y: 0 });
 
@@ -282,23 +283,23 @@ export default function Environment() {
             });
         }
 
-        // Hills with natural sand and desert tones
-        for (let i = 0; i < 35; i++) {
-            const angle = (Math.random() * Math.PI * 2);
-            const radius = 350 + Math.random() * 350;
+        // Hills with natural sand and desert tones (disabled)
+        // for (let i = 0; i < 35; i++) {
+        //     const angle = (Math.random() * Math.PI * 2);
+        //     const radius = 350 + Math.random() * 350;
 
-            const x = Math.cos(angle) * radius;
-            const z = Math.sin(angle) * radius;
-            // Sink hills slightly into the terrain so they look like peaks emerging
-            const y = getTerrainHeight(x, z) - 2;
+        //     const x = Math.cos(angle) * radius;
+        //     const z = Math.sin(angle) * radius;
+        //     // Sink hills slightly into the terrain so they look like peaks emerging
+        //     const y = getTerrainHeight(x, z) - 2;
 
-            items.push({
-                type: 'hill',
-                position: [x, y, z] as [number, number, number],
-                scale: 2.5 + Math.random() * 5,
-                colorIndex: Math.floor(Math.random() * hillColors.length),
-            });
-        }
+        //     items.push({
+        //         type: 'hill',
+        //         position: [x, y, z] as [number, number, number],
+        //         scale: 2.5 + Math.random() * 5,
+        //         colorIndex: Math.floor(Math.random() * hillColors.length),
+        //     });
+        // }
 
         return items;
     }, []);

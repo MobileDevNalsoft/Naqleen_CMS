@@ -773,7 +773,7 @@ export default function ReserveContainersPanel({ isOpen, onClose }: ReserveConta
     const [isBulkSwapMode, setIsBulkSwapMode] = useState(false);
     const [swapSource, setSwapSource] = useState<'recommended' | 'reserved'>('recommended');
 
-    const setReserveContainers = useStore(state => ((state as any).setReserveContainers)); // Cast for now until typed properly if needed, or if Typescript picks it up auto from store.ts update we are good. Actually let's assume store is updated
+
 
 
     // -- Search State within Tabs --

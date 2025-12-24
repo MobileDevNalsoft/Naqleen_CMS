@@ -479,7 +479,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         }
     };
 
-    const handlePointerOut = (e: any) => {
+    const handlePointerOut = () => {
         // e.stopPropagation();
         if (hoverId) {
             setHoverId(null);

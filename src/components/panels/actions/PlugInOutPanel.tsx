@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { History, Save, Power, Space, Check, ChevronsRight } from 'lucide-react';
+import { History, Save, Power } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import PanelLayout from '../PanelLayout';
 import { useUIStore } from '../../../store/uiStore';
@@ -108,7 +108,7 @@ export default function PlugInOutPanel({ isOpen, onClose }: PlugInOutPanelProps)
 
     const { mutate: saveReeferStatus, isPending } = useMutation({
         mutationFn: yardApi.postPlugInOutContainer,
-        onSuccess: (data, variables) => {
+        onSuccess: (_, variables) => {
             showToast('success', 'Reefer status updated successfully');
             queryClient.invalidateQueries({ queryKey: ['reeferDetails', containerId] });
 
