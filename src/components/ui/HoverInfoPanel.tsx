@@ -12,9 +12,9 @@ export default function HoverInfoPanel() {
 
     useEffect(() => {
         const source = useStore.getState().hoverSource;
-        const isReserveOpen = useUIStore.getState().activePanel === 'reserveContainers';
 
-        if (hoverId && source !== 'panel' && !isReserveOpen) {
+        // Hide hover info if ANY action panel is open
+        if (hoverId && source !== 'panel' && !activePanel) {
             // Kill existing animation if any
             if (timelineRef.current) timelineRef.current.kill();
 

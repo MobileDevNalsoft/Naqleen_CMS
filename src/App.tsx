@@ -24,12 +24,14 @@ import DestuffingPanel from './components/panels/actions/DestuffingPanel';
 import PlugInOutPanel from './components/panels/actions/PlugInOutPanel';
 import CFSTaskAssignmentPanel from './components/panels/actions/CFSTaskAssignmentPanel';
 import PositionContainerPanel from './components/panels/actions/PositionContainerPanel';
+import RestackContainersPanel from './components/panels/actions/RestackContainersPanel';
 import Dashboard from './components/ui/Dashboard';
 import Containers from './components/layout/Containers';
 import CustomerInventoryPanel from './components/panels/actions/CustomerInventoryPanel';
 import ReserveContainersPanel from './components/panels/actions/ReserveContainersPanel';
 import ReleaseContainerPanel from './components/panels/actions/ReleaseContainerPanel';
 import SwapConnectionLines from './components/layout/SwapConnectionLines';
+import GhostContainer from './components/layout/GhostContainer';
 import ToastContainer from './components/ui/Toast';
 
 const App = () => {
@@ -93,7 +95,10 @@ const App = () => {
   useEffect(() => {
     if (activePanel) {
       // When a panel opens, clear selection
-      setSelectId(null);
+      // EXCEPT for 'restack' panel - we want to preserve selectId so Container Details can reappear
+      if (activePanel !== 'restack') {
+        setSelectId(null);
+      }
       setSelectedBlock(null);
     }
   }, [activePanel, setSelectId, setSelectedBlock]);
@@ -178,6 +183,15 @@ const App = () => {
           >
             <color attach="background" args={['#E6F4F1']} />
 
+            {/* Enhanced Lighting */}
+            <ambientLight intensity={0.7} />
+            <directionalLight
+              position={[100, 200, 100]}
+              intensity={1.5}
+              castShadow
+              shadow-mapSize-width={2048}
+              shadow-mapSize-height={2048}
+            />
             <Environment />
             <DynamicLayoutEngine />
             <IcdMarkings />
@@ -188,6 +202,7 @@ const App = () => {
               onReady={() => setSceneReady(true)}
             />
             <SwapConnectionLines />
+            <GhostContainer />
 
             <CameraTransition isLoading={showLoadingScreen} controlsRef={controlsRef} />
 
@@ -214,6 +229,7 @@ const App = () => {
           <ContainerDetailsPanel />
           <BlockDetailsPanel />
           <PositionContainerPanel isOpen={activePanel === 'position'} onClose={closePanel} />
+          <RestackContainersPanel isOpen={activePanel === 'restack'} onClose={closePanel} />
           <GateInPanel isOpen={activePanel === 'gateIn'} onClose={closePanel} />
           <GateOutPanel isOpen={activePanel === 'gateOut'} onClose={closePanel} />
           <StuffingPanel isOpen={activePanel === 'stuffing'} onClose={closePanel} />

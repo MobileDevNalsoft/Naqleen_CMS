@@ -21,8 +21,8 @@ export interface GateCustomer {
 export interface GateCustomerShipments {
     shipmentNbr: string;
     shipmentName?: string;
-    containerNbr?: string;
     containerType?: string;
+    containerNbr?: string;
 }
 
 export interface GateInRequest {
@@ -32,6 +32,11 @@ export interface GateInRequest {
     truck_type: string;
     container_nbr: string;
     documents: GateDocument[];
+    // Optional fields for CRO/LRO flow
+    customer_nbr?: string;
+    customer_name?: string;
+    booking_id?: string;
+    order_type?: string;
 }
 
 export interface GateDocument {
@@ -45,15 +50,29 @@ export interface TruckDetailsApiResponse {
     truck_nbr: string;
     driver_name: string;
     driver_iqama_nbr: string;
+    driver_iqama: string;
     truck_type: string;
     shipment_name: string;
     shipment_nbr: string;
     container_nbr: string;
     container_type: string;
     otm_order_nbr: string;
+    order_nbr:string
     customer_name: string;
     customer_list?: Array<{
         customer_nbr: string;
         customer_name: string;
     }>;
+}
+
+// Gate Out Types
+export interface GateOutRequest {
+    shipment_nbr: string;
+    truck_nbr: string;
+}
+
+// Booking Shipments Response (includes order_type for CRO/LRO detection)
+export interface BookingShipmentsResponse {
+    shipments: GateCustomerShipments[];
+    orderType: string | null;
 }

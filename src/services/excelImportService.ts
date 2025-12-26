@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 export interface ExcelImportRow {
     // Define expected columns from Excel based on "Customer Inventory CSV.xlsx"
@@ -41,81 +41,98 @@ export interface InventoryPayloadItem {
 }
 
 export const parseInventoryExcel = async (file: File): Promise<InventoryPayloadItem[]> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(arrayBuffer);
 
-        reader.onload = (e) => {
-            try {
-                const data = e.target?.result;
-                const workbook = XLSX.read(data, { type: 'binary' });
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+        throw new Error('No worksheet found in the Excel file');
+    }
 
-                // 1. Parse Header Info (Cells)
-                // Access specific cells. Note: xlsx uses A1 notation. 0-indexed r,c is handled by utility or address decoding.
-                // B1 (0,1) -> Customer
-                // D1 (0,3) -> Email
-                // F1 (0,5) -> Contact
-                // B2 (1,1) -> Container No
-                // D2 (1,3) -> OTM Shipment No
-                // F2 (1,5) -> Terminal
+    // Helper to get cell value
+    const getCellValue = (row: number, col: number): string => {
+        const cell = worksheet.getCell(row, col);
+        const value = cell.value;
+        if (value === null || value === undefined) return '';
+        if (typeof value === 'object' && 'text' in value) return String(value.text);
+        if (typeof value === 'object' && 'result' in value) return String(value.result);
+        return String(value);
+    };
 
-                const getCellValue = (cellAddress: string) => {
-                    const cell = sheet[cellAddress];
-                    return cell ? cell.v : '';
-                };
+    // 1. Parse Header Info (Cells)
+    // B1 -> Customer
+    // D1 -> Email (not used)
+    // F1 -> Contact (not used)
+    // B2 -> Container No
+    // D2 -> OTM Shipment No
+    // F2 -> Terminal (not used)
+    const customer = getCellValue(1, 2); // B1
+    const containerNbr = getCellValue(2, 2); // B2
+    const shipmentNbr = getCellValue(2, 4); // D2
 
-                const customer = getCellValue('B1') || '';
-                const email = getCellValue('D1') || ''; // Not currently in payload but good to have
-                const contact = getCellValue('F1') || ''; // Not currently in payload
-                const containerNbr = getCellValue('B2') || '';
-                const shipmentNbr = getCellValue('D2') || '';
-                const terminal = getCellValue('F2') || ''; // Not currently in payload
+    // 2. Parse Items Table
+    // Table headers are at Row 3. Data starts at Row 4.
+    // Get headers from row 3
+    const headerRow = worksheet.getRow(3);
+    const headers: string[] = [];
+    headerRow.eachCell((cell, colNumber) => {
+        headers[colNumber] = String(cell.value || '').trim();
+    });
 
-                // 2. Parse Items Table
-                // Table headers are at Row 3 (Index 2). Data starts at Row 4 (Index 3).
-                // We use sheet_to_json with 'range' option to skip top rows.
-                // range: 2 means start at row index 2 (Row 3 in Excel) which is the header row.
+    // Build column index map
+    const colIndex: Record<string, number> = {};
+    headers.forEach((header, idx) => {
+        if (header) colIndex[header] = idx;
+    });
 
-                const rawItems = XLSX.utils.sheet_to_json<any>(sheet, { range: 2 });
+    // Parse data rows starting from row 4
+    const payloadItems: InventoryPayloadItem[] = [];
+    const rowCount = worksheet.rowCount;
 
-                const payloadItems: InventoryPayloadItem[] = rawItems.map((row: any) => {
-                    // Map columns based on the "Row 3" headers seen in image:
-                    // S.NO, HS Code, Description, Qty, UOM, Weight, Weight UOM, Volume, Volume UOM, Country Of Origin
+    for (let rowNum = 4; rowNum <= rowCount; rowNum++) {
+        const row = worksheet.getRow(rowNum);
 
-                    return {
-                        customer: customer,
-                        customer_nbr: '',
-                        container_nbr: containerNbr,
-                        shipment_nbr: shipmentNbr,
+        // Skip empty rows
+        if (!row.hasValues) continue;
 
-                        item_description: row['Description'] || '',
-                        cargo_description: row['Description'] || '', // Fallback
-                        hs_code: row['HS Code'] || '',
-                        gross_weight: parseFloat(row['Weight'] || 0) || 0,
-                        net_weight: 0, // Not in Excel
-                        weight_uom: row['Weight UOM'] || 'KGM',
-                        volume: parseFloat(row['Volume'] || 0) || 0,
-                        volume_uom: row['Volume UOM'] || 'M3',
-                        un_class: 'N/A', // Not in Excel
-                        country_of_origin: row['Country Of Origin'] || '',
-                        quantity: parseFloat(row['Qty'] || 0) || 0,
-                        quantity_uom: row['UOM'] || 'EA',
-                        rcvd_qty: parseFloat(row['Qty'] || 0) || 0,
-                    };
-                });
-
-                // Filter out empty rows (e.g. if S.NO is missing or HS Code is missing)
-                const validItems = payloadItems.filter(item => item.hs_code || item.item_description);
-
-                resolve(validItems);
-
-            } catch (error) {
-                reject(error);
-            }
+        const getRowValue = (headerName: string): string => {
+            const col = colIndex[headerName];
+            if (!col) return '';
+            const cell = row.getCell(col);
+            const value = cell.value;
+            if (value === null || value === undefined) return '';
+            if (typeof value === 'object' && 'text' in value) return String(value.text);
+            if (typeof value === 'object' && 'result' in value) return String(value.result);
+            return String(value);
         };
 
-        reader.onerror = (error) => reject(error);
-        reader.readAsBinaryString(file);
-    });
+        const description = getRowValue('Description');
+        const hsCode = getRowValue('HS Code');
+
+        // Skip rows without HS Code or Description
+        if (!hsCode && !description) continue;
+
+        payloadItems.push({
+            customer: customer,
+            customer_nbr: '',
+            container_nbr: containerNbr,
+            shipment_nbr: shipmentNbr,
+            item_description: description,
+            cargo_description: description, // Fallback
+            hs_code: hsCode,
+            gross_weight: parseFloat(getRowValue('Weight')) || 0,
+            net_weight: 0, // Not in Excel
+            weight_uom: getRowValue('Weight UOM') || 'KGM',
+            volume: parseFloat(getRowValue('Volume')) || 0,
+            volume_uom: getRowValue('Volume UOM') || 'M3',
+            un_class: 'N/A', // Not in Excel
+            country_of_origin: getRowValue('Country Of Origin'),
+            quantity: parseFloat(getRowValue('Qty')) || 0,
+            quantity_uom: getRowValue('UOM') || 'EA',
+            rcvd_qty: parseFloat(getRowValue('Qty')) || 0,
+        });
+    }
+
+    return payloadItems;
 };

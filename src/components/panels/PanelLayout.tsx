@@ -1,37 +1,48 @@
 import React, { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Maximize2, Minimize2 } from 'lucide-react';
 
 interface PanelLayoutProps {
     title: string;
     category?: string;
     titleBadge?: React.ReactNode;
+    subtitle?: React.ReactNode; // New prop for subtitle/badge below title
     isOpen: boolean;
     onClose: () => void;
     children: React.ReactNode;
     footerActions?: React.ReactNode;
     headerActions?: React.ReactNode;
     width?: string;
+    allowExpansion?: boolean;
+    fitContent?: boolean; // If true, panel height fits content instead of full height
 }
 
 export default function PanelLayout({
     title,
     category = 'ACTION',
     titleBadge,
+    subtitle,
     isOpen,
     onClose,
     children,
     footerActions,
     headerActions,
-    width = '420px'
+    width = '420px',
+    allowExpansion = false,
+    fitContent = false
 }: PanelLayoutProps) {
     const [isVisible, setIsVisible] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             setIsVisible(true);
         } else {
             const timer = setTimeout(() => setIsVisible(false), 400);
-            return () => clearTimeout(timer);
+            const expandTimer = setTimeout(() => setIsExpanded(false), 400); // Reset expansion on close
+            return () => {
+                clearTimeout(timer);
+                clearTimeout(expandTimer);
+            };
         }
     }, [isOpen]);
 
@@ -41,10 +52,12 @@ export default function PanelLayout({
         <div
             style={{
                 position: 'fixed',
-                top: '90px',
+                top: isExpanded ? '90px' : '90px',
                 right: '24px',
-                width: width,
-                maxHeight: 'calc(100vh - 114px)',
+                width: isExpanded ? '900px' : width,
+                maxWidth: 'calc(100vw - 48px)', // Prevent overflow on small screens
+                height: fitContent ? 'auto' : (isExpanded ? 'calc(100vh - 114px)' : 'calc(100vh - 114px)'),
+                maxHeight: fitContent ? 'calc(100vh - 114px)' : undefined,
                 backgroundColor: 'rgba(253, 246, 235, 0.95)',
                 backdropFilter: 'blur(24px) saturate(180%)',
                 borderRadius: '24px',
@@ -54,10 +67,11 @@ export default function PanelLayout({
                 color: '#1e293b',
                 display: 'flex',
                 flexDirection: 'column',
-                transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease',
+                transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
                 transform: isOpen ? 'translateX(0)' : 'translateX(120%)',
                 opacity: isOpen ? 1 : 0,
-                overflow: 'hidden'
+                overflow: 'hidden',
+                pointerEvents: isOpen ? 'auto' : 'none' // Prevent interaction when closing/closed
             }}
         >
             {/* Header Section */}
@@ -101,9 +115,52 @@ export default function PanelLayout({
                             </h2>
                             {titleBadge}
                         </div>
+                        {subtitle && (
+                            <div style={{ marginTop: '8px' }}>
+                                {subtitle}
+                            </div>
+                        )}
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         {headerActions}
+
+                        {/* Expand/Collapse Button - Only shown if allowed (e.g. for ReserveContainersPanel) */}
+                        {allowExpansion && (
+                            <button
+                                onClick={() => setIsExpanded(!isExpanded)}
+                                style={{
+                                    background: 'rgba(255, 255, 255, 0.1)',
+                                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                                    borderRadius: '50%',
+                                    width: '36px',
+                                    height: '36px',
+                                    minWidth: '36px',
+                                    minHeight: '36px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    padding: '0',
+                                    margin: '0',
+                                    color: 'rgba(255, 255, 255, 0.8)'
+                                }}
+                                onMouseEnter={e => {
+                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                                    e.currentTarget.style.transform = 'scale(1.1)';
+                                    e.currentTarget.style.color = 'white';
+                                }}
+                                onMouseLeave={e => {
+                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                    e.currentTarget.style.transform = 'scale(1)';
+                                    e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+                                }}
+                                title={isExpanded ? "Restore" : "Maximize"}
+                            >
+                                {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                            </button>
+                        )}
+
                         <button
                             onClick={onClose}
                             style={{
@@ -143,7 +200,7 @@ export default function PanelLayout({
             {/* Content */}
             <div style={{
                 flex: 1,
-                overflowY: 'auto',
+                overflowY: 'auto', // Changed to auto to enable scrolling
                 padding: '24px',
                 display: 'flex',
                 flexDirection: 'column',

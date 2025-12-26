@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Truck, MapPin, FileText, Ship, Package, X, Check, ChevronsRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useStore } from '../../../store/store';
+import { useUIStore } from '../../../store/uiStore';
 import { getContainerDetails } from '../../../api';
+import ContainerLoader from '../../ui/animations/ContainerLoader';
 
 // Helper function to parse blockId into terminal and block
 const parseBlockId = (blockId?: string): { terminal: string; block: string } => {
@@ -20,9 +22,18 @@ const parseBlockId = (blockId?: string): { terminal: string; block: string } => 
 };
 
 // Helper function to convert row index to letter (A-K)
-const rowIndexToLetter = (rowIndex?: number): string => {
+// Blocks B and D have reversed row labeling (row 0 = K, row 10 = A)
+const rowIndexToLetter = (rowIndex?: number, blockId?: string, totalRows: number = 11): string => {
     if (rowIndex === undefined || rowIndex < 0 || rowIndex > 26) return '--';
-    return String.fromCharCode(65 + rowIndex); // 65 = 'A' in ASCII
+
+    // Extract block letter from block ID (e.g., 'trs_block_b' -> 'B')
+    const blockLetter = blockId?.match(/block_([a-d])/i)?.[1]?.toUpperCase() || '';
+    const shouldReverse = blockLetter === 'B' || blockLetter === 'D';
+
+    // Apply reversal: if row 0 and shouldReverse, use (totalRows - 1) index
+    const labelIndex = shouldReverse ? (totalRows - 1 - rowIndex) : rowIndex;
+
+    return String.fromCharCode(65 + labelIndex); // 65 = 'A' in ASCII
 };
 
 export default function ContainerDetailsPanel() {
@@ -46,13 +57,17 @@ export default function ContainerDetailsPanel() {
         staleTime: 60000 // Cache for 1 min
     });
 
+    const openPanel = useUIStore(state => state.openPanel);
+    const activePanel = useUIStore(state => state.activePanel);
+
     useEffect(() => {
-        if (selectId) {
+        // Show details only if a container is selected AND no other action panel is open
+        if (selectId && !activePanel) {
             setIsVisible(true);
         } else {
             setIsVisible(false);
         }
-    }, [selectId]);
+    }, [selectId, activePanel]);
 
     // ... (existing useEffects)
 
@@ -65,6 +80,26 @@ export default function ContainerDetailsPanel() {
             // Reset camera to main view when container panel is closed
             window.dispatchEvent(new CustomEvent('resetCameraToInitial'));
         }, 300);
+    };
+
+    const handleRestack = () => {
+        if (selectId && selectedContainer) {
+            // Build current position from 3D entity data
+            const terminal = selectedContainer.terminal || parseBlockId(selectedContainer.blockId).terminal;
+            const block = selectedContainer.block || parseBlockId(selectedContainer.blockId).block;
+            const lotVal = selectedContainer.lot !== undefined ? String(selectedContainer.lot) : '';
+            const rowVal = rowIndexToLetter(selectedContainer.row, selectedContainer.blockId);
+            const levelVal = selectedContainer.level !== undefined ? String(selectedContainer.level) : '';
+            const currentPos = `${terminal}-${block}-${lotVal}-${rowVal}-${levelVal}`;
+
+            // Opening the panel will set activePanel='restack', which the useEffect watches
+            // and will automatically hide this details panel
+            openPanel('restack', {
+                containerId: selectId,
+                currentPosition: currentPos,
+                containerType: containerType
+            });
+        }
     };
 
     // Combine 3D position data (selectedContainer) with fetched details
@@ -149,15 +184,15 @@ export default function ContainerDetailsPanel() {
                         </span>
                         <div style={{ width: '1px', height: '10px', background: 'rgba(255,255,255,0.3)' }} />
                         <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
-                            Lot {selectedContainer?.lot !== undefined ? String(selectedContainer.lot + 1) : '--'}
+                            Lot {selectedContainer?.lot !== undefined ? String(selectedContainer.lot) : '--'}
                         </span>
                         <div style={{ width: '1px', height: '10px', background: 'rgba(255,255,255,0.3)' }} />
                         <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
-                            Row {rowIndexToLetter(selectedContainer?.row)}
+                            Row {rowIndexToLetter(selectedContainer?.row, selectedContainer?.blockId)}
                         </span>
                         <div style={{ width: '1px', height: '10px', background: 'rgba(255,255,255,0.3)' }} />
                         <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
-                            Level {selectedContainer?.level !== undefined ? String(selectedContainer.level + 1) : '--'}
+                            Level {selectedContainer?.level !== undefined ? String(selectedContainer.level) : '--'}
                         </span>
                     </div>
                 </div>
@@ -277,11 +312,7 @@ export default function ContainerDetailsPanel() {
             <div style={{ padding: '16px 24px 24px 24px', flex: 1, overflowY: 'auto' }} className="custom-scrollbar">
                 {activeTab === 'details' && (
                     isLoading ? (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: '#64748b', gap: '8px' }}>
-                            <div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid #cbd5e1', borderTopColor: 'var(--primary-color)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                            <span style={{ fontSize: '13px' }}>Loading details...</span>
-                            <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-                        </div>
+                        <ContainerLoader />
                     ) : !details ? (
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: '#94a3b8', fontSize: '13px' }}>
                             Container details not available
@@ -392,7 +423,7 @@ export default function ContainerDetailsPanel() {
                 backdropFilter: 'blur(16px)',
                 boxShadow: 'inset 0 1px 0 rgba(247, 207, 155, 0.3), 0 -4px 12px rgba(0, 0, 0, 0.05)'
             }}>
-                <ActionButton icon={<Truck size={16} />} label="Restack" primary />
+                <ActionButton icon={<Truck size={16} />} label="Restack" primary onClick={handleRestack} />
                 <ActionButton icon={<Package size={16} />} label="Release" />
             </div>
         </div>
@@ -504,7 +535,7 @@ const LifecycleStage = ({ date, time, title, details, status, isLast }: {
     );
 };
 
-const ActionButton = ({ icon, label, primary, danger }: { icon: React.ReactNode, label: string, primary?: boolean, danger?: boolean }) => {
+const ActionButton = ({ icon, label, primary, danger, onClick }: { icon: React.ReactNode, label: string, primary?: boolean, danger?: boolean, onClick?: () => void }) => {
     let bg = 'white';
     let color = '#1e293b';
     let border = '1px solid rgba(0, 0, 0, 0.1)';
@@ -520,22 +551,24 @@ const ActionButton = ({ icon, label, primary, danger }: { icon: React.ReactNode,
     }
 
     return (
-        <button style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            padding: '10px',
-            borderRadius: '8px',
-            background: bg,
-            color: color,
-            border: border,
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            boxShadow: primary ? '0 4px 12px rgba(75, 104, 108, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)'
-        }}
+        <button
+            onClick={onClick}
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '10px',
+                borderRadius: '8px',
+                background: bg,
+                color: color,
+                border: border,
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: primary ? '0 4px 12px rgba(75, 104, 108, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)'
+            }}
             onMouseEnter={e => {
                 if (!primary && !danger) e.currentTarget.style.background = 'rgba(0, 0, 0, 0.02)';
                 e.currentTarget.style.transform = 'translateY(-1px)';

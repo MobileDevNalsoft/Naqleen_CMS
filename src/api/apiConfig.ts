@@ -23,15 +23,27 @@ export const API_CONFIG = {
         GATE_IN_TRUCKS: '/gateInTrucks',
         GATE_IN_TRUCK_DETAILS: '/gateInTruckDetails',
         CUSTOMER_SHIPMENTS: '/customerShipments',
+        CUSTOMER_BOOKINGS: '/getCustomerBookings',
+        BOOKING_SHIPMENTS: '/getBookingShipments',
         SHIPMENT_DETAILS: '/shipmentDetails',
         SUBMIT_GATE_IN: '/submitGateIn',
+        // Gate Out endpoints
+        GATE_OUT_TRUCKS: '/gateOutTrucks',
+        GATE_OUT_TRUCK_DETAILS: '/gateOutTruckDetails',
+        SUBMIT_GATE_OUT: '/submitGateOut',
         // Reservation endpoints
         POST_RESERVATION_CONTAINERS: '/postReservationContainers',
         DELETE_RESERVATION_CONTAINERS: '/deleteReservationContainers',
         SWAP_RESERVATION_CONTAINERS: '/swapReservationContainers',
         // Release Container endpoints
-        RELEASE_CONTAINER_TRUCK_SUGGESTIONS: '/releaseContainerTruckSuggestions',
+        RELEASE_CONTAINER_TRUCKS: '/getReleaseContainerTrucks',
         RELEASE_CONTAINER_TRUCK_DETAILS: '/releaseContainerTruckDetails',
         SUBMIT_RELEASE_CONTAINER: '/submitReleaseContainer',
+        // Yard endpoints
+        positionTrucksEndpoint: '/positionTrucks',
+        positionTruckDetails: '/positionTruckDetails',
+        getAvailablePositionLov: '/getAvailablePositionLov',
+        submitContainerPosition: '/submitContainerPosition',
+        restackContainer: '/restackContainer',
     }
 } as const;
