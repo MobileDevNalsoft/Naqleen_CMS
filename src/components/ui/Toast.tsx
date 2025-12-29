@@ -1,14 +1,23 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle, AlertCircle, X, AlertTriangle, Info } from 'lucide-react';
+import { CheckCircle, AlertCircle, X, AlertTriangle, Info, Package } from 'lucide-react';
 import { create } from 'zustand';
 
 // Toast Types
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
+// Detail item for rich toasts
+export interface ToastDetailItem {
+    label: string;
+    sublabel?: string;
+    badge?: string;
+}
+
 export interface ToastData {
     id: string;
     type: ToastType;
     message: string;
+    title?: string; // Optional header title
+    details?: ToastDetailItem[]; // Optional structured details
     duration?: number;
 }
 
@@ -34,9 +43,20 @@ export const useToastStore = create<ToastStore>((set) => ({
     }
 }));
 
-// Helper function to show toasts easily
+// Helper function to show simple toasts
 export const showToast = (type: ToastType, message: string, duration: number = 5000) => {
     useToastStore.getState().addToast({ type, message, duration });
+};
+
+// Helper function to show rich toasts with title and details
+export const showRichToast = (
+    type: ToastType,
+    title: string,
+    message: string,
+    details?: ToastDetailItem[],
+    duration: number = 8000
+) => {
+    useToastStore.getState().addToast({ type, title, message, details, duration });
 };
 
 // Individual Toast Item Component
@@ -103,63 +123,180 @@ function ToastItem({ toast, onRemove }: { toast: ToastData; onRemove: () => void
     };
 
     const config = getConfig();
+    const isRichToast = toast.title || toast.details;
 
     return (
         <div
             style={{
-                padding: '14px 18px',
-                borderRadius: '12px',
+                padding: isRichToast ? '16px' : '14px 18px',
+                borderRadius: '14px',
                 display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
+                flexDirection: isRichToast ? 'column' : 'row',
+                gap: isRichToast ? '12px' : '12px',
                 background: config.bg,
                 border: `1px solid ${config.border}`,
                 color: config.color,
                 boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1)',
-                minWidth: '300px',
-                maxWidth: '420px',
+                minWidth: isRichToast ? '360px' : '300px',
+                maxWidth: isRichToast ? '480px' : '420px',
                 transform: isVisible && !isExiting ? 'translateX(0)' : 'translateX(120%)',
                 opacity: isVisible && !isExiting ? 1 : 0,
                 transition: 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease',
                 backdropFilter: 'blur(8px)',
             }}
         >
-            <div style={{ flexShrink: 0 }}>
-                {config.icon}
-            </div>
-            <span style={{
-                fontSize: '13px',
-                fontWeight: 500,
-                flex: 1,
-                lineHeight: 1.4,
-                wordBreak: 'break-word'
-            }}>
-                {toast.message}
-            </span>
-            <button
-                onClick={handleClose}
-                style={{
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: '4px',
-                    display: 'flex',
-                    borderRadius: '6px',
-                    color: config.color,
-                    opacity: 0.7,
-                    transition: 'opacity 0.2s, background 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                    e.currentTarget.style.opacity = '1';
-                    e.currentTarget.style.background = 'rgba(0,0,0,0.05)';
-                }}
-                onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = '0.7';
-                    e.currentTarget.style.background = 'transparent';
-                }}
-            >
-                <X size={14} />
-            </button>
+            {/* Simple Toast Layout */}
+            {!isRichToast && (
+                <>
+                    <div style={{ flexShrink: 0 }}>
+                        {config.icon}
+                    </div>
+                    <span style={{
+                        fontSize: '13px',
+                        fontWeight: 500,
+                        flex: 1,
+                        lineHeight: 1.4,
+                        wordBreak: 'break-word'
+                    }}>
+                        {toast.message}
+                    </span>
+                </>
+            )}
+
+            {/* Rich Toast Layout */}
+            {isRichToast && (
+                <>
+                    {/* Header with icon, title and close */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ flexShrink: 0 }}>
+                            {config.icon}
+                        </div>
+                        <span style={{
+                            fontSize: '14px',
+                            fontWeight: 700,
+                            flex: 1,
+                            lineHeight: 1.3
+                        }}>
+                            {toast.title}
+                        </span>
+                        <button
+                            onClick={handleClose}
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '4px',
+                                display: 'flex',
+                                borderRadius: '6px',
+                                color: config.color,
+                                opacity: 0.7
+                            }}
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
+
+                    {/* Message */}
+                    {toast.message && (
+                        <div style={{
+                            fontSize: '12px',
+                            fontWeight: 500,
+                            opacity: 0.8,
+                            lineHeight: 1.4,
+                            marginTop: '-4px'
+                        }}>
+                            {toast.message}
+                        </div>
+                    )}
+
+                    {/* Detail Items */}
+                    {toast.details && toast.details.length > 0 && (
+                        <div style={{
+                            background: 'rgba(255, 255, 255, 0.5)',
+                            borderRadius: '10px',
+                            padding: '10px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px'
+                        }}>
+                            {toast.details.map((detail, index) => (
+                                <div
+                                    key={index}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px'
+                                    }}
+                                >
+                                    <Package size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{
+                                            fontSize: '12px',
+                                            fontWeight: 600,
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap'
+                                        }}>
+                                            {detail.label}
+                                        </div>
+                                        {detail.sublabel && (
+                                            <div style={{
+                                                fontSize: '10px',
+                                                opacity: 0.7,
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap'
+                                            }}>
+                                                {detail.sublabel}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {detail.badge && (
+                                        <span style={{
+                                            fontSize: '10px',
+                                            fontWeight: 600,
+                                            padding: '3px 8px',
+                                            background: 'rgba(0, 0, 0, 0.08)',
+                                            borderRadius: '6px',
+                                            whiteSpace: 'nowrap'
+                                        }}>
+                                            {detail.badge}
+                                        </span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+
+            {/* Close button for simple toast */}
+            {!isRichToast && (
+                <button
+                    onClick={handleClose}
+                    style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex',
+                        borderRadius: '6px',
+                        color: config.color,
+                        opacity: 0.7,
+                        transition: 'opacity 0.2s, background 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.opacity = '1';
+                        e.currentTarget.style.background = 'rgba(0,0,0,0.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.opacity = '0.7';
+                        e.currentTarget.style.background = 'transparent';
+                    }}
+                >
+                    <X size={14} />
+                </button>
+            )}
         </div>
     );
 }

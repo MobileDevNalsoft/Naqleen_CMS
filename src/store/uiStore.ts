@@ -11,7 +11,8 @@ export type ActivePanel =
     | 'plugInOut'
     | 'cfsTask'
     | 'reserveContainers'
-    | 'customerInventory';
+    | 'customerInventory'
+    | 'releaseContainer';
 
 interface UIState {
     activePanel: ActivePanel;

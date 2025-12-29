@@ -36,6 +36,7 @@ export interface AvailablePositionRequest {
     block?: string;
     row?: string;
     lot?: string;
+    containerNbr?: string; // Container number for restack validation
 }
 
 export interface AvailablePositionData {

@@ -20,9 +20,9 @@ const Controls: React.FC<ControlsProps> = ({
   zoomSpeed = 1.0,
   panSpeed = 1.0,
   minPolarAngle = Math.PI * 0.1,
-  maxPolarAngle = Math.PI * 0.483,
-  minDistance = 5,
-  maxDistance = 400,
+  maxPolarAngle = Math.PI,
+  minDistance = 0,
+  maxDistance = 1000,
 }) => {
   return (
     <OrbitControls
@@ -35,7 +35,7 @@ const Controls: React.FC<ControlsProps> = ({
       maxPolarAngle={maxPolarAngle}
       minDistance={minDistance}
       maxDistance={maxDistance}
-      screenSpacePanning={false}
+      screenSpacePanning={true}
       zoomToCursor={true}
     />
   );

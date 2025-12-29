@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Eye, X, MoreHorizontal, Grid3x3, MapPin, ClipboardList, Truck, ArrowRightLeft, ShieldCheck } from 'lucide-react';
+import { Zap, Eye, X, MoreHorizontal, Grid3x3, MapPin, ClipboardList, Truck, ArrowRightLeft, ShieldCheck, Container } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 
 interface QuickActionsButtonProps { }
@@ -99,6 +99,9 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
         // { id: 'destuffing', label: 'Assign Destuffing', icon: PackageOpen },
         // { id: 'cfsTask', label: 'CFS Task Assignment', icon: ClipboardList },
         { id: 'customerInventory', label: 'Customer Inventory', icon: ClipboardList },
+        { id: 'reserveContainers', label: 'Reserve Containers', icon: ShieldCheck },
+        { id: 'releaseContainer', label: 'Release Container', icon: Container },
+        // { id: 'customerInventory', label: 'Customer Inventory', icon: ClipboardList },
         { id: 'reserveContainers', label: 'Reserve Containers', icon: ShieldCheck },
         { id: 'gateOut', label: 'Gate Out', icon: ArrowRightLeft },
     ];

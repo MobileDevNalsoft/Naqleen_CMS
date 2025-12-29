@@ -65,6 +65,7 @@ export const yardApi = {
         if (request.block) params.block = request.block;
         if (request.row) params.row_no = request.row;
         if (request.lot) params.lot = request.lot;
+        if (request.containerNbr) params.container_nbr = request.containerNbr;
 
         const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.getAvailablePositionLov, { params });
         return response.data;

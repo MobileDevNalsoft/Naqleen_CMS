@@ -1,11 +1,11 @@
 import { useRef, useEffect, useMemo, useState, type RefObject } from 'react';
 import * as THREE from 'three';
 import { useStore } from '../../store/store';
-import { useUIStore } from '../../store/uiStore';
 import { useTexture, Outlines } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import type { DynamicEntity } from '../../utils/layoutUtils';
 import gsap from 'gsap';
+import { useUIStore } from '../../store/uiStore';
 
 interface ContainersProps {
     controlsRef?: RefObject<any>;
@@ -25,6 +25,7 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
     const setHoverId = useStore(state => state.setHoverId);
     const hoverId = useStore(state => state.hoverId);
     const reserveContainers = useStore(state => state.reserveContainers);
+    const releaseContainers = useStore(state => state.releaseContainers);
     const ghostContainer = useStore(state => state.ghostContainer);
 
     const { camera } = useThree();
@@ -576,6 +577,24 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                     <Outlines thickness={3} color="#FFD700" />
                 </mesh>
             )}
+
+            {/* Highlight for containers selected for release (Bright Magenta border - highly visible) */}
+            {releaseContainers.map((relContainer) => {
+                const containerData = instanceData.find(d => d.id === relContainer.container_nbr);
+                if (!containerData) return null;
+                return (
+                    <mesh
+                        key={`release-${relContainer.container_nbr}`}
+                        position={containerData.position}
+                        scale={containerData.scale}
+                        raycast={() => null}
+                    >
+                        <boxGeometry args={[6.058, 2.591, 2.438]} />
+                        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+                        <Outlines thickness={8} color="#FFFFFF" />
+                    </mesh>
+                );
+            })}
         </group>
     );
 }

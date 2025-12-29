@@ -42,6 +42,7 @@ interface StoreState {
   hoverSource: string | null;
   layout: DynamicIcdLayout | null;
   reserveContainers: { container_nbr: string }[];
+  releaseContainers: { container_nbr: string }[]; // Containers selected for release
   swapConnections: SwapConnection[];
   restackLine: RestackLine | null; // New state for restack visualization
   customerByContainer: Record<string, string>; // Reverse lookup: container_nbr -> customer_name
@@ -53,6 +54,7 @@ interface StoreState {
   setHoverId: (id: string | null, source?: string) => void;
   setLayout: (layout: DynamicIcdLayout) => void;
   setReserveContainers: (containers: { container_nbr: string }[]) => void;
+  setReleaseContainers: (containers: { container_nbr: string }[]) => void;
   setSwapConnections: (connections: SwapConnection[]) => void;
   setRestackLine: (line: RestackLine | null) => void; // New action
   setCustomerByContainer: (map: Record<string, string>) => void;
@@ -75,6 +77,7 @@ export const useStore = create<StoreState>((set) => ({
   hoverSource: null,
   layout: null,
   reserveContainers: [],
+  releaseContainers: [],
   swapConnections: [],
   restackLine: null,
   customerByContainer: {},
@@ -109,6 +112,7 @@ export const useStore = create<StoreState>((set) => ({
   setHoverId: (id, source) => set({ hoverId: id, hoverSource: source || null }),
   setLayout: (layout) => set({ layout }),
   setReserveContainers: (containers) => set({ reserveContainers: containers }),
+  setReleaseContainers: (containers) => set({ releaseContainers: containers }),
   setSwapConnections: (connections) => set({ swapConnections: connections }),
   setRestackLine: (line) => set({ restackLine: line }),
   setCustomerByContainer: (map) => set({ customerByContainer: map }),
