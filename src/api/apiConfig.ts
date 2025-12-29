@@ -1,6 +1,6 @@
 export const API_CONFIG = {
-    WEB_BASE_URL: '/ords/xxotm/otm-web',
-    MOBILE_BASE_URL: '/ords/xxotm/otm-mobile',
+    WEB_BASE_URL: (import.meta.env.VITE_API_BASE_URL || '') + '/ords/xxotm/otm-web',
+    MOBILE_BASE_URL: (import.meta.env.VITE_API_BASE_URL || '') + '/ords/xxotm/otm-mobile',
     TIMEOUT: 30000,
     HEADERS: {
         'Content-Type': 'application/json',
