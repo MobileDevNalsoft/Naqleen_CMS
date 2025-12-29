@@ -64,16 +64,16 @@ const App = () => {
         target.y = -1;
       }
 
-      // Clamp target X and Z positions to stay within environment radius
-      // We limit to 180 to keep the camera safely inside the icd area
-      const maxPanRadius = 180;
-      const distance = Math.sqrt(target.x * target.x + target.z * target.z);
+      // Clamp target X and Z positions to stay within extended yard bounds
+      // X: -458 to +180 (left to right)
+      // Z: -92.5 to +92.5 (depth)
+      const minX = -458;
+      const maxX = 180;
+      const minZ = -92.5;
+      const maxZ = 92.5;
 
-      if (distance > maxPanRadius) {
-        const ratio = maxPanRadius / distance;
-        target.x *= ratio;
-        target.z *= ratio;
-      }
+      target.x = Math.max(minX, Math.min(maxX, target.x));
+      target.z = Math.max(minZ, Math.min(maxZ, target.z));
     }
 
     // Dispatch event to notify about camera controls change

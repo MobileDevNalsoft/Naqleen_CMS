@@ -149,13 +149,28 @@ const Hill = ({ position, scale = 1, colorIndex = 0 }: { position: [number, numb
 // Helper function to calculate terrain height at a given x, z position
 // This ensures that objects (trees, warehouses) are placed on the ground
 const getTerrainHeight = (x: number, z: number) => {
-    const centerFlatRadius = 250; // Radius of flat area for icd
-    const blendDistance = 150;    // Distance to blend from flat to hills
-    const distance = Math.sqrt(x * x + z * z);
+    // Extended yard bounds - keep this area completely flat
+    const yardMinX = -458;
+    const yardMaxX = 180;
+    const yardMinZ = -92.5;
+    const yardMaxZ = 92.5;
+    const yardPadding = 50; // Extra padding for smooth transition
 
-    if (distance <= centerFlatRadius) return 0;
+    // Check if inside the flat yard area (with padding)
+    const isInsideYard = x >= yardMinX - yardPadding && x <= yardMaxX + yardPadding &&
+        z >= yardMinZ - yardPadding && z <= yardMaxZ + yardPadding;
 
-    const blend = Math.min(1, (distance - centerFlatRadius) / blendDistance);
+    if (isInsideYard) return 0;
+
+    // Calculate distance from yard boundary for blending
+    const distFromYardX = x < yardMinX - yardPadding ? (yardMinX - yardPadding) - x :
+        x > yardMaxX + yardPadding ? x - (yardMaxX + yardPadding) : 0;
+    const distFromYardZ = z < yardMinZ - yardPadding ? (yardMinZ - yardPadding) - z :
+        z > yardMaxZ + yardPadding ? z - (yardMaxZ + yardPadding) : 0;
+    const distFromYard = Math.sqrt(distFromYardX * distFromYardX + distFromYardZ * distFromYardZ);
+
+    const blendDistance = 100; // Distance to blend from flat to hills
+    const blend = Math.min(1, distFromYard / blendDistance);
     const smoothBlend = blend * blend * (3 - 2 * blend);
 
     // Organic noise simulation using multiple sine waves (FBM-like)
@@ -231,70 +246,107 @@ export default function Environment() {
         }
     }, []);
 
-    // Generate more realistic surroundings - adjusted for larger terrain
+    // Generate more realistic surroundings - adjusted for extended yard
     const surroundings = useMemo(() => {
-        const items = [];
+        const items: Array<{
+            type: string;
+            position: [number, number, number];
+            rotation?: number;
+            scale?: number;
+            colorIndex?: number;
+        }> = [];
 
-        // Light Poles - Regular placing along perimeter/roads
-        for (let i = 0; i < 20; i++) {
-            const angle = (i / 20) * Math.PI * 2;
-            const radius = 220; // Just outside the main ICD fence
-            const x = Math.cos(angle) * radius;
-            const z = Math.sin(angle) * radius;
+        // Extended yard bounds (with padding for border lights)
+        const yardMinX = -458;
+        const yardMaxX = 200;
+        const yardMinZ = -92.5;
+        const yardMaxZ = 92.5;
+        const yardPadding = 15; // Padding for exclusion check
+        const lightPadding = 25; // Padding for light poles (further outside fence)
+
+        // Helper to check if position is inside the yard
+        const isInsideYard = (x: number, z: number) => {
+            return x >= yardMinX - yardPadding && x <= yardMaxX + yardPadding &&
+                z >= yardMinZ - yardPadding && z <= yardMaxZ + yardPadding;
+        };
+
+        // Light Poles - Along rectangular perimeter OUTSIDE the fence
+        // Bottom edge (z = yardMinZ - lightPadding)
+        for (let x = yardMinX; x <= yardMaxX; x += 50) {
+            const z = yardMinZ - lightPadding;
             const y = getTerrainHeight(x, z) - 1;
-
-            items.push({
-                type: 'lightPole',
-                position: [x, y, z] as [number, number, number],
-            });
+            items.push({ type: 'lightPole', position: [x, y, z] });
+        }
+        // Top edge (z = yardMaxZ + lightPadding)
+        for (let x = yardMinX; x <= yardMaxX; x += 50) {
+            const z = yardMaxZ + lightPadding;
+            const y = getTerrainHeight(x, z) - 1;
+            items.push({ type: 'lightPole', position: [x, y, z] });
+        }
+        // Left edge (x = yardMinX - lightPadding)
+        for (let z = yardMinZ; z <= yardMaxZ; z += 40) {
+            const x = yardMinX - lightPadding;
+            const y = getTerrainHeight(x, z) - 1;
+            items.push({ type: 'lightPole', position: [x, y, z] });
+        }
+        // Right edge (x = yardMaxX + lightPadding)
+        for (let z = yardMinZ; z <= yardMaxZ; z += 40) {
+            const x = yardMaxX + lightPadding;
+            const y = getTerrainHeight(x, z) - 1;
+            items.push({ type: 'lightPole', position: [x, y, z] });
         }
 
-        // Background Container Stacks - Cluttered industrial look
+        // Background Container Stacks - Only outside the yard
         for (let i = 0; i < 60; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const radius = 250 + Math.random() * 200; // Further out
-            // Avoid placing too close to light poles if possible, but random is okay for clutter
+            const radius = 350 + Math.random() * 200; // Further out
             const x = Math.cos(angle) * radius;
             const z = Math.sin(angle) * radius;
-            const y = getTerrainHeight(x, z) - 1;
 
+            // Skip if inside the yard area
+            if (isInsideYard(x, z)) continue;
+
+            const y = getTerrainHeight(x, z) - 1;
             items.push({
                 type: 'bgContainer',
-                position: [x, y, z] as [number, number, number],
+                position: [x, y, z],
                 rotation: Math.random() * Math.PI,
             });
         }
 
-        // Warehouses with realistic variety
+        // Warehouses - Only outside the yard
         for (let i = 0; i < 15; i++) {
-            const angle = (Math.random() * Math.PI * 2);
-            const radius = 280 + Math.random() * 120;
-
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 380 + Math.random() * 120;
             const x = Math.cos(angle) * radius;
             const z = Math.sin(angle) * radius;
-            const y = getTerrainHeight(x, z) - 1;
 
+            // Skip if inside the yard area
+            if (isInsideYard(x, z)) continue;
+
+            const y = getTerrainHeight(x, z) - 1;
             items.push({
                 type: 'warehouse',
-                position: [x, y, z] as [number, number, number],
+                position: [x, y, z],
                 rotation: Math.random() * Math.PI,
                 colorIndex: Math.floor(Math.random() * warehouseColors.length),
             });
         }
 
-        // Hills with natural sand and desert tones
+        // Hills - Only outside the yard (further out)
         for (let i = 0; i < 35; i++) {
-            const angle = (Math.random() * Math.PI * 2);
-            const radius = 350 + Math.random() * 350;
-
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 450 + Math.random() * 350;
             const x = Math.cos(angle) * radius;
             const z = Math.sin(angle) * radius;
-            // Sink hills slightly into the terrain so they look like peaks emerging
-            const y = getTerrainHeight(x, z) - 2;
 
+            // Skip if inside the yard area
+            if (isInsideYard(x, z)) continue;
+
+            const y = getTerrainHeight(x, z) - 2;
             items.push({
                 type: 'hill',
-                position: [x, y, z] as [number, number, number],
+                position: [x, y, z],
                 scale: 2.5 + Math.random() * 5,
                 colorIndex: Math.floor(Math.random() * hillColors.length),
             });
@@ -365,10 +417,11 @@ export default function Environment() {
                 return null;
             })}
 
-            {/* Unified Icd Base Plane */}
+            {/* Unified Icd Base Plane - Extended for full yard */}
+            {/* Centered at midpoint of -458 and +180 = -139 */}
             <mesh
                 rotation={[-Math.PI / 2, 0, 0]}
-                position={[0, -0.4, 0]}
+                position={[-139, -0.4, 0]}
                 receiveShadow
                 onPointerDown={handlePointerDown}
                 onClick={(e) => {
@@ -394,8 +447,8 @@ export default function Environment() {
                     window.dispatchEvent(new CustomEvent('moveCameraToTop'));
                 }}
             >
-                {/* Matches fence dimensions: Width 400, Depth 185 */}
-                <planeGeometry args={[400, 185]} />
+                {/* Extended yard dimensions: Width 650 (from -458 to +192), Depth 185 */}
+                <planeGeometry args={[680, 185]} />
                 <meshStandardMaterial
                     color="#5A6C7D"
                     roughness={0.8}
@@ -403,7 +456,7 @@ export default function Environment() {
                 />
                 {/* Yard Border */}
                 <lineSegments position={[0, 0, 0.01]}>
-                    <edgesGeometry args={[new THREE.PlaneGeometry(400, 185)]} />
+                    <edgesGeometry args={[new THREE.PlaneGeometry(650, 185)]} />
                     <lineBasicMaterial color="#8B9AA8" linewidth={2} />
                 </lineSegments>
             </mesh>

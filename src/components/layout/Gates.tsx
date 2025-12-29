@@ -5,9 +5,10 @@ import * as THREE from 'three';
 interface GateProps {
     position: [number, number, number];
     type: 'IN' | 'OUT';
+    label?: string; // Optional custom label (defaults to 'GATE IN' or 'GATE OUT')
 }
 
-const Gate: React.FC<GateProps> = ({ position, type }) => {
+const Gate: React.FC<GateProps> = ({ position, type, label }) => {
     const [x, y, z] = position;
     const width = 20; // Wider gate
     const height = 6;
@@ -154,7 +155,7 @@ const Gate: React.FC<GateProps> = ({ position, type }) => {
                 outlineColor="#000000"
                 outlineWidth={0.1}
             >
-                {`GATE ${type}`}
+                {label || `GATE ${type}`}
             </Text>
 
         </group>
@@ -162,18 +163,25 @@ const Gate: React.FC<GateProps> = ({ position, type }) => {
 };
 
 export default function Gates() {
+    // Interior Gates at x = -200
     // Gate In: Opposite Row C of Block B (Approx z = -12)
-    // Moved to x = -200 to align with fencing
     const gateInPos: [number, number, number] = [-200, 0, -5];
-
     // Gate Out: Opposite Gap between Block A and Block B (z = -35.405)
-    // Moved to x = -200 to align with fencing
     const gateOutPos: [number, number, number] = [-200, 0, -35.405];
+
+    // Outer Gates at x = -458 (same z-positions as interior gates)
+    const outerGateInPos: [number, number, number] = [-458, 0, -5];
+    const outerGateOutPos: [number, number, number] = [-458, 0, -35.405];
 
     return (
         <group>
+            {/* Interior Gates */}
             <Gate position={gateInPos} type="IN" />
             <Gate position={gateOutPos} type="OUT" />
+
+            {/* Outer Gates - labeled as ENTRY/EXIT */}
+            <Gate position={outerGateInPos} type="IN" label="ENTRY" />
+            <Gate position={outerGateOutPos} type="OUT" label="EXIT" />
         </group>
     );
 }
