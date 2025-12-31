@@ -59,6 +59,16 @@ export const showRichToast = (
     useToastStore.getState().addToast({ type, title, message, details, duration });
 };
 
+// Hook version for components
+export const useToast = () => {
+    const addToast = useToastStore((state) => state.addToast);
+    return {
+        showToast: (message: string, type: ToastType = 'info', duration?: number) => {
+            addToast({ message, type, duration });
+        }
+    };
+};
+
 // Individual Toast Item Component
 function ToastItem({ toast, onRemove }: { toast: ToastData; onRemove: () => void }) {
     const [isExiting, setIsExiting] = useState(false);

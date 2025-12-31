@@ -18,6 +18,14 @@ import type {
     ValidateContainerRequest,
     ValidateContainerResponse
 } from '../types/yardTypes';
+import type {
+    TaskAssignmentRequest,
+    TaskAssignmentResponse,
+    TaskAssignmentDetailResponse,
+    AvailableOperatorsResponse,
+    AssignTaskRequest,
+    AssignTaskResponse
+} from '../types/taskAssignmentTypes';
 
 export const yardApi = {
     // Position Container API
@@ -128,5 +136,113 @@ export const yardApi = {
             params: { containerNbr: request.containerNbr }
         });
         return response.data;
+    },
+
+    // Task Assignment API
+    getNewTaskAssignmentShipments: async (request: TaskAssignmentRequest): Promise<TaskAssignmentResponse> => {
+        const queryParams: any = {
+            searchText: request.searchText || '',
+            pageNum: request.pageNum || 1
+        };
+
+        const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.newTaskAssignmentShipments, { params: queryParams });
+        const raw = response.data || {};
+
+        let rawShipments = [];
+        if (Array.isArray(raw)) {
+            rawShipments = raw;
+        } else {
+            rawShipments = raw.shipments || raw.items || raw.data || [];
+        }
+
+        const shipments = rawShipments.map((s: any) => ({
+            shipmentNumber: s.shipment_xid || s.shipment_nbr || s.shipmentNumber || s.shipmentNbr || '',
+            shipmentName: s.shipment_name || s.shipmentName || '',
+            status: s.shipment_status || s.status || '',
+            requestType: s.request_type || s.requestType || '',
+            containerNumber: s.container_nbr || s.containerNumber || '',
+            customer: s.customer || '',
+            date: s.date || '',
+            operator: s.operator || ''
+        }));
+
+        return {
+            shipments,
+            responseCode: raw.responseCode || raw.response_code || response.status || 200,
+            responseMessage: raw.responseMessage || raw.response_message || ''
+        };
+    },
+
+    getAssignedTaskAssignmentShipments: async (request: TaskAssignmentRequest): Promise<TaskAssignmentResponse> => {
+        const queryParams: any = {
+            searchText: request.searchText || '',
+            pageNum: request.pageNum || 1
+        };
+
+        const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.assignedTaskAssignmentShipments, { params: queryParams });
+        const raw = response.data || {};
+
+        let rawShipments = [];
+        if (Array.isArray(raw)) {
+            rawShipments = raw;
+        } else {
+            rawShipments = raw.shipments || raw.items || raw.data || [];
+        }
+
+        const shipments = rawShipments.map((s: any) => ({
+            shipmentNumber: s.shipment_xid || s.shipment_nbr || s.shipmentNumber || s.shipmentNbr || '',
+            shipmentName: s.shipment_name || s.shipmentName || '',
+            status: s.shipment_status || s.status || '',
+            requestType: s.request_type || s.requestType || '',
+            containerNumber: s.container_nbr || s.containerNumber || '',
+            customer: s.customer || '',
+            date: s.date || '',
+            operator: s.operator || ''
+        }));
+
+        return {
+            shipments,
+            responseCode: raw.responseCode || raw.response_code || response.status || 200,
+            responseMessage: raw.responseMessage || raw.response_message || ''
+        };
+    },
+
+    getTaskAssignmentShipmentDetails: async (shipmentNbr: string): Promise<TaskAssignmentDetailResponse> => {
+        const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.getTaskAssignmentShipmentDetails, { params: { shipmentNbr } });
+        const raw = response.data || {};
+        const data = raw.data || {};
+
+        return {
+            responseCode: raw.response_code || raw.responseCode || response.status || 200,
+            responseMessage: raw.response_message || raw.responseMessage || '',
+            data: {
+                shipmentNbr: data.shipment_nbr || data.shipmentNbr || '',
+                shipmentName: data.shipment_name || data.shipmentName || '',
+                contNo: data.cont_no || data.contNo || '',
+                customer: data.customer || '',
+                operator: data.operator || '',
+                status: data.status || '',
+                assignedDate: data.assigned_date || data.assignedDate || ''
+            }
+        };
+    },
+
+    getTaskAssignmentOperators: async (searchText: string): Promise<AvailableOperatorsResponse> => {
+        const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.getTaskAssignmentOperators, { params: { searchText } });
+        const raw = response.data || {};
+        return {
+            responseCode: raw.response_code || raw.responseCode || response.status || 200,
+            responseMessage: raw.response_message || raw.responseMessage || '',
+            data: Array.isArray(raw.data) ? raw.data : (Array.isArray(raw) ? raw : [])
+        };
+    },
+
+    assignTaskToOperator: async (request: AssignTaskRequest): Promise<AssignTaskResponse> => {
+        const response = await mobileApiClient.post(API_CONFIG.ENDPOINTS.assignTaskToOperator, request);
+        const raw = response.data || {};
+        return {
+            responseCode: raw.response_code || raw.responseCode || response.status || 200,
+            responseMessage: raw.response_message || raw.responseMessage || ''
+        };
     }
 };

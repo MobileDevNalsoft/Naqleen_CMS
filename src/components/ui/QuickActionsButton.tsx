@@ -93,16 +93,10 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
     const actionModes = [
         { id: 'gateIn', label: 'Gate In', icon: Truck },
         { id: 'position', label: 'Position Container', icon: MapPin },
-        // { id: 'restack', label: 'Restack Container', icon: LayoutList },
-        // { id: 'plugInOut', label: 'Plug In / Out', icon: Power },
-        // { id: 'stuffing', label: 'Assign Stuffing', icon: PackageOpen },
-        // { id: 'destuffing', label: 'Assign Destuffing', icon: PackageOpen },
-        // { id: 'cfsTask', label: 'CFS Task Assignment', icon: ClipboardList },
+        { id: 'cfsTask', label: 'CFS Task Assignment', icon: ClipboardList },
         { id: 'customerInventory', label: 'Customer Inventory', icon: ClipboardList },
         { id: 'reserveContainers', label: 'Reserve Containers', icon: ShieldCheck },
         { id: 'releaseContainer', label: 'Release Container', icon: Container },
-        // { id: 'customerInventory', label: 'Customer Inventory', icon: ClipboardList },
-        { id: 'reserveContainers', label: 'Reserve Containers', icon: ShieldCheck },
         { id: 'gateOut', label: 'Gate Out', icon: ArrowRightLeft },
     ];
 

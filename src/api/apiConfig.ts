@@ -48,5 +48,11 @@ export const API_CONFIG = {
         plugInOutContainer: '/plugInOutContainer',
         plugInOutContainerDetails: '/plugInOutContainerDetails',
         validateCfsContainer: '/validateCfsContainer',
+        // Task Assignment
+        newTaskAssignmentShipments: '/getTaskAssignmentShipments',
+        assignedTaskAssignmentShipments: '/getAssignedTasks',
+        getTaskAssignmentShipmentDetails: '/getTaskAssignmentShipmentDetails',
+        getTaskAssignmentOperators: '/getTaskAssignmentOperators',
+        assignTaskToOperator: '/assignTaskToOperator',
     }
 } as const;
