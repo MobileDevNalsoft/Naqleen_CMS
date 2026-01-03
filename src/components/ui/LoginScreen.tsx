@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import { loginUser } from '../../api/handlers/authApi';
-import ToastContainer, { showToast } from './Toast';
+import ToastContainer, { showToast } from './custom-components/Toast';
 
 interface LoginScreenProps {
     onLoginSuccess: () => void;

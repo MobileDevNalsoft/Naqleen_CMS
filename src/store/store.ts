@@ -63,6 +63,8 @@ interface StoreState {
   setFocusPosition: (position: FocusPosition | null) => void;
   ghostContainer: GhostContainer | null;
   setGhostContainer: (container: GhostContainer | null) => void;
+  hoveredMarker: string | null;
+  setHoveredMarker: (markerId: string | null) => void;
 }
 
 
@@ -83,6 +85,7 @@ export const useStore = create<StoreState>((set) => ({
   customerByContainer: {},
   focusPosition: null,
   ghostContainer: null,
+  hoveredMarker: null,
 
   setEntitiesBatch: (updates) => set((state) => {
     const entities = { ...state.entities };
@@ -129,5 +132,6 @@ export const useStore = create<StoreState>((set) => ({
   }),
   setFocusPosition: (position) => set({ focusPosition: position }),
   setGhostContainer: (container) => set({ ghostContainer: container }),
+  setHoveredMarker: (markerId) => set({ hoveredMarker: markerId }),
 }));
 

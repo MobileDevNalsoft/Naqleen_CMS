@@ -19,7 +19,7 @@ import {
     AlertCircle,
     AlertTriangle
 } from 'lucide-react';
-import Dropdown from '../../ui/Dropdown';
+import Dropdown from '../../ui/custom-components/Dropdown';
 import { fetchInventory, createInventory, createBulkInventory, fetchCustomerLookup, fetchShipmentLookup } from '../../../api/handlers/inventoryApi';
 import { parseInventoryExcel } from '../../../services/excelImportService';
 import type { InventoryRecord, InventoryItem, InventoryPayloadItem } from '../../../api/types/inventoryTypes';

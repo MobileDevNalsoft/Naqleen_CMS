@@ -3,7 +3,7 @@ import PanelLayout from '../PanelLayout';
 import { Truck, FileText, Loader2, ChevronDown, Upload, X, Building2, Package, CheckCircle, BookOpen, Search, ArrowLeft, Download, User } from 'lucide-react';
 import { useGateInTrucksQuery, useCustomerBookingsQuery, useBookingShipmentsQuery, useSubmitGateInMutation, getGateInTruckDetails, yardApi } from '../../../api';
 import type { GateTruckDetails, GateCustomer, GateCustomerShipments, GateDocument } from '../../../api/types';
-import { showToast } from '../../ui/Toast';
+import { showToast } from '../../ui/custom-components/Toast';
 import { toPng } from 'html-to-image';
 import Barcode from 'react-barcode';
 import TruckLoader from '../../ui/animations/TruckLoader';
@@ -1255,14 +1255,14 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                                             paddingRight: isValidatingContainer ? '36px' : '12px', // Make room for spinner
                                             background: 'rgba(75, 104, 108, 0.05)',
                                             border: `1px solid ${containerValidationStatus === 'valid'
-                                                    ? '#86efac' // Pastel green for valid
-                                                    : containerValidationStatus === 'invalid'
-                                                        ? '#ef4444' // Red for invalid
-                                                        : isValidContainerNumber
-                                                            ? 'rgba(75, 104, 108, 0.2)'
-                                                            : containerNumber
-                                                                ? '#ef4444'
-                                                                : 'rgba(75, 104, 108, 0.2)'
+                                                ? '#86efac' // Pastel green for valid
+                                                : containerValidationStatus === 'invalid'
+                                                    ? '#ef4444' // Red for invalid
+                                                    : isValidContainerNumber
+                                                        ? 'rgba(75, 104, 108, 0.2)'
+                                                        : containerNumber
+                                                            ? '#ef4444'
+                                                            : 'rgba(75, 104, 108, 0.2)'
                                                 }`,
                                             borderRadius: '10px',
                                             fontSize: '14px',

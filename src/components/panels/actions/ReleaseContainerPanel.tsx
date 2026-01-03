@@ -6,8 +6,8 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import PanelLayout from '../PanelLayout';
 import TruckLoader from '../../ui/animations/TruckLoader';
-import { showRichToast } from '../../ui/Toast';
-import type { ToastDetailItem } from '../../ui/Toast';
+import { showRichToast } from '../../ui/custom-components/Toast';
+import type { ToastDetailItem } from '../../ui/custom-components/Toast';
 import { useStore } from '../../../store/store';
 import {
     useTruckSuggestionsQuery,

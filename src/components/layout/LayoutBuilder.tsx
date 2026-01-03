@@ -3,6 +3,10 @@ import * as THREE from 'three';
 import { useFrame, extend } from '@react-three/fiber';
 import { shaderMaterial } from '@react-three/drei';
 import { useStore } from '../../store/store';
+import { calculateBlockPosition, type DynamicIcdLayout, type DynamicEntity } from '../../utils/layoutUtils';
+import CFSArea from './CFSArea';
+import Warehouse from './Warehouse';
+import Truck from './Truck';
 
 interface TerminalData {
     id: string;
@@ -11,6 +15,8 @@ interface TerminalData {
     position: { x: number; y: number; z: number };
     rotation: number;
     corner_points?: Array<{ x: number; z: number; description?: string }>;
+    name?: string;
+    props?: Record<string, any>;
 }
 
 interface BlockData extends TerminalData {
@@ -95,9 +101,35 @@ const GlowingBlock: React.FC<{ terminal: TerminalData; isSelected: boolean }> = 
             }
             s.lineTo(points[0].x - terminal.position.x, points[0].z - terminal.position.z);
         } else {
+            // Calculate dimensions - use provided or calculate from lots/rows
+            let w = terminal.dimensions?.width || 0;
+            let h = terminal.dimensions?.height || 0;
+
+            // Check for explicit block dimensions first
+            if (!w || !h) {
+                const blockWidth = (terminal as any).block_width;
+                const blockDepth = (terminal as any).block_depth;
+                if (blockWidth && blockDepth) {
+                    w = blockWidth;
+                    h = blockDepth;
+                }
+            }
+
+            // If still no dimensions, calculate from lots/rows
+            if (!w || !h) {
+                const lots = (terminal as any).lots || 1;
+                const rows = (terminal as any).rows || 1;
+                const containerType = (terminal as any).container_type || '20ft';
+                const is20ft = containerType === '20ft';
+                const containerLength = is20ft ? 6.058 : 12.192;
+                const containerWidth = 2.438;
+                const gapX = (terminal as any).lot_gap || 0.5;
+                const gapZ = 0.3;
+                w = lots * containerLength + (lots - 1) * gapX;
+                h = rows * (containerWidth + gapZ);
+            }
+
             // Rectangular shape centered
-            const w = terminal.dimensions.width;
-            const h = terminal.dimensions.height;
             s.moveTo(-w / 2, -h / 2);
             s.lineTo(w / 2, -h / 2);
             s.lineTo(w / 2, h / 2);
@@ -152,9 +184,46 @@ const GlowingBlock: React.FC<{ terminal: TerminalData; isSelected: boolean }> = 
 };
 
 const Terminal: React.FC<{ terminal: TerminalData; isDimmed: boolean }> = ({ terminal, isDimmed }) => {
-    // Skip rendering TRS and TRM terminals
+    // Skip rendering TRS and TRM terminals (base layers)
     if (terminal.type === 'trs_terminal' || terminal.type === 'trm_terminal') {
         return null;
+    }
+
+    // Handle Custom 3D Components
+    if (terminal.type === 'cfs_area') {
+        return (
+            <CFSArea
+                id={terminal.id}
+                name={terminal.name || 'CFS Area'}
+                position={[terminal.position.x, terminal.position.y, terminal.position.z]}
+                width={terminal.dimensions.width}
+                depth={terminal.dimensions.height} // In our data model, height is depth (Z)
+                rotation={terminal.rotation}
+            />
+        );
+    }
+
+    if (terminal.type === 'warehouse') {
+        return (
+            <Warehouse
+                id={terminal.id}
+                name={terminal.name || 'Warehouse'}
+                position={[terminal.position.x, terminal.position.y, terminal.position.z]}
+                width={terminal.dimensions.width}
+                depth={terminal.dimensions.height}
+                rotation={terminal.rotation}
+            />
+        );
+    }
+
+    if (terminal.type === 'truck') {
+        return (
+            <Truck
+                position={[terminal.position.x, terminal.position.y, terminal.position.z]}
+                rotation={terminal.rotation}
+                containerColor={terminal.props?.containerColor}
+            />
+        );
     }
 
     const config = ZONE_COLORS[terminal.type] || { color: '#9E9E9E', opacity: 0.3 };
@@ -218,7 +287,7 @@ const LayoutBuilder: React.FC = () => {
         if (!layoutData) return { terminals: [], blocks: [] };
 
         const allTerminals: TerminalData[] = [];
-        const blocks: BlockData[] = [];
+        const rawBlocks: BlockData[] = [];
 
         // Flatten terminals from all categories
         const flattenTerminals = (obj: any) => {
@@ -227,10 +296,27 @@ const LayoutBuilder: React.FC = () => {
             } else if (obj && typeof obj === 'object') {
                 if ((obj.dimensions && obj.position) || (obj.type === 'yard_base' && obj.corner_points && obj.position)) {
                     if (obj.lots && obj.rows) {
-                        blocks.push(obj);
+                        rawBlocks.push(obj);
+                    } else if (obj.props?.lots && obj.props?.rows) {
+                        // Also check props for lots/rows (new format)
+                        rawBlocks.push({
+                            ...obj,
+                            lots: obj.props.lots,
+                            rows: obj.props.rows,
+                            container_type: obj.props.container_type
+                        });
                     } else {
                         allTerminals.push(obj);
                     }
+                } else if (obj.position && obj.props?.lots && obj.props?.rows) {
+                    // Handle new format blocks that don't have dimensions
+                    rawBlocks.push({
+                        ...obj,
+                        lots: obj.props.lots,
+                        rows: obj.props.rows,
+                        container_type: obj.props.container_type,
+                        dimensions: obj.dimensions || { width: 100, height: 50 } // Placeholder
+                    });
                 } else {
                     Object.values(obj).forEach(flattenTerminals);
                 }
@@ -238,6 +324,22 @@ const LayoutBuilder: React.FC = () => {
         };
 
         flattenTerminals(layoutData.entities);
+
+        // Apply calculated positions for blocks with placement
+        const blocks = rawBlocks.map(block => {
+            if ((block as any).placement) {
+                const calculatedPos = calculateBlockPosition(block as unknown as DynamicEntity, layoutData as DynamicIcdLayout, layoutData.entities as DynamicEntity[]);
+                return {
+                    ...block,
+                    position: {
+                        ...block.position,
+                        x: calculatedPos.x,
+                        z: calculatedPos.z
+                    }
+                };
+            }
+            return block;
+        });
 
         return { terminals: allTerminals, blocks };
     }, [layoutData]);
@@ -258,8 +360,10 @@ const LayoutBuilder: React.FC = () => {
                 const isSelected = block.id === selectedBlock;
                 return <GlowingBlock key={block.id} terminal={block} isSelected={isSelected} />;
             })}
+
         </group>
     );
 };
+
 
 export default LayoutBuilder;

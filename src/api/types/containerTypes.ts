@@ -15,6 +15,12 @@ export interface ContainerPosition {
     customerName?: string; // Linked from grouped response
 }
 
+// Tracking event from API
+export interface TrackingEvent {
+    event_type: string;
+    event_date: string;
+}
+
 // Detailed object for UI panel
 export interface ContainerDetailsResponse {
     container_number: string;
@@ -26,6 +32,7 @@ export interface ContainerDetailsResponse {
     container_stored_time: string | null;
     shipment_name: string | null;
     plug_in_status?: string | null;
+    tracking_events?: TrackingEvent[];
 }
 
 export interface RecommendedContainersResponse {

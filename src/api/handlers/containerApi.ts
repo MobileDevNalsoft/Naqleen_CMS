@@ -3,7 +3,7 @@ import { useStore } from '../../store/store';
 import { useEffect } from 'react';
 import {
     getDynamicContainerPosition,
-    getAllDynamicBlocks
+    getBlocksWithCalculatedPositions
 } from '../../utils/layoutUtils';
 import type { DynamicIcdLayout, DynamicEntity } from '../../utils/layoutUtils';
 import apiClient from '../apiClient';
@@ -54,10 +54,10 @@ export async function getContainers(layout: DynamicIcdLayout): Promise<GetContai
         });
     });
 
-    // Calculate positions
-    const blocks = getAllDynamicBlocks(layout);
+    // Calculate positions using pre-calculated block positions
+    const blocksWithPositions = getBlocksWithCalculatedPositions(layout);
     const blockMap = new Map<string, DynamicEntity>();
-    blocks.forEach(b => blockMap.set(b.id, b));
+    blocksWithPositions.forEach(b => blockMap.set(b.id, b));
 
     const positions = flatContainers.map((c) => {
         // Use block_id directly from API response

@@ -7,6 +7,7 @@ interface TemperatureScaleProps {
     max?: number;
     label: string;
     step?: number;
+    disabled?: boolean;
 }
 
 export default function TemperatureScale({
@@ -14,7 +15,8 @@ export default function TemperatureScale({
     onChange,
     min = -30,
     max = 30,
-    label
+    label,
+    disabled = false
 }: TemperatureScaleProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -61,7 +63,7 @@ export default function TemperatureScale({
     // Add wheel event listener for horizontal scrolling
     useEffect(() => {
         const el = scrollRef.current;
-        if (!el) return;
+        if (!el || disabled) return;
 
         const onWheel = (e: WheelEvent) => {
             if (e.deltaY === 0 && e.deltaX === 0) return;
@@ -75,7 +77,7 @@ export default function TemperatureScale({
         return () => {
             el.removeEventListener('wheel', onWheel);
         };
-    }, []);
+    }, [disabled]);
 
     const handleScroll = () => {
         // Mark as scrolling to suppress value sync
@@ -108,6 +110,11 @@ export default function TemperatureScale({
             // Let's round to nearest integer for clean UX first.
             const rounded = Math.round(newValue);
 
+            // If disabled, don't emit changes, force scroll back? 
+            // Better: prevent scroll interaction directly. 
+            // But if scroll happens programmatically or via momentum, we might need to ignore change.
+            if (disabled) return;
+
             if (rounded !== value) {
                 lastEmittedValue.current = rounded;
                 onChange(rounded);
@@ -117,6 +124,7 @@ export default function TemperatureScale({
 
     // Drag implementation for mouse interactions (desktop)
     const handleMouseDown = (e: React.MouseEvent) => {
+        if (disabled) return;
         setIsDragging(true);
         setStartX(e.pageX);
         if (scrollRef.current) {
@@ -125,7 +133,7 @@ export default function TemperatureScale({
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
-        if (!isDragging) return;
+        if (!isDragging || disabled) return;
         e.preventDefault();
         const x = e.pageX;
         const walk = (x - startX) * 1.5; // Scroll-fast multiplier
@@ -139,11 +147,11 @@ export default function TemperatureScale({
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', opacity: disabled ? 0.6 : 1, pointerEvents: disabled ? 'none' : 'auto' }}>
 
             {/* Restored Header Label */}
             <div style={{ marginBottom: '15px', paddingLeft: '2px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: disabled ? '#94a3b8' : '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     {label}
                 </label>
             </div>

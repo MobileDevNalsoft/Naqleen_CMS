@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import PanelLayout from '../PanelLayout';
 import { Truck, User, Loader2, CheckCircle, AlertTriangle, Search, X, ArrowLeft, Download, ChevronDown, FileText } from 'lucide-react';
 import { useGateOutTrucksQuery, useGateOutTruckDetailsQuery, useSubmitGateOutMutation } from '../../../api/handlers/gateApi';
-import { showToast } from '../../ui/Toast';
+import { showToast } from '../../ui/custom-components/Toast';
 import TruckLoader from '../../ui/animations/TruckLoader';
 import { toPng } from 'html-to-image';
 import Barcode from 'react-barcode';

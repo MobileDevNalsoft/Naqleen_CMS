@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, MapPin, Container, CheckCircle, Printer, Loader2 } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { showToast } from '../../ui/Toast';
+import { showToast } from '../../ui/custom-components/Toast';
 import { yardApi } from '../../../api/handlers/yardApi';
 import PanelLayout from '../PanelLayout';
 import { useUIStore } from '../../../store/uiStore';
@@ -235,7 +235,7 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
             String(now.getHours()).padStart(2, '0') + ':' +
             String(now.getMinutes()).padStart(2, '0') + ':' +
             String(now.getSeconds()).padStart(2, '0') + '.' +
-            String(now.getMilliseconds()).padStart(3, '0');
+            String(now.getMilliseconds()).padStart(3, '0') + 'Z';
 
         submitRestack({
             container_nbr: containerId,

@@ -39,9 +39,10 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
     });
 
     // Realistic Industrial Color Palette (Darker, heavy metal tones)
+    // NOTE: Green colors avoided here to prevent confusion with Reserved status (green)
     const containerColors = useMemo(() => [
         0x00695C, // Dark Teal
-        0x2E7D32, // Forest Green
+        0x1A237E, // Navy Blue (replaced to avoid Reserved green confusion)
         0xD84315, // Burnt Orange
         0xF9A825, // Industrial Yellow
         0xC62828, // Crimson Red
@@ -299,7 +300,10 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                         }
                     } else if (selectedBlock) {
                         // Block Mode
-                        if (isInDataBlock) {
+                        // Check if it's a CFS Area selection - if so, DO NOT fade containers
+                        const isCFSSelection = selectedBlock.startsWith('cfs_');
+
+                        if (isCFSSelection || isInDataBlock) {
                             opacity = 1.0;
                         } else {
                             opacity = 0.3;

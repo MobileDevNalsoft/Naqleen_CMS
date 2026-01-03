@@ -1,4 +1,4 @@
-import { Sky } from '@react-three/drei';
+import { Sky, Line } from '@react-three/drei';
 import { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useThree, useFrame } from '@react-three/fiber';
@@ -53,13 +53,6 @@ const warehouseColors = ['#6B7280', '#8B95A0', '#9CA3AF', '#B0B7BE', '#7B8794'];
 const warehouseMaterials = warehouseColors.map(color =>
     new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.15 })
 );
-
-// Pre-create hill materials
-// const hillColors = ['#8C8474', '#787265', '#6B6558', '#948D7F']; // Dusty earth tones
-// const hillMaterials = hillColors.map(color =>
-//     new THREE.MeshStandardMaterial({ color, roughness: 1, flatShading: true })
-// );
-
 
 // More realistic tree with better proportions and wind animation
 // Industrial Light Pole
@@ -131,28 +124,12 @@ const Warehouse = ({ position, rotation = 0, colorIndex = 0 }: { position: [numb
     );
 };
 
-// Smooth rolling hill matching reference
-// Dusty Mound / Debris Pile instead of Green Hill
-// Commented out as currently unused - uncomment if hills are re-enabled
-// const _Hill = ({ position, scale = 1, colorIndex = 0 }: { position: [number, number, number]; scale?: number; colorIndex?: number }) => {
-//     return (
-//         <mesh
-//             position={position}
-//             scale={[scale, scale * 0.5, scale]} // Flatter, more spread out
-//             receiveShadow
-//             castShadow
-//             geometry={hillGeometry}
-//             material={hillMaterials[colorIndex % hillMaterials.length]}
-//         />
-//     );
-// };
-
 // Helper function to calculate terrain height at a given x, z position
 // This ensures that objects (trees, warehouses) are placed on the ground
 const getTerrainHeight = (x: number, z: number) => {
-    // Extended yard bounds - keep this area completely flat
-    const yardMinX = -458;
-    const yardMaxX = 180;
+    // Centered yard bounds (symmetric around origin)
+    const yardMinX = -380;
+    const yardMaxX = 380;
     const yardMinZ = -92.5;
     const yardMaxZ = 92.5;
     const yardPadding = 50; // Extra padding for smooth transition
@@ -192,6 +169,130 @@ export default function Environment() {
     useThree();
     const terrainRef = useRef<THREE.Mesh>(null);
     const dragStart = useRef({ x: 0, y: 0 });
+    const layout = useStore((state) => state.layout);
+
+    // Calculate yard bounds from layout data or use defaults
+    // Original dimensions = actual ICD area, Padded = yard base mesh with border padding
+    const YARD_PADDING = 20; // Padding in meters around the original yard dimensions
+
+    const yardBounds = useMemo(() => {
+        const defaultBounds = {
+            // Original dimensions (from JSON)
+            width: 760,
+            height: 145,
+            minX: -380,
+            maxX: 380,
+            minZ: -72.5,
+            maxZ: 72.5,
+            // Padded dimensions (for yard base mesh and fencing)
+            paddedWidth: 760 + YARD_PADDING * 2,
+            paddedHeight: 145 + YARD_PADDING * 2,
+            paddedMinX: -380 - YARD_PADDING,
+            paddedMaxX: 380 + YARD_PADDING,
+            paddedMinZ: -72.5 - YARD_PADDING,
+            paddedMaxZ: 72.5 + YARD_PADDING,
+            // Polygon corner points (undefined = rectangle)
+            cornerPoints: undefined as Array<{ x: number; z: number }> | undefined,
+            paddedCornerPoints: undefined as Array<{ x: number; z: number }> | undefined
+        };
+
+        if (layout?.total_dimensions) {
+            const { width, height, corner_points } = layout.total_dimensions;
+
+            // Calculate padded corner points if original corner points are defined
+            let paddedCornerPoints: Array<{ x: number; z: number }> | undefined;
+            if (corner_points && corner_points.length > 0) {
+                // For L-shaped yards, we need proper polygon offset
+                // Simple approach: offset each point based on which edge it's on
+                paddedCornerPoints = corner_points.map((pt, i) => {
+                    const prev = corner_points[(i - 1 + corner_points.length) % corner_points.length];
+                    const next = corner_points[(i + 1) % corner_points.length];
+
+                    // Determine offset direction based on adjacent edges
+                    const prevDx = pt.x - prev.x;
+                    const prevDz = pt.z - prev.z;
+                    const nextDx = next.x - pt.x;
+                    const nextDz = next.z - pt.z;
+
+                    // Calculate outward normal for each edge
+                    // For clockwise winding, outward normal is (-dz, dx)
+                    const prevLen = Math.sqrt(prevDx * prevDx + prevDz * prevDz) || 1;
+                    const prevNx = -prevDz / prevLen;
+                    const prevNz = prevDx / prevLen;
+
+                    // For edge from pt to next
+                    const nextLen = Math.sqrt(nextDx * nextDx + nextDz * nextDz) || 1;
+                    const nextNx = -nextDz / nextLen;
+                    const nextNz = nextDx / nextLen;
+
+                    // Average the normals for this vertex
+                    let avgNx = (prevNx + nextNx) / 2;
+                    let avgNz = (prevNz + nextNz) / 2;
+                    const avgLen = Math.sqrt(avgNx * avgNx + avgNz * avgNz) || 1;
+                    avgNx /= avgLen;
+                    avgNz /= avgLen;
+
+                    return {
+                        x: pt.x + avgNx * YARD_PADDING,
+                        z: pt.z + avgNz * YARD_PADDING
+                    };
+                });
+            }
+
+            return {
+                // Original dimensions
+                width,
+                height,
+                minX: -width / 2,
+                maxX: width / 2,
+                minZ: -height / 2,
+                maxZ: height / 2,
+                // Padded dimensions
+                paddedWidth: width + YARD_PADDING * 2,
+                paddedHeight: height + YARD_PADDING * 2,
+                paddedMinX: -width / 2 - YARD_PADDING,
+                paddedMaxX: width / 2 + YARD_PADDING,
+                paddedMinZ: -height / 2 - YARD_PADDING,
+                paddedMaxZ: height / 2 + YARD_PADDING,
+                // Polygon support
+                cornerPoints: corner_points,
+                paddedCornerPoints
+            };
+        }
+
+        return defaultBounds;
+    }, [layout]);
+
+    // Create polygon geometries when corner_points are defined
+    const yardGeometries = useMemo(() => {
+        const cornerPoints = yardBounds.cornerPoints;
+        const paddedPoints = yardBounds.paddedCornerPoints;
+
+        if (!cornerPoints || !paddedPoints || cornerPoints.length < 3) {
+            return null; // Use rectangular geometries
+        }
+
+        // Create Shape from PADDED corner points for the yard base mesh
+        // Note: Shape is on XY plane, mesh rotation [-PI/2, 0, 0] maps Shape Y to world -Z
+        // So we negate Z to get correct world coordinates
+        const shape = new THREE.Shape();
+        shape.moveTo(paddedPoints[0].x, -paddedPoints[0].z);
+        for (let i = 1; i < paddedPoints.length; i++) {
+            shape.lineTo(paddedPoints[i].x, -paddedPoints[i].z);
+        }
+        shape.closePath();
+
+        const baseGeometry = new THREE.ShapeGeometry(shape);
+
+        // Create Line geometry for border (using original corner points)
+        const borderPoints: THREE.Vector3[] = cornerPoints.map(pt =>
+            new THREE.Vector3(pt.x, -0.35, pt.z)
+        );
+        borderPoints.push(borderPoints[0]); // Close the loop
+        const borderGeometry = new THREE.BufferGeometry().setFromPoints(borderPoints);
+
+        return { baseGeometry, borderGeometry };
+    }, [yardBounds.cornerPoints, yardBounds.paddedCornerPoints]);
 
     const handlePointerDown = (e: any) => {
         // Store start position for click vs drag check
@@ -257,11 +358,11 @@ export default function Environment() {
             colorIndex?: number;
         }> = [];
 
-        // Extended yard bounds (with padding for border lights)
-        const yardMinX = -458;
-        const yardMaxX = 200;
-        const yardMinZ = -92.5;
-        const yardMaxZ = 92.5;
+        // Use dynamic yard bounds from layout
+        const yardMinX = yardBounds.minX;
+        const yardMaxX = yardBounds.maxX;
+        const yardMinZ = yardBounds.minZ;
+        const yardMaxZ = yardBounds.maxZ;
         const yardPadding = 15; // Padding for exclusion check
         const lightPadding = 25; // Padding for light poles (further outside fence)
 
@@ -334,26 +435,8 @@ export default function Environment() {
             });
         }
 
-        // Hills with natural sand and desert tones (disabled)
-        // for (let i = 0; i < 35; i++) {
-        //     const angle = (Math.random() * Math.PI * 2);
-        //     const radius = 350 + Math.random() * 350;
-
-        //     const x = Math.cos(angle) * radius;
-        //     const z = Math.sin(angle) * radius;
-        //     // Sink hills slightly into the terrain so they look like peaks emerging
-        //     const y = getTerrainHeight(x, z) - 2;
-
-        //     items.push({
-        //         type: 'hill',
-        //         position: [x, y, z] as [number, number, number],
-        //         scale: 2.5 + Math.random() * 5,
-        //         colorIndex: Math.floor(Math.random() * hillColors.length),
-        //     });
-        // }
-
         return items;
-    }, []);
+    }, [yardBounds]);
 
     return (
         <group>
@@ -417,11 +500,10 @@ export default function Environment() {
                 return null;
             })}
 
-            {/* Unified Icd Base Plane - Extended for full yard */}
-            {/* Centered at midpoint of -458 and +180 = -139 */}
+            {/* Unified Icd Base Plane - Dimensions from layout */}
             <mesh
                 rotation={[-Math.PI / 2, 0, 0]}
-                position={[-139, -0.4, 0]}
+                position={[0, -0.4, 0]}
                 receiveShadow
                 onPointerDown={handlePointerDown}
                 onClick={(e) => {
@@ -447,19 +529,55 @@ export default function Environment() {
                     window.dispatchEvent(new CustomEvent('moveCameraToTop'));
                 }}
             >
-                {/* Extended yard dimensions: Width 650 (from -458 to +192), Depth 185 */}
-                <planeGeometry args={[680, 185]} />
+                {/* Padded yard dimensions (extends beyond original with padding) */}
+                {yardGeometries ? (
+                    <primitive object={yardGeometries.baseGeometry} attach="geometry" />
+                ) : (
+                    <planeGeometry args={[yardBounds.paddedWidth, yardBounds.paddedHeight]} />
+                )}
                 <meshStandardMaterial
                     color="#3A4A5A"
                     roughness={0.85}
                     metalness={0.05}
                 />
-                {/* Yard Border */}
-                <lineSegments position={[0, 0, 0.01]}>
-                    <edgesGeometry args={[new THREE.PlaneGeometry(650, 185)]} />
-                    <lineBasicMaterial color="#8B9AA8" linewidth={2} />
-                </lineSegments>
             </mesh>
+
+            {/* Border Outline - Hidden */}
+            <group visible={false}>
+                {yardGeometries && yardBounds.cornerPoints ? (
+                    /* Polygon border using Line component */
+                    <Line
+                        points={[...yardBounds.cornerPoints.map(pt => [pt.x, -0.3, pt.z] as [number, number, number]), [yardBounds.cornerPoints[0].x, -0.3, yardBounds.cornerPoints[0].z]]}
+                        color="#F7CF9B"
+                        lineWidth={3}
+                    />
+                ) : (
+                    /* Rectangular border using four line segments */
+                    <>
+                        {/* North edge */}
+                        <mesh position={[0, -0.35, yardBounds.minZ]} rotation={[-Math.PI / 2, 0, 0]}>
+                            <planeGeometry args={[yardBounds.width, 0.5]} />
+                            <meshBasicMaterial color="#F7CF9B" />
+                        </mesh>
+                        {/* South edge */}
+                        <mesh position={[0, -0.35, yardBounds.maxZ]} rotation={[-Math.PI / 2, 0, 0]}>
+                            <planeGeometry args={[yardBounds.width, 0.5]} />
+                            <meshBasicMaterial color="#F7CF9B" />
+                        </mesh>
+                        {/* West edge */}
+                        <mesh position={[yardBounds.minX, -0.35, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                            <planeGeometry args={[0.5, yardBounds.height]} />
+                            <meshBasicMaterial color="#F7CF9B" />
+                        </mesh>
+                        {/* East edge */}
+                        <mesh position={[yardBounds.maxX, -0.35, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                            <planeGeometry args={[0.5, yardBounds.height]} />
+                            <meshBasicMaterial color="#F7CF9B" />
+                        </mesh>
+                    </>
+                )}
+            </group>
         </group>
     );
 }
+

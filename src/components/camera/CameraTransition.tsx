@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useStore } from '../../store/store';
 import { useUIStore } from '../../store/uiStore';
-import { getAllDynamicBlocks } from '../../utils/layoutUtils';
+import { getBlocksWithCalculatedPositions } from '../../utils/layoutUtils';
 import gsap from 'gsap';
 
 interface CameraTransitionProps {
@@ -27,8 +27,8 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
     const lastSelectionChangeTime = useRef<number>(0);
 
     // Target positions
-    const standardPos = new THREE.Vector3(0, 150, 300);
-    const topViewPos = new THREE.Vector3(0, 300, 1);
+    const standardPos = new THREE.Vector3(0, 250, 420);
+    const topViewPos = new THREE.Vector3(0, 440, 1);
     const center = new THREE.Vector3(0, 0, 0);
     const startPos = new THREE.Vector3(0, 500, 10);
 
@@ -138,25 +138,55 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
             animateCamera(targetPos, targetLookAt);
 
         } else if (selectedBlock && layout) {
-            const blocks = getAllDynamicBlocks(layout);
-            const block = blocks.find(b => b.id === selectedBlock);
+            // CFS Area Specific Focus Logic
+            // CFS areas are in layout.entities, NOT in getBlocksWithCalculatedPositions (which filters by type.includes('block'))
+            if (selectedBlock.startsWith('cfs_')) {
+                const cfsEntity = layout.entities?.find(e => e.id === selectedBlock);
 
-            if (block) {
-                const blockCenter = new THREE.Vector3(
-                    block.position.x,
-                    block.position.y,
-                    block.position.z
-                );
+                if (cfsEntity) {
+                    const cfsCenter = new THREE.Vector3(
+                        cfsEntity.position?.x || 0,
+                        cfsEntity.position?.y || 0,
+                        cfsEntity.position?.z || 0
+                    );
 
-                const cameraOffset = new THREE.Vector3(-25, 120, 160);
-                const viewShiftOffset = new THREE.Vector3(40, 16, 0);
+                    // Camera offset for CFS Area - higher angle and offset to center object on LEFT
+                    const cameraOffset = new THREE.Vector3(0, 80, 60);
+                    // Shift the LookAt target to the right to frame object on left of viewport
+                    const viewShiftOffset = new THREE.Vector3(0, 0, 0);
 
-                const targetLookAt = blockCenter.clone().add(viewShiftOffset);
-                const targetPos = targetLookAt.clone().add(cameraOffset);
+                    const targetLookAt = cfsCenter.clone().add(viewShiftOffset);
+                    const targetPos = targetLookAt.clone().add(cameraOffset);
 
-                lastSelectionChangeTime.current = Date.now();
-                animateCamera(targetPos, targetLookAt);
+                    lastSelectionChangeTime.current = Date.now();
+                    animateCamera(targetPos, targetLookAt);
+                }
+            } else {
+                // Standard Block Focus Logic
+                const blocks = getBlocksWithCalculatedPositions(layout);
+                const block = blocks.find(b => b.id === selectedBlock);
+
+                if (block) {
+                    const blockCenter = new THREE.Vector3(
+                        block.position.x,
+                        block.position.y,
+                        block.position.z
+                    );
+
+                    const cameraOffset = new THREE.Vector3(-25, 120, 160);
+                    const viewShiftOffset = new THREE.Vector3(40, 16, 0);
+
+                    const targetLookAt = blockCenter.clone().add(viewShiftOffset);
+                    const targetPos = targetLookAt.clone().add(cameraOffset);
+
+                    lastSelectionChangeTime.current = Date.now();
+                    animateCamera(targetPos, targetLookAt);
+                }
             }
+        } else {
+            // Nothing selected (no container, no block, no panel) - return to main view
+            lastSelectionChangeTime.current = Date.now();
+            animateCamera(standardPos, center);
         }
 
         // Spring-Back Lock: When user stops interacting, return to locked view
@@ -236,24 +266,51 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
             }
             // 3. Block selection spring-back (only if no container selected)
             else if (currentSelectedBlock && currentLayout) {
-                const blocks = getAllDynamicBlocks(currentLayout);
-                const block = blocks.find(b => b.id === currentSelectedBlock);
 
-                if (block) {
-                    const blockCenter = new THREE.Vector3(
-                        block.position.x,
-                        block.position.y,
-                        block.position.z
-                    );
-                    const cameraOffset = new THREE.Vector3(-25, 120, 160);
-                    const viewShiftOffset = new THREE.Vector3(40, 16, 0);
-                    const targetLookAt = blockCenter.clone().add(viewShiftOffset);
-                    const targetPos = targetLookAt.clone().add(cameraOffset);
+                // Check if it's a CFS Area
+                if (currentSelectedBlock.startsWith('cfs_')) {
+                    const cfsEntity = currentLayout.entities?.find(e => e.id === currentSelectedBlock);
 
-                    setTimeout(() => {
-                        if (Date.now() - lastSelectionChangeTime.current < 500) return;
-                        animateCamera(targetPos, targetLookAt);
-                    }, 100);
+                    if (cfsEntity) {
+                        const cfsCenter = new THREE.Vector3(
+                            cfsEntity.position?.x || 0,
+                            cfsEntity.position?.y || 0,
+                            cfsEntity.position?.z || 0
+                        );
+
+                        // Match logic from initial selection
+                        const cameraOffset = new THREE.Vector3(-10, 80, 80);
+                        const viewShiftOffset = new THREE.Vector3(50, 0, 0);
+
+                        const targetLookAt = cfsCenter.clone().add(viewShiftOffset);
+                        const targetPos = targetLookAt.clone().add(cameraOffset);
+
+                        setTimeout(() => {
+                            if (Date.now() - lastSelectionChangeTime.current < 500) return;
+                            animateCamera(targetPos, targetLookAt);
+                        }, 100);
+                    }
+                } else {
+                    // Standard Block
+                    const blocks = getBlocksWithCalculatedPositions(currentLayout);
+                    const block = blocks.find(b => b.id === currentSelectedBlock);
+
+                    if (block) {
+                        const blockCenter = new THREE.Vector3(
+                            block.position.x,
+                            block.position.y,
+                            block.position.z
+                        );
+                        const cameraOffset = new THREE.Vector3(-25, 120, 160);
+                        const viewShiftOffset = new THREE.Vector3(40, 16, 0);
+                        const targetLookAt = blockCenter.clone().add(viewShiftOffset);
+                        const targetPos = targetLookAt.clone().add(cameraOffset);
+
+                        setTimeout(() => {
+                            if (Date.now() - lastSelectionChangeTime.current < 500) return;
+                            animateCamera(targetPos, targetLookAt);
+                        }, 100);
+                    }
                 }
             }
         };

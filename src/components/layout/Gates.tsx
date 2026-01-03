@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
+import { useStore } from '../../store/store';
 
 interface GateProps {
     position: [number, number, number];
@@ -152,8 +153,6 @@ const Gate: React.FC<GateProps> = ({ position, type, label }) => {
                 anchorY="bottom"
                 fontWeight="bold"
                 letterSpacing={0.2}
-                outlineColor="#000000"
-                outlineWidth={0.1}
             >
                 {label || `GATE ${type}`}
             </Text>
@@ -163,22 +162,25 @@ const Gate: React.FC<GateProps> = ({ position, type, label }) => {
 };
 
 export default function Gates() {
-    // Interior Gates at x = -200
-    // Gate In: Opposite Row C of Block B (Approx z = -12)
-    const gateInPos: [number, number, number] = [-200, 0, -5];
-    // Gate Out: Opposite Gap between Block A and Block B (z = -35.405)
-    const gateOutPos: [number, number, number] = [-200, 0, -35.405];
+    const layout = useStore((state) => state.layout);
 
-    // Outer Gates at x = -458 (same z-positions as interior gates)
-    const outerGateInPos: [number, number, number] = [-458, 0, -5];
-    const outerGateOutPos: [number, number, number] = [-458, 0, -35.405];
+    // Calculate gate X position from layout (at padded west fence)
+    const YARD_PADDING = 20;
+    const gateX = useMemo(() => {
+        if (layout?.total_dimensions) {
+            return -layout.total_dimensions.width / 2 - YARD_PADDING + 6;
+        }
+        return -380 - YARD_PADDING; // Default
+    }, [layout]);
+
+    // Outer Gates at the west fence edge - positions match fence gaps
+    // ENTRY gate: fence gap z: -40 to -24 (center: -32)
+    // EXIT gate: fence gap z: -60 to -44 (center: -52)
+    const outerGateInPos: [number, number, number] = [gateX, 0, -22];
+    const outerGateOutPos: [number, number, number] = [gateX, 0, -42];
 
     return (
         <group>
-            {/* Interior Gates */}
-            <Gate position={gateInPos} type="IN" />
-            <Gate position={gateOutPos} type="OUT" />
-
             {/* Outer Gates - labeled as ENTRY/EXIT */}
             <Gate position={outerGateInPos} type="IN" label="ENTRY" />
             <Gate position={outerGateOutPos} type="OUT" label="EXIT" />

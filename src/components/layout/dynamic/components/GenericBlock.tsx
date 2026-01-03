@@ -7,13 +7,14 @@ interface GenericBlockProps {
     id: string;
     position: [number, number, number];
     rotation: number;
-    dimensions: { width: number; height: number };
+    dimensions?: { width: number; height: number }; // Made optional
     corner_points?: Array<{ x: number; z: number }>;
     isSelected: boolean;
     color?: string; // Optional override
+    props?: Record<string, any>; // For calculating dimensions from lots/rows
 }
 
-const GenericBlock: React.FC<GenericBlockProps> = ({ id: _id, position, rotation, dimensions, corner_points, isSelected, color: _color }) => {
+const GenericBlock: React.FC<GenericBlockProps> = ({ id: _id, position, rotation, dimensions, corner_points, isSelected, color: _color, props }) => {
     const meshRef = useRef<THREE.Mesh>(null);
     const materialRef = useRef<THREE.ShaderMaterial>(null);
 
@@ -23,6 +24,34 @@ const GenericBlock: React.FC<GenericBlockProps> = ({ id: _id, position, rotation
         depth: extrusionHeight,
         bevelEnabled: false
     }), []);
+
+    // Calculate dimensions from props if not provided
+    // If block_width and block_depth are specified, use those fixed values
+    const effectiveDimensions = useMemo(() => {
+        if (dimensions?.width && dimensions?.height) {
+            return dimensions;
+        }
+
+        // If explicit block dimensions are provided, use them
+        if (props?.block_width && props?.block_depth) {
+            return { width: props.block_width, height: props.block_depth };
+        }
+
+        // Otherwise calculate from lots/rows using container dimensions
+        const lots = props?.lots || 1;
+        const rows = props?.rows || 1;
+        const containerType = props?.container_type || '20ft';
+        const is20ft = containerType === '20ft';
+        const containerLength = is20ft ? 6.058 : 12.192;
+        const containerWidth = 2.438;
+        const gapX = props?.lot_gap || 0.5;
+        const gapZ = 0.3;
+
+        const width = lots * containerLength + (lots - 1) * gapX;
+        const height = rows * (containerWidth + gapZ);
+
+        return { width, height };
+    }, [dimensions, props]);
 
     const shape = useMemo(() => {
         const s = new THREE.Shape();
@@ -39,8 +68,8 @@ const GenericBlock: React.FC<GenericBlockProps> = ({ id: _id, position, rotation
             s.lineTo(points[0].x - position[0], points[0].z - position[2]);
         } else {
             // Rectangular shape centered
-            const w = dimensions.width;
-            const h = dimensions.height;
+            const w = effectiveDimensions.width;
+            const h = effectiveDimensions.height;
             s.moveTo(-w / 2, -h / 2);
             s.lineTo(w / 2, -h / 2);
             s.lineTo(w / 2, h / 2);
@@ -48,7 +77,7 @@ const GenericBlock: React.FC<GenericBlockProps> = ({ id: _id, position, rotation
             s.lineTo(-w / 2, -h / 2);
         }
         return s;
-    }, [position, dimensions, corner_points]);
+    }, [position, effectiveDimensions, corner_points]);
 
     useFrame((_, delta) => {
         if (materialRef.current && meshRef.current) {

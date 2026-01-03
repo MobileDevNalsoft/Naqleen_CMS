@@ -1,15 +1,17 @@
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls, MapControls } from '@react-three/drei';
 import { useRef, useState, useEffect } from 'react';
 import Environment from './components/layout/Environment';
-import LoadingScreen from './components/ui/LoadingScreen';
+import LoadingScreen from './components/ui/animations/LoadingScreen';
 import LoginScreen from './components/ui/LoginScreen';
 import ContainerDetailsPanel from './components/panels/details/ContainerDetailsPanel';
 import BlockDetailsPanel from './components/panels/details/BlockDetailsPanel';
+import CFSDetailsPanel from './components/panels/details/CFSDetailsPanel';
 import ModernHeader from './components/ui/ModernHeader';
 import HoverInfoPanel from './components/ui/HoverInfoPanel';
 import { CameraTransition } from './components/camera/CameraTransition';
 import { useLayoutQuery, useContainersQuery } from './api';
+import { KeyboardNavigation } from './components/camera/KeyboardNavigation';
 import DynamicLayoutEngine from './components/layout/dynamic/DynamicLayoutEngine';
 import Fencing from './components/layout/Fencing';
 import Gates from './components/layout/Gates';
@@ -33,7 +35,7 @@ import ReleaseContainerPanel from './components/panels/actions/ReleaseContainerP
 import SwapConnectionLines from './components/layout/SwapConnectionLines';
 import RestackConnectionLine from './components/layout/RestackConnectionLine';
 import GhostContainer from './components/layout/GhostContainer';
-import ToastContainer from './components/ui/Toast';
+import ToastContainer from './components/ui/custom-components/Toast';
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -65,13 +67,12 @@ const App = () => {
         target.y = -1;
       }
 
-      // Clamp target X and Z positions to stay within extended yard bounds
-      // X: -458 to +180 (left to right)
-      // Z: -92.5 to +92.5 (depth)
-      const minX = -458;
-      const maxX = 180;
-      const minZ = -92.5;
-      const maxZ = 92.5;
+      // Clamp target X and Z positions to stay within expanded yard bounds
+      // Much larger bounds to allow free navigation across entire ICD
+      const minX = -800;
+      const maxX = 800;
+      const minZ = -200;
+      const maxZ = 200;
 
       target.x = Math.max(minX, Math.min(maxX, target.x));
       target.z = Math.max(minZ, Math.min(maxZ, target.z));
@@ -179,7 +180,7 @@ const App = () => {
 
           <Canvas
             style={{ width: '100%', height: '100%', display: 'block' }}
-            camera={{ position: [0, 150, 300], fov: 45, near: 1.0 }}
+            camera={{ position: [0, 150, 300], fov: 45, near: 0.1 }}
             shadows
           >
             <color attach="background" args={['#E6F4F1']} />
@@ -207,28 +208,30 @@ const App = () => {
             <RestackConnectionLine />
 
             <CameraTransition isLoading={showLoadingScreen} controlsRef={controlsRef} />
+            <KeyboardNavigation controlsRef={controlsRef} />
 
-            <OrbitControls
+            {/* MapControls for better large-scale navigation */}
+            <MapControls
               ref={controlsRef}
               makeDefault
-              enableDamping={false}
-              minPolarAngle={0}                    // Prevent looking straight down
-              maxPolarAngle={Math.PI / 2 - 0.05}     // Prevent going below horizontal
-              minDistance={0}                       // Minimum zoom distance (Prevents clipping/going inside)
-              maxDistance={600}                       // Maximum zoom distance (Restricted)
-              enablePan={true}                        // Allow panning
-              panSpeed={1}                            // Pan speed
-              rotateSpeed={0.8}                       // Rotation speed
-              onChange={handleControlsChange}         // Clamp target position
-              enableZoom={true}
-              zoomSpeed={6}
+              enabled={true}                         // Always enabled to allow spring-back behavior
+              enableDamping={false}                  // Instant stop (no inertia)
+              screenSpacePanning={false}            // Pan moves on ground plane (X, Z)
+              minDistance={1}                       // Closest zoom
+              maxDistance={Infinity}                // Infinite zoom out
+              maxPolarAngle={Math.PI / 2 - 0.05}    // Prevent going under ground
+              rotateSpeed={0.5}
+              panSpeed={1}                        // Faster panning
+              zoomSpeed={2}                       // Balanced calibrated zoom speed
               zoomToCursor={true}
+              onChange={handleControlsChange}
             />
           </Canvas>
 
           {/* Panels */}
           <ContainerDetailsPanel />
           <BlockDetailsPanel />
+          <CFSDetailsPanel />
           <PositionContainerPanel isOpen={activePanel === 'position'} onClose={closePanel} />
           <RestackContainersPanel isOpen={activePanel === 'restack'} onClose={closePanel} />
           <GateInPanel isOpen={activePanel === 'gateIn'} onClose={closePanel} />
