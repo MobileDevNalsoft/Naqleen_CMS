@@ -1,0 +1,332 @@
+/* ViewNavigationPanel.css - Telia-style collapsible side panel */
+
+/* ==================== PANEL CONTAINER ==================== */
+.view-panel {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 20rem;
+    background-color: #ffffff;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.15);
+    z-index: 1100; /* Above header (1000) and quick actions */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    touch-action: auto;
+    transform: translate3d(-100%, 0, 0);
+    transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+
+.view-panel.open {
+    transform: translate3d(0, 0, 0);
+}
+
+/* Mobile: Slide from bottom */
+@media screen and (max-width: 680px) {
+    .view-panel {
+        max-width: 100%;
+        top: auto;
+        height: 70vh;
+        border-radius: 1rem 1rem 0 0;
+        transform: translate3d(0, 100%, 0);
+    }
+    
+    .view-panel.open {
+        transform: translate3d(0, 0, 0);
+    }
+}
+
+/* ==================== PANEL HEADER ==================== */
+.view-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.125rem;
+    border-bottom: 1px solid #eae9e9;
+    flex-shrink: 0;
+}
+
+.view-panel-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.view-panel-close {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.12s;
+}
+
+.view-panel-close:hover {
+    background-color: #f5f5f5;
+}
+
+.view-panel-close svg {
+    width: 20px;
+    height: 20px;
+    stroke: #666;
+}
+
+/* ==================== PANEL CONTENT (scrollable) ==================== */
+.view-panel-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.view-panel-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.view-panel-content::-webkit-scrollbar-track {
+    background-color: #eae9e9;
+}
+
+.view-panel-content::-webkit-scrollbar-thumb {
+    background-color: #6e6e6e;
+    border-radius: 2px;
+}
+
+/* ==================== VIEW LIST ==================== */
+.view-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+/* ==================== VIEW CARD ==================== */
+.view-card {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1.125rem;
+    border-bottom: 1px solid #eae9e9;
+    cursor: pointer;
+    transition: background-color 0.12s;
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+}
+
+.view-card:hover {
+    background-color: rgba(75, 104, 108, 0.08); /* Light shade of #4B686C */
+}
+
+.view-card:active {
+    opacity: 0.8;
+}
+
+.view-card.active {
+    background-color: rgba(75, 104, 108, 0.12); /* Slightly darker shade */
+    border-left: 3px solid var(--primary-color);
+}
+
+.view-card-thumbnail {
+    flex-shrink: 0;
+    width: 3.75rem;
+    height: 3.75rem;
+    margin-right: 0.75rem;
+    border-radius: 6px;
+    overflow: hidden;
+    background-color: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.view-card-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.view-card-thumbnail svg {
+    width: 28px;
+    height: 28px;
+    stroke: #888;
+}
+
+.view-card-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.view-card-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.view-card-description {
+    margin: 0.25rem 0 0;
+    font-size: 0.75rem;
+    color: #666;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+@media screen and (max-width: 680px) {
+    .view-card-description {
+        display: none;
+    }
+}
+
+.view-card-arrow {
+    flex-shrink: 0;
+    margin-left: 0.5rem;
+    opacity: 0.5;
+}
+
+.view-card-arrow svg {
+    width: 16px;
+    height: 16px;
+    stroke: #666;
+}
+
+/* ==================== TOGGLE BUTTON ==================== */
+.view-panel-toggle {
+    position: fixed;
+    z-index: 1101; /* Above panel */
+    background: #0c6;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: auto;
+    transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1), background-color 0.12s;
+    
+    /* Semi-circle shape: hugs left edge */
+    left: 0;
+    top: 50%;
+    width: 30px;  /* Decreased radius */
+    height: 60px; /* Decreased height */
+    border-radius: 0 30px 30px 0;
+    transform: translateY(-50%);
+    padding: 0;
+    justify-content: unset; /* Disable flex centering to rely on absolute pos */
+}
+
+.view-panel-toggle:hover {
+    background-color: #00ff80;
+}
+
+.view-panel-toggle:active {
+    opacity: 0.7;
+}
+
+/* When panel is open, button moves to panel's right edge */
+.view-panel-toggle.open {
+    transform: translateY(-50%) translateX(20rem);
+}
+
+.view-panel-toggle svg {
+    /* Absolute position for precise control */
+    position: absolute;
+    top: 50%;
+    left: 40%; /* Shifted right from center (50%) */
+    transform: translate(-50%, -50%);
+    
+    /* Size */
+    width: 20px !important; 
+    height: 20px !important; 
+    
+    /* Ensure color is black */
+    color: #000000;
+    stroke: #000000;
+    
+    /* Transitions */
+    transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    
+    /* Ensure visibility */
+    display: block;
+    opacity: 1;
+    margin: 0 !important;
+}
+
+/* Arrow points right when closed, left when open */
+.view-panel-toggle.open svg {
+    /* Combine rotation with centering transform */
+    transform: translate(-50%, -50%) rotate(180deg);
+}
+
+/* Mobile: Bottom edge semi-circle */
+@media screen and (max-width: 680px) {
+    .view-panel-toggle {
+        left: 50%;
+        top: auto;
+        bottom: 0;
+        width: 80px;
+        height: 28px;
+        border-radius: 27px 27px 0 0; /* Semi-circle on top */
+        transform: translateX(-50%);
+    }
+    
+    .view-panel-toggle.open {
+        transform: translateX(-50%) translateY(calc(-70vh + 1rem));
+    }
+    
+    .view-panel-toggle svg {
+        transform: rotate(-90deg);
+    }
+    
+    .view-panel-toggle.open svg {
+        transform: rotate(90deg);
+    }
+}
+
+/* ==================== SECTION DIVIDER ==================== */
+.view-section-title {
+    padding: 0.75rem 1.125rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #888;
+    background-color: #fafafa;
+}
+
+/* ==================== BACKDROP (Mobile only) ==================== */
+.view-panel-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    z-index: 199;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+
+.view-panel-backdrop.visible {
+    opacity: 1;
+    pointer-events: all;
+}
+
+@media screen and (min-width: 681px) {
+    .view-panel-backdrop {
+        display: none;
+    }
+}

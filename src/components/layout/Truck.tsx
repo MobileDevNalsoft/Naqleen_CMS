@@ -1,12 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useTexture } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
 
 interface TruckProps {
     position: [number, number, number];
     rotation?: number;
     containerColor?: string;
     cabColor?: string;
+    isDimmed?: boolean;
 }
 
 // Realistic low-poly truck with 40FT container (matching yard container style)
@@ -14,9 +16,35 @@ const Truck: React.FC<TruckProps> = ({
     position,
     rotation = 0,
     containerColor = '#DC2626',
-    cabColor = '#E8E8E8' // Default: realistic white/light gray truck cab
+    cabColor = '#E8E8E8',
+    isDimmed = false
 }) => {
     const [x, y, z] = position;
+    const groupRef = useRef<THREE.Group>(null);
+    const opacityRef = useRef(1);
+
+    // TELIA-STYLE: Animate material opacity using group.traverse
+    useFrame((_, delta) => {
+        const targetOpacity = isDimmed ? 0 : 1;
+        const lerpSpeed = delta * 3;
+
+        // Smoothly lerp opacity
+        opacityRef.current = THREE.MathUtils.lerp(opacityRef.current, targetOpacity, lerpSpeed);
+
+        // Apply to all materials in the group
+        if (groupRef.current) {
+            groupRef.current.traverse((child) => {
+                if ((child as THREE.Mesh).isMesh) {
+                    const mesh = child as THREE.Mesh;
+                    const material = mesh.material as THREE.MeshStandardMaterial;
+                    if (material && material.isMeshStandardMaterial) {
+                        material.transparent = true;
+                        material.opacity = opacityRef.current;
+                    }
+                }
+            });
+        }
+    });
 
     // Container dimensions for 40ft (same as yard containers)
     const containerLength = 6.058 * 2.0125; // ~12.19m for 40ft
@@ -118,7 +146,7 @@ const Truck: React.FC<TruckProps> = ({
     const wheelWidth = 0.32;
 
     return (
-        <group position={[x, y, z]} rotation={[0, rotation * Math.PI / 180, 0]}>
+        <group ref={groupRef} position={[x, y, z]} rotation={[0, rotation * Math.PI / 180, 0]}>
             {/* === TRUCK CAB === */}
             <group position={[0, 0, containerLength / 2 + cabLength / 2 + 0.3]}>
                 {/* Upper cab body */}

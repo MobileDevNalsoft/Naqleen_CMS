@@ -81,8 +81,21 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
             }
 
             // Get block to determine scaling based on SLOT SIZE not container size
+            // Get block to determine scaling based on SLOT SIZE not container size
             const block = e?.blockId ? blockMap.get(e.blockId) : null;
-            const blockType = block?.props?.container_type || '20ft';
+            let blockType = '20ft';
+
+            // Strict Type Guard: Only check props if block is specifically a container_block
+            // This satisfies TypeScript union safety
+            // FIXED: Use .includes() because actual types are 'container_block_a', 'container_block_b', etc.
+            if (block && block.type.includes('container_block')) {
+                // We know it's a ContainerBlockEntity, so props will have container_type
+                // But we must cast or access safely if TS still complains about the discriminated union intersection
+                // Actually, checking .type should narrow it automatically if the union is set up right.
+                // If not, we use 'in' check or safe access.
+                const props = block.props as any; // Safe cast since we checked type string
+                blockType = props?.container_type || '20ft';
+            }
 
             // Determine scale: If block slots are 40ft, scale up. If 20ft, standard.
             // This aligns visual mesh with the grid slot size.
@@ -201,8 +214,8 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         const isRestackOpen = useUIStore.getState().activePanel === 'restack';
         const isRestackVisualizationFull = isRestackOpen && !!focusPosition;
 
-        // --- Handle Block Lift Animation ---
-        const targetLift = (selectedBlock && !isRestackVisualizationFull) ? 16 : 0;
+        // TELIA-STYLE: No block lift - containers stay flat
+        const targetLift = 0;
         const lerpSpeed = delta * 2;
 
         const diff = targetLift - liftHeight.current;
@@ -215,7 +228,6 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         }
 
         // --- Handle Lot Lift Animation (Selected Stack) ---
-        // Increased lift height as requested (was 10)
         // DISABLE lift if in restack mode AND visualization is fully active
         const targetLotLift = (selectId && !isRestackVisualizationFull) ? 16 : 0;
         const lotDiff = targetLotLift - lotLiftHeight.current;
@@ -306,12 +318,15 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                         if (isCFSSelection || isInDataBlock) {
                             opacity = 1.0;
                         } else {
-                            opacity = 0.3;
+                            opacity = 0; // TELIA-STYLE: Fully invisible when not in selected block
                         }
                     }
                     // Handle individual opacity (when a single container is selected)
                     // This takes precedence over block/customer selection if active
-                    if (selectId) { // Check selectId last to ensure it overrides other modes
+                    // FIX: But do NOT override block invisibility if a block is selected
+                    const isHiddenByBlockSelection = selectedBlock && !selectedBlock.startsWith('cfs_') && !isInDataBlock;
+
+                    if (selectId && !isHiddenByBlockSelection) { // Check selectId last to ensure it overrides other modes
                         if (data.id === selectId) {
                             opacity = 1.0;
                         } else {
@@ -346,8 +361,18 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
                     }
                 }
 
+
+
                 dummy.position.set(x, currentY, z);
-                dummy.scale.set(scaleX, scaleY, scaleZ);
+
+                // TELIA-STYLE: Fix for occlusion - scale to 0 if effectively invisible
+                // We must apply this AFTER position setting, and ensure we use the base scale (scaleX/Y/Z)
+                if (opacity < 0.05) {
+                    dummy.scale.set(0, 0, 0);
+                } else {
+                    dummy.scale.set(scaleX, scaleY, scaleZ);
+                }
+
                 dummy.updateMatrix();
                 mesh.setMatrixAt(i, dummy.matrix);
 

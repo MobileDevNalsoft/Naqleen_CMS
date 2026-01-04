@@ -1,22 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Eye, X, MoreHorizontal, Grid3x3, MapPin, ClipboardList, Truck, ArrowRightLeft, ShieldCheck, Container } from 'lucide-react';
+import { Zap, X, MoreHorizontal, Grid3x3, MapPin, ClipboardList, Truck, ArrowRightLeft, ShieldCheck, Container } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 
 interface QuickActionsButtonProps { }
 
 export default function QuickActionsButton({ }: QuickActionsButtonProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [isViewSelectorOpen, setIsViewSelectorOpen] = useState(false);
     const [isActionSelectorOpen, setIsActionSelectorOpen] = useState(false);
-    const [currentViewMode, setCurrentViewMode] = useState<'main' | 'top'>('main');
-    const lastModeChangeTime = useRef(0);
 
     const openPanel = useUIStore((state) => state.openPanel);
 
     const handleToggleQuickActions = () => {
         if (isOpen) {
             // If open, close panels first then close quick actions
-            setIsViewSelectorOpen(false);
             setIsActionSelectorOpen(false);
             setIsOpen(false);
         } else {
@@ -24,41 +20,6 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
             setIsOpen(true);
         }
     };
-
-    const handleViewModeChange = (mode: 'main' | 'top') => {
-        lastModeChangeTime.current = Date.now();
-        if (mode === 'top') {
-            window.dispatchEvent(new CustomEvent('moveCameraToTop'));
-        } else if (mode === 'main') {
-            window.dispatchEvent(new CustomEvent('resetCameraToInitial'));
-        }
-        setCurrentViewMode(mode);
-    };
-
-    // Separate function to only update UI without camera animation
-    const handleViewModeChangeUIOnly = (mode: 'main' | 'top') => {
-        setCurrentViewMode(mode);
-    };
-
-    // Listen for camera disturbance events when in top view
-    useEffect(() => {
-        const handleCameraDisturbance = () => {
-            // Ignore disturbances during the animation window (2 seconds)
-            if (Date.now() - lastModeChangeTime.current < 2000) return;
-
-            if (currentViewMode === 'top') {
-                // Switch back to main view when camera is disturbed
-                handleViewModeChangeUIOnly('main');
-            }
-        };
-
-        // Listen for OrbitControls change events (this covers rotation, pan, and zoom)
-        window.addEventListener('controlsChanged', handleCameraDisturbance);
-
-        return () => {
-            window.removeEventListener('controlsChanged', handleCameraDisturbance);
-        };
-    }, [currentViewMode]);
 
     // Handle click outside to close Quick Actions
     useEffect(() => {
@@ -69,7 +30,6 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
             const quickActionsElement = document.getElementById('quick-actions-container');
             if (quickActionsElement && !quickActionsElement.contains(target)) {
                 // Close panels first then close quick actions
-                setIsViewSelectorOpen(false);
                 setIsActionSelectorOpen(false);
                 setIsOpen(false);
             }
@@ -85,10 +45,7 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
         };
     }, [isOpen]);
 
-    const viewModes = [
-        { id: 'main' as const, label: 'Main View', icon: Grid3x3 },
-        { id: 'top' as const, label: 'Top View', icon: Eye }
-    ];
+
 
     const actionModes = [
         { id: 'gateIn', label: 'Gate In', icon: Truck },
@@ -109,15 +66,6 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
             label: 'Actions',
             action: () => {
                 setIsActionSelectorOpen(!isActionSelectorOpen);
-                setIsViewSelectorOpen(false);
-            }
-        },
-        {
-            Icon: Eye,
-            label: 'Views',
-            action: () => {
-                setIsViewSelectorOpen(!isViewSelectorOpen);
-                setIsActionSelectorOpen(false);
             }
         },
     ];
@@ -211,107 +159,7 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
                 </div>
             </div>
 
-            {/* View Selector Panel */}
-            <div style={{
-                position: 'absolute',
-                bottom: '160px', // Position at Eye button center
-                left: '70px', // Start from Eye button center
-                width: '150px',
-                background: 'rgba(253, 246, 235)',
-                backdropFilter: 'blur(16px)',
-                borderRadius: '16px',
-                border: '1px solid rgba(75, 104, 108, 0.2)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-                opacity: isViewSelectorOpen ? 1 : 0,
-                transform: isViewSelectorOpen ? 'scale(1) translate(0, 0)' : 'scale(0.9) translate(-10px, 10px)',
-                transformOrigin: 'bottom left', // Animate from bottom left
-                pointerEvents: isViewSelectorOpen ? 'auto' : 'none',
-                transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
-            }}>
-                <div style={{
-                    padding: '16px',
-                    borderBottom: '1px solid rgba(0,0,0,0.05)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                        Views
-                    </span>
-                    <button
-                        onClick={() => setIsViewSelectorOpen(false)}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            padding: '4px',
-                            cursor: 'pointer',
-                            color: '#94a3b8',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '4px',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(0,0,0,0.05)';
-                            e.currentTarget.style.color = '#64748b';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'none';
-                            e.currentTarget.style.color = '#94a3b8';
-                        }}
-                    >
-                        <X size={14} />
-                    </button>
-                </div>
-                <div style={{
-                    padding: '8px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px'
-                }}>
-                    {viewModes.map((mode) => (
-                        <button
-                            key={mode.id}
-                            onClick={() => {
-                                handleViewModeChange(mode.id);
-                                setIsViewSelectorOpen(false);
-                            }}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '12px',
-                                padding: '10px 12px',
-                                borderRadius: '10px',
-                                border: '1px solid rgba(196, 196, 196, 1)',
-                                background: 'rgba(255, 255, 255, 0.5)',
-                                color: '#1e293b',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                fontSize: '13px',
-                                fontWeight: 600,
-                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.03)'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
-                                e.currentTarget.style.transform = 'translateY(-1px)';
-                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.06)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.5)';
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.03)';
-                            }}
-                        >
-                            <mode.icon size={16} style={{ color: '#4B686C' }} />
-                            {mode.label}
-                        </button>
-                    ))}
-                </div>
-            </div>
+
 
             {/* Action Selector Panel */}
             <div style={{

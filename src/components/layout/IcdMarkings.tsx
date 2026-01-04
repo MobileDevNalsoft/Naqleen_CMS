@@ -4,7 +4,7 @@ import { Text, Billboard, Html } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useStore } from '../../store/store';
 import { useUIStore } from '../../store/uiStore';
-import { type DynamicEntity, type DynamicIcdLayout, getAllDynamicBlocks, calculateBlockPosition, calculateBlockDimensions } from '../../utils/layoutUtils';
+import { type DynamicEntity, type ContainerBlockEntity, getAllDynamicBlocks, calculateBlockPosition } from '../../utils/layoutUtils';
 
 
 // Block Marker Component - Premium pulsing annotation with hover tooltip
@@ -25,39 +25,33 @@ const pulseStyles = `
         box-shadow: 0 0 0 0 rgba(247, 207, 155, 0.7), 0 0 0 0 rgba(75, 104, 108, 0.5);
     }
     40% {
-        box-shadow: 0 0 0 20px transparent, 0 0 0 0 rgba(75, 104, 108, 0.5);
+        box-shadow: 0 0 0 8px transparent, 0 0 0 0 rgba(75, 104, 108, 0.5); /* Reduced from 20px */
     }
     80% {
-        box-shadow: 0 0 0 20px transparent, 0 0 0 12px transparent;
+        box-shadow: 0 0 0 8px transparent, 0 0 0 4px transparent;
     }
     100% {
-        box-shadow: 0 0 0 0 transparent, 0 0 0 12px transparent;
+        box-shadow: 0 0 0 0 transparent, 0 0 0 4px transparent;
     }
 }
 
+/* ... existing glow keyframes ... */
 @keyframes block-marker-glow {
-    0%, 100% {
-        filter: drop-shadow(0 0 8px rgba(247, 207, 155, 0.6));
-    }
-    50% {
-        filter: drop-shadow(0 0 16px rgba(247, 207, 155, 0.9));
-    }
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(247, 207, 155, 0.6)); } /* Reduced glow radius */
+    50% { filter: drop-shadow(0 0 8px rgba(247, 207, 155, 0.9)); }
 }
 
 @keyframes block-marker-float {
-    0%, 100% {
-        transform: translateY(0px);
-    }
-    50% {
-        transform: translateY(-3px);
-    }
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-3px); }
 }
 
 .block-marker-container {
     position: relative;
     cursor: pointer;
     user-select: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.2s ease-out, transform 0.2s ease-out; /* Optimized: specific props, faster timing */
+    will-change: opacity, transform; /* Hint browser for optimization */
     z-index: 1;
 }
 
@@ -76,14 +70,14 @@ const pulseStyles = `
     align-items: center;
     justify-content: center;
     position: relative;
-    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.2s ease-out, background 0.2s ease, box-shadow 0.2s ease; /* Optimized */
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), 0 0 0 0 rgba(247, 207, 155, 0);
 }
 
 .block-marker-pulse:hover {
     background: linear-gradient(145deg, #F7CF9B 0%, #E5B070 100%);
     border-color: #ffffff;
-    transform: scale(1.2);
+    transform: scale(1.1); /* Slightly reduced scale from 1.2 */
     animation: block-marker-pulse 2s ease-out infinite, block-marker-glow 1.5s ease-in-out infinite;
     box-shadow: 0 6px 28px rgba(247, 207, 155, 0.4);
 }
@@ -95,7 +89,7 @@ const pulseStyles = `
     font-family: 'Outfit', system-ui, sans-serif;
     letter-spacing: -0.5px;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    transition: all 0.3s ease;
+    transition: color 0.2s ease, transform 0.2s ease; /* Optimized */
 }
 
 .block-marker-pulse:hover .block-marker-icon {
@@ -122,7 +116,7 @@ const pulseStyles = `
     opacity: 0;
     pointer-events: none;
     transform: translateY(-50%) translateX(-10px);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.2s ease-out, transform 0.2s ease-out; /* Optimized */
     z-index: 9999;
 }
 
@@ -154,8 +148,8 @@ const pulseStyles = `
 /* Outer glow ring that pulses */
 .block-marker-outer-ring {
     position: absolute;
-    width: 46px;
-    height: 46px;
+    width: 32px; /* Reduced from 46px to fit 24px button tighter */
+    height: 32px; /* Reduced from 46px */
     border-radius: 50%;
     border: 2px solid rgba(247, 207, 155, 0.3);
     top: 50%;
@@ -163,7 +157,7 @@ const pulseStyles = `
     transform: translate(-50%, -50%);
     pointer-events: none;
     opacity: 0;
-    transition: all 0.3s ease;
+    transition: opacity 0.3s ease;
 }
 
 .block-marker-pulse:hover ~ .block-marker-outer-ring {
@@ -171,13 +165,12 @@ const pulseStyles = `
     animation: block-marker-pulse 2s ease-out infinite;
 }
 
-/* Faded state when another marker is hovered */
+/* Faded state REMOVED as per user request */
 .block-marker-container.faded {
-    opacity: 0.15;
-    pointer-events: none;
-    transform: scale(0.9);
-    filter: grayscale(0.5);
-    z-index: 0;
+    /* opacity: 0.15; */
+    /* pointer-events: none; */
+    /* transform: scale(0.9); */
+    /* z-index: 0; */
 }
 `;
 
@@ -236,7 +229,7 @@ const BlockMarker: React.FC<BlockMarkerProps> = ({
                     zIndexRange={[100, 0]}
                 >
                     <div
-                        className={`block-marker-container ${isOtherMarkerHovered ? 'faded' : ''}`}
+                        className="block-marker-container"
                         onClick={(e) => {
                             e.stopPropagation();
                             onClick();
@@ -273,18 +266,20 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
     const meshRef = useRef<THREE.InstancedMesh>(null);
     const dummy = useMemo(() => new THREE.Object3D(), []);
     const selectedBlock = useStore((state) => state.selectedBlock);
-    const selectId = useStore((state) => state.selectId);
+
     const [meshReady, setMeshReady] = useState(false);
 
     // Store blocks in a ref to avoid stale closure in useFrame
     const blocksRef = useRef(blocks);
     blocksRef.current = blocks;
 
-    // Track state for each block to handle smooth animation
-    const blockStates = useRef<Record<string, { startIndex: number; count: number; currentY: number }>>({});
-    const lotLiftHeight = useRef(0);
-    const useFrameLogged = useRef(false);
+    // Track state for each block - now includes opacity for Telia-style dimming
+    const blockStates = useRef<Record<string, { startIndex: number; count: number; currentOpacity: number }>>({});
+
     const frameCount = useRef(0);
+
+    // Colors for dimming effect
+
 
     // Callback ref to detect when mesh is ready
     const meshCallbackRef = useCallback((node: THREE.InstancedMesh | null) => {
@@ -303,13 +298,14 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
         if (!mesh || !meshReady) return;
 
         let index = 0;
-        const states: Record<string, { startIndex: number; count: number; currentY: number }> = {};
+        const states: Record<string, { startIndex: number; count: number; currentOpacity: number }> = {};
 
         blocks.forEach(block => {
             const startIndex = index;
             let count = 0;
 
-            const props = block.props || {};
+            const containerBlock = block as ContainerBlockEntity;
+            const props = containerBlock.props || {};
             const lots = props.lots || 1;
             const rows = props.rows || 1;
             const lotNumbers: number[] = props.lot_numbers || Array.from({ length: lots }, (_, i) => i + 1);
@@ -360,178 +356,54 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
             const blockPos = new THREE.Vector3(block.position.x, block.position.y, block.position.z);
             const blockRot = new THREE.Euler(0, ((block.rotation || 0) * Math.PI) / 180, 0);
 
-            // Debug logging for dynamic blocks
-            if (block.id.includes('trm_block') || block.id.includes('trs_block_a')) {
-                console.log(`[SlotMarkings] ${block.id}: position=${JSON.stringify(block.position)}, placement=${JSON.stringify(block.placement)}`);
-            }
+            // Check for valid position (exclude 0,0 blocks with placement which indicates calculation failure)
+            const isInvalidPos = block.placement && Math.abs(blockPos.x) < 0.1 && Math.abs(blockPos.z) < 0.1;
 
-            // Calculate cumulative X offset for each lot
-            let xOffset = 0;
-            const excludedSlots: { lot: number; row: string }[] = props.excluded_slots || [];
-            const rowLabels: string[] = props.row_labels || [];
+            if (isInvalidPos) {
+                // If invalid, hide all slots for this block by setting scale to 0
+                dummy.position.set(0, -100, 0); // Move underground just in case
+                dummy.scale.set(0, 0, 0);
+                dummy.updateMatrix();
 
-            for (let b = 0; b < lots; b++) {
-                const currentLotNumber = lotNumbers[b];
-                for (let r = 0; r < rows; r++) {
-                    // Check if this slot is excluded
-                    // Row labels are visually inverted (J at top, A at bottom), so use reverse index
-                    const visualRowIndex = rows - 1 - r;
-                    const currentRowLabel = rowLabels[visualRowIndex] || String.fromCharCode(65 + visualRowIndex);
-                    const isExcluded = excludedSlots.some(
-                        (es) => es.lot === currentLotNumber && es.row === currentRowLabel
-                    );
-
-                    if (isExcluded) {
-                        // Skip this slot but don't increment index
-                        continue;
-                    }
-
-                    const x = startX + xOffset;
-                    const z = startZ + r * (containerWidth + gapZ);
-
-                    const pos = new THREE.Vector3(x, 0.02, z);
-                    pos.applyEuler(blockRot);
-                    pos.add(blockPos);
-
-                    // Debug: log final world position of first slot for trm_block_a
-                    if (block.id === 'trm_block_a' && b === 0 && r === 0) {
-                        console.log(`[useEffect] trm_block_a slot[0,0]: local=(${x.toFixed(2)}, ${z.toFixed(2)}), blockPos=(${blockPos.x.toFixed(2)}, ${blockPos.z.toFixed(2)}), final=(${pos.x.toFixed(2)}, ${pos.z.toFixed(2)})`);
-                    }
-
-                    dummy.position.copy(pos);
-                    dummy.rotation.set(-Math.PI / 2, blockRot.y, 0, 'YXZ');
-                    dummy.scale.set(containerLength, containerWidth, 1);
-                    dummy.updateMatrix();
-
-                    mesh.setMatrixAt(index++, dummy.matrix);
-                    count++;
-                }
-                // Add gap after this lot for next iteration
-                const lotNum = lotNumbers[b];
-                xOffset += containerLength + (lotGaps[String(lotNum)] ?? gapX);
-            }
-
-            states[block.id] = { startIndex, count, currentY: 0 };
-        });
-
-        blockStates.current = states;
-        mesh.instanceMatrix.needsUpdate = true;
-
-        // Debug: show total slots set vs expected
-        const totalSet = Object.values(states).reduce((acc, s) => acc + s.count, 0);
-        console.log(`[useEffect] Total matrices set: ${totalSet}, mesh.count: ${mesh.count}`);
-    }, [blocks, dummy, meshReady]); // Re-run when blocks change or mesh becomes ready
-
-    // Animate Y positions
-    useFrame((_, delta) => {
-        const mesh = meshRef.current;
-        if (!mesh || !blockStates.current) return;
-
-        let needsUpdate = false;
-        const lerpSpeed = delta * 2; // Slower animation
-
-        // Force update for first few frames to ensure positions are synced
-        frameCount.current += 1;
-        if (frameCount.current < 10) {
-            needsUpdate = true;
-        }
-
-        // Animate Lot Lift
-        const targetLotLift = selectId ? 10 : 0;
-        if (Math.abs(lotLiftHeight.current - targetLotLift) > 0.01) {
-            lotLiftHeight.current = THREE.MathUtils.lerp(lotLiftHeight.current, targetLotLift, lerpSpeed);
-            needsUpdate = true;
-        } else {
-            lotLiftHeight.current = targetLotLift;
-        }
-
-
-        // Use blocksRef to avoid stale closure - always get latest blocks with calculated positions
-        blocksRef.current.forEach(block => {
-            const state = blockStates.current[block.id];
-            if (!state) return;
-
-            const isSelected = block.id === selectedBlock;
-            const targetY = isSelected ? 16 : 0;
-
-            // Only update if not at target OR if we have a lot lift active (since it affects individual slots)
-            if (Math.abs(state.currentY - targetY) > 0.01 || lotLiftHeight.current > 0 || needsUpdate) {
-                // Lerp currentY
-                state.currentY = THREE.MathUtils.lerp(state.currentY, targetY, lerpSpeed);
-                needsUpdate = true;
-
-                // Re-calculate matrices for this block with new Y
-                const props = block.props || {};
-                const lots = props.lots || 1;
-                const rows = props.rows || 1;
-                const lotNumbers: number[] = props.lot_numbers || Array.from({ length: lots }, (_, i) => i + 1);
-                const lotGaps: Record<string, number> = props.lot_gaps || {};
-
-                // Calculate slot dimensions - use fixed block dimensions if provided
-                let containerLength: number;
-                let containerWidth: number;
-                let gapX: number;
-                let gapZ: number;
-                let totalWidth: number;
-                let totalDepth: number;
-
-                if (props.block_width && props.block_depth) {
-                    // Fixed block dimensions
-                    totalWidth = props.block_width;
-                    totalDepth = props.block_depth;
-                    gapX = 0.5;
-                    gapZ = 0.3;
-                    containerLength = (totalWidth - (lots - 1) * gapX) / lots;
-                    containerWidth = (totalDepth - (rows - 1) * gapZ) / rows;
-                } else {
-                    // Calculate from container dimensions
-                    const is20ft = props.container_type === '20ft';
-                    containerLength = is20ft ? 6.058 : 12.192;
-                    containerWidth = 2.438;
-                    gapX = props.lot_gap || 0.5;
-                    gapZ = 0.3;
-
-                    totalWidth = 0;
-                    for (let i = 0; i < lots; i++) {
-                        totalWidth += containerLength;
-                        if (i < lots - 1) {
-                            const lotNum = lotNumbers[i];
-                            totalWidth += lotGaps[String(lotNum)] ?? gapX;
-                        }
-                    }
-                    totalDepth = rows * (containerWidth + gapZ);
+                for (let i = 0; i < (lots * rows); i++) {
+                    // Account for excluded slots logic if needed, but simpler to just blank everything
+                    // We must increment index to keep sync with totalSlots
+                    // But strictly speaking, totalSlots accounts for exclusions.
+                    // So we must simulate the loop to match indices.
                 }
 
-                const startX = -totalWidth / 2 + containerLength / 2;
-                const startZ = -totalDepth / 2 + containerWidth / 2;
-
-                const blockPos = new THREE.Vector3(block.position.x, block.position.y + state.currentY, block.position.z);
-
-                // Debug log for trm_block_a and d blocks in useFrame (frame 5)
-                if (frameCount.current === 5 && (block.id === 'trm_block_a' || block.id.includes('_d'))) {
-                    console.log(`[useFrame] ${block.id}: pos=(${blockPos.x.toFixed(2)}, ${blockPos.z.toFixed(2)})`);
-                }
-
-                // Warn on 0,0 for blocks that shouldn't be there
-                if (frameCount.current === 5 && (block.id.includes('trm_') || block.id.includes('trs_')) && blockPos.x === 0 && blockPos.z === 0) {
-                    console.warn(`[useFrame] WARN: ${block.id} at (0,0)`);
-                }
-
-                const isTrmA = block.id === 'trm_block_a';
-                if (isTrmA && !useFrameLogged.current) {
-                    console.log(`[useFrame] trm_block_a: blockPos=(${blockPos.x.toFixed(2)}, ${blockPos.y.toFixed(2)}, ${blockPos.z.toFixed(2)}), state.currentY=${state.currentY}`);
-                    if (block.position.x === 0 && block.position.z === 0) {
-                        console.warn(`[useFrame] WARN: trm_block_a has (0,0) position in useFrame loop! Stale closure suspected.`);
-                    }
-                    useFrameLogged.current = true;
-                }
-
-                const blockRot = new THREE.Euler(0, ((block.rotation || 0) * Math.PI) / 180, 0);
-
-                let idx = state.startIndex;
+                // Correction: We must iterate the exact same way to consume the exact same indices
                 let xOffset = 0;
-                const excludedSlots: { lot: number; row: string }[] = props.excluded_slots || [];
-                const rowLabelsFrame: string[] = props.row_labels || [];
+                const excludedSlots: { lot: number; row: string | number }[] = props.excluded_slots || [];
+                const rowLabels: string[] = props.row_labels || [];
+
+                for (let b = 0; b < lots; b++) {
+                    const currentLotNumber = lotNumbers[b];
+                    for (let r = 0; r < rows; r++) {
+                        const visualRowIndex = rows - 1 - r;
+                        const currentRowLabel = rowLabels[visualRowIndex] || String.fromCharCode(65 + visualRowIndex);
+                        const isExcluded = excludedSlots.some((es) => es.lot === currentLotNumber && es.row === currentRowLabel);
+                        if (isExcluded) continue;
+
+                        // Fill with invisible matrix
+                        mesh.setMatrixAt(index++, dummy.matrix);
+                        count++;
+                    }
+                    const lotNum = lotNumbers[b];
+                    xOffset += containerLength + (lotGaps[String(lotNum)] ?? gapX);
+                }
+                // End invalid block handling
+            } else {
+
+                // Debug logging for dynamic blocks
+                if (block.id.includes('trm_block') || block.id.includes('trs_block_a')) {
+                    console.log(`[SlotMarkings] ${block.id}: position=${JSON.stringify(block.position)}, placement=${JSON.stringify(block.placement)}`);
+                }
+
+                // Calculate cumulative X offset for each lot
+                let xOffset = 0;
+                const excludedSlots: { lot: number; row: string | number }[] = props.excluded_slots || [];
+                const rowLabels: string[] = props.row_labels || [];
 
                 for (let b = 0; b < lots; b++) {
                     const currentLotNumber = lotNumbers[b];
@@ -539,12 +411,13 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
                         // Check if this slot is excluded
                         // Row labels are visually inverted (J at top, A at bottom), so use reverse index
                         const visualRowIndex = rows - 1 - r;
-                        const currentRowLabel = rowLabelsFrame[visualRowIndex] || String.fromCharCode(65 + visualRowIndex);
+                        const currentRowLabel = rowLabels[visualRowIndex] || String.fromCharCode(65 + visualRowIndex);
                         const isExcluded = excludedSlots.some(
                             (es) => es.lot === currentLotNumber && es.row === currentRowLabel
                         );
 
                         if (isExcluded) {
+                            // Skip this slot but don't increment index
                             continue;
                         }
 
@@ -555,49 +428,122 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
                         pos.applyEuler(blockRot);
                         pos.add(blockPos);
 
-                        // Check if this slot matches the selected container
-                        // REMOVED: extraLift logic to keep the marking on the ground
-                        /*
-                        let extraLift = 0;
-                        if (selectedEntity) {
-                            if (Math.abs(pos.x - selectedEntity.x) < 0.5 && Math.abs(pos.z - selectedEntity.z) < 0.5) {
-                                extraLift = lotLiftHeight.current;
-                            }
+                        // Debug: log final world position of first slot for trm_block_a
+                        if (block.id === 'trm_block_a' && b === 0 && r === 0) {
+                            console.log(`[useEffect] trm_block_a slot[0,0]: local=(${x.toFixed(2)}, ${z.toFixed(2)}), blockPos=(${blockPos.x.toFixed(2)}, ${blockPos.z.toFixed(2)}), final=(${pos.x.toFixed(2)}, ${pos.z.toFixed(2)})`);
                         }
-                        pos.y += extraLift;
-                        */
 
                         dummy.position.copy(pos);
                         dummy.rotation.set(-Math.PI / 2, blockRot.y, 0, 'YXZ');
                         dummy.scale.set(containerLength, containerWidth, 1);
                         dummy.updateMatrix();
 
-                        mesh.setMatrixAt(idx++, dummy.matrix);
+                        mesh.setMatrixAt(index++, dummy.matrix);
+                        count++;
                     }
                     // Add gap after this lot for next iteration
                     const lotNum = lotNumbers[b];
                     xOffset += containerLength + (lotGaps[String(lotNum)] ?? gapX);
                 }
+            } // End else
+
+            states[block.id] = { startIndex, count, currentOpacity: 1.0 };
+        });
+
+        blockStates.current = states;
+        mesh.instanceMatrix.needsUpdate = true;
+
+        // Debug: show total slots set vs expected
+        const totalSet = Object.values(states).reduce((acc, s) => acc + s.count, 0);
+        console.log(`[useEffect] Total matrices set: ${totalSet}, mesh.count: ${mesh.count}`);
+    }, [blocks, dummy, meshReady]); // Re-run when blocks change or mesh becomes ready
+
+    // Animate instance colors for Telia-style dimming (no Y position changes)
+    useFrame((_, delta) => {
+        const mesh = meshRef.current;
+        if (!mesh || !blockStates.current) return;
+
+        let needsColorUpdate = false;
+        let needsMatrixUpdate = false;
+        const lerpSpeed = delta * 4; // Faster color transitions for responsive feel
+
+        // Force update for first few frames to ensure positions are synced
+        frameCount.current += 1;
+        const isInitializing = frameCount.current < 10;
+
+        // Calculate target opacities based on selection state
+        // If nothing is selected, all blocks are at full brightness
+        // If a block is selected, only that block is bright, others dim
+        const hasSelection = !!selectedBlock;
+
+        // Use blocksRef to avoid stale closure
+        blocksRef.current.forEach(block => {
+            const state = blockStates.current[block.id];
+            if (!state) return;
+
+            const isSelected = block.id === selectedBlock;
+            // Full visibility (scale 1.0) if selected OR if nothing is selected; otherwise INVISIBLE (scale 0)
+            const targetScale = hasSelection ? (isSelected ? 1.0 : 0) : 1.0;
+
+            // Smoothly lerp opacity (used for scale animation)
+            if (Math.abs(state.currentOpacity - targetScale) > 0.01 || isInitializing) {
+                state.currentOpacity = THREE.MathUtils.lerp(state.currentOpacity, targetScale, lerpSpeed);
+                needsColorUpdate = true;
+                needsMatrixUpdate = true;
+
+                // Update instance colors for this block's slots
+                const color = new THREE.Color();
+                // Interpolate from dimmed gray to full white based on opacity
+                color.setRGB(
+                    0.29 + 0.71 * state.currentOpacity, // 0.29 = #4a/255 = dark gray
+                    0.29 + 0.71 * state.currentOpacity,
+                    0.29 + 0.71 * state.currentOpacity
+                );
+
+                // Update scale in instance matrices to hide/show slots
+                const matrix = new THREE.Matrix4();
+                const position = new THREE.Vector3();
+                const rotation = new THREE.Quaternion();
+                const scale = new THREE.Vector3();
+
+                for (let i = state.startIndex; i < state.startIndex + state.count; i++) {
+                    mesh.setColorAt(i, color);
+
+                    // Get current matrix, modify scale, and set back
+                    mesh.getMatrixAt(i, matrix);
+                    matrix.decompose(position, rotation, scale);
+
+                    // Scale to near-zero to hide, or restore based on original dimensions
+                    const targetScaleVal = state.currentOpacity < 0.1 ? 0.001 : 1.0;
+                    scale.set(scale.x > 0.01 ? scale.x : 1, scale.y > 0.01 ? scale.y : 1, targetScaleVal);
+
+                    matrix.compose(position, rotation, scale);
+                    mesh.setMatrixAt(i, matrix);
+                }
             }
         });
 
-        if (needsUpdate) {
+        if (needsColorUpdate && mesh.instanceColor) {
+            mesh.instanceColor.needsUpdate = true;
+        }
+        if (needsMatrixUpdate) {
             mesh.instanceMatrix.needsUpdate = true;
         }
     });
 
     const totalSlots = useMemo(() => {
         return blocks.reduce((acc, block) => {
-            const totalBlockSlots = (block.props?.lots || 1) * (block.props?.rows || 1);
-            const excludedCount = block.props?.excluded_slots?.length || 0;
+            const containerBlock = block as ContainerBlockEntity;
+            const totalBlockSlots = (containerBlock.props?.lots || 1) * (containerBlock.props?.rows || 1);
+            const excludedCount = containerBlock.props?.excluded_slots?.length || 0;
             return acc + totalBlockSlots - excludedCount;
         }, 0);
     }, [blocks]);
 
     return (
-        <instancedMesh ref={meshCallbackRef} args={[undefined, undefined, totalSlots]} frustumCulled={false}>
+        <instancedMesh ref={meshCallbackRef} args={[undefined, undefined, totalSlots]} frustumCulled={false} renderOrder={10}>
             <planeGeometry args={[1, 1]} />
-            <meshStandardMaterial color="#ffffff" transparent opacity={0.3} depthWrite={false} />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.4} depthWrite={false} />
         </instancedMesh>
     );
 };
@@ -607,7 +553,8 @@ interface BlockLabelsProps {
 }
 
 const BlockLabels = ({ block }: BlockLabelsProps) => {
-    const props = block.props || {};
+    const containerBlock = block as ContainerBlockEntity;
+    const props = containerBlock.props || {};
     // Use global store for unified hover state across all markers
     const hoveredMarker = useStore((state) => state.hoveredMarker);
     const setHoveredMarker = useStore((state) => state.setHoveredMarker);
@@ -753,12 +700,8 @@ const BlockLabels = ({ block }: BlockLabelsProps) => {
         previousSelectedBlock.current = selectedBlock;
     }, [selectedBlock, isHovered]);
 
-    useFrame((_, delta) => {
-        if (groupRef.current) {
-            const targetY = isSelected ? 16 : 0;
-            groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetY, delta * 2);
-        }
-    });
+    // TELIA-STYLE: No lifting - labels stay at ground level
+    // (previously lifted when selected, removed for flat Telia-style)
 
     return (
         <group ref={groupRef}>

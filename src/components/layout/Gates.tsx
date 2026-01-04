@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
@@ -9,19 +10,19 @@ interface GateProps {
     label?: string; // Optional custom label (defaults to 'GATE IN' or 'GATE OUT')
 }
 
+// --- Shared Materials (Module Scope) ---
+const concreteMaterial = new THREE.MeshStandardMaterial({ color: '#95a5a6', roughness: 0.9 }); // Concrete Grey
+const metalMaterial = new THREE.MeshStandardMaterial({ color: '#34495e', metalness: 0.7, roughness: 0.2 }); // Industrial Metal (Dark Blue-Grey)
+const glassMaterial = new THREE.MeshStandardMaterial({ color: '#aeb6bf', transparent: true, opacity: 0.3, metalness: 0.9, roughness: 0.1 }); // Tinted Glass
+const barrierMaterial = new THREE.MeshStandardMaterial({ color: '#e74c3c', roughness: 0.2 }); // Safety Red
+const stripeMaterial = new THREE.MeshStandardMaterial({ color: '#ecf0f1', roughness: 0.2 }); // Reflective White
+const lightHousingMaterial = new THREE.MeshStandardMaterial({ color: '#2c3e50' });
+
 const Gate: React.FC<GateProps> = ({ position, type, label }) => {
     const [x, y, z] = position;
     const width = 20; // Wider gate
     const height = 6;
     const pillarWidth = 1.2;
-
-    // Materials - Realistic Industrial Colors
-    const concreteMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: '#95a5a6', roughness: 0.9 }), []); // Concrete Grey
-    const metalMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: '#34495e', metalness: 0.7, roughness: 0.2 }), []); // Industrial Metal (Dark Blue-Grey)
-    const glassMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: '#aeb6bf', transparent: true, opacity: 0.3, metalness: 0.9, roughness: 0.1 }), []); // Tinted Glass
-    const barrierMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: '#e74c3c', roughness: 0.2 }), []); // Safety Red
-    const stripeMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: '#ecf0f1', roughness: 0.2 }), []); // Reflective White
-    const lightHousingMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: '#2c3e50' }), []);
 
     return (
         <group position={[x, y, z]}>

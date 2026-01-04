@@ -26,7 +26,10 @@ export const CFSAreaWrapper: React.FC<DynamicComponentProps> = ({
     name,
     position,
     dimensions,
-    rotation
+    rotation,
+    isDimmed = false,
+    childEntities = [],
+    entityPositionMap
 }) => {
     return (
         <CFSAreaComponent
@@ -36,6 +39,9 @@ export const CFSAreaWrapper: React.FC<DynamicComponentProps> = ({
             width={dimensions?.width || 50}
             depth={dimensions?.height || 25}
             rotation={rotation}
+            isDimmed={isDimmed}
+            childTrucks={childEntities}
+            entityPositionMap={entityPositionMap}
         />
     );
 };
@@ -48,7 +54,8 @@ export const WarehouseWrapper: React.FC<DynamicComponentProps> = ({
     name,
     position,
     dimensions,
-    rotation
+    rotation,
+    isDimmed = false
 }) => {
     return (
         <WarehouseComponent
@@ -58,6 +65,7 @@ export const WarehouseWrapper: React.FC<DynamicComponentProps> = ({
             width={dimensions?.width || 50}
             depth={dimensions?.height || 20}
             rotation={rotation}
+            isDimmed={isDimmed}
         />
     );
 };
@@ -68,7 +76,8 @@ export const WarehouseWrapper: React.FC<DynamicComponentProps> = ({
 export const TruckWrapper: React.FC<DynamicComponentProps> = ({
     position,
     rotation,
-    containerColor
+    containerColor,
+    isDimmed = false
 }) => {
     // Raise y position by 0.2 to sit on top of CFS area floor
     const adjustedPosition: [number, number, number] = [
@@ -82,6 +91,8 @@ export const TruckWrapper: React.FC<DynamicComponentProps> = ({
             position={adjustedPosition}
             rotation={rotation}
             containerColor={containerColor}
+            isDimmed={isDimmed}
         />
     );
 };
+

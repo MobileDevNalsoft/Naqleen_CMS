@@ -3,6 +3,15 @@ import * as THREE from 'three';
 import { Html, Billboard } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useStore } from '../../store/store';
+import Truck from './Truck';
+
+interface ChildEntity {
+    id: string;
+    type: string;
+    position: { x: number; y: number; z: number };
+    rotation?: number;
+    props?: { containerColor?: string };
+}
 
 interface CFSAreaProps {
     id: string;
@@ -11,6 +20,9 @@ interface CFSAreaProps {
     width: number;
     depth: number;
     rotation?: number;
+    isDimmed?: boolean;
+    childTrucks?: ChildEntity[];
+    entityPositionMap?: Map<string, { x: number; z: number }>;
 }
 
 // Hover sound for marker
@@ -28,7 +40,8 @@ const CFSMarker: React.FC<{
     onPointerOver: () => void;
     onPointerOut: () => void;
     isOtherMarkerHovered: boolean;
-}> = ({ position, areaName, onClick, onPointerOver, onPointerOut, isOtherMarkerHovered }) => {
+    disabled?: boolean;
+}> = ({ position, areaName, onClick, onPointerOver, onPointerOut, isOtherMarkerHovered, disabled }) => {
     const groupRef = useRef<THREE.Group>(null);
     const { camera } = useThree();
 
@@ -43,6 +56,8 @@ const CFSMarker: React.FC<{
         groupRef.current.scale.setScalar(scaleFactor);
     });
 
+    if (disabled) return null;
+
     return (
         <Billboard position={position}>
             <group ref={groupRef}>
@@ -55,7 +70,7 @@ const CFSMarker: React.FC<{
                     zIndexRange={[100, 0]}
                 >
                     <div
-                        className={`block-marker-container ${isOtherMarkerHovered ? 'faded' : ''}`}
+                        className="block-marker-container"
                         onClick={(e) => {
                             e.stopPropagation();
                             onClick();
@@ -91,15 +106,17 @@ const CFSMarker: React.FC<{
 };
 
 // Main CFS Area Component
-const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rotation = 0 }) => {
+const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rotation = 0, isDimmed = false, childTrucks = [], entityPositionMap }) => {
     const [x, y, z] = position;
     const borderHeight = 0.15; // Subtle border height
     const borderWidth = 0.25; // Border thickness
+    const groupRef = useRef<THREE.Group>(null);
+    const opacityRef = useRef(1);
 
-    // Materials
     const concreteMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: '#4A5568', // Dark concrete gray
-        roughness: 0.95
+        color: '#2D3748', // Darker concrete (Slate 800) to reduce brightness
+        roughness: 0.95,
+        transparent: true
     }), []);
 
     const borderMaterial = useMemo(() => new THREE.MeshStandardMaterial({
@@ -107,8 +124,33 @@ const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rot
         roughness: 0.5,
         metalness: 0.3,
         emissive: '#F59E0B',
-        emissiveIntensity: 0.15
+        emissiveIntensity: 0.15,
+        transparent: true
     }), []);
+
+    // TELIA-STYLE: Animate opacity using group.traverse
+    useFrame((_, delta) => {
+        const targetOpacity = isDimmed ? 0 : 1;
+        const lerpSpeed = delta * 3;
+
+        // Smoothly lerp opacity
+        opacityRef.current = THREE.MathUtils.lerp(opacityRef.current, targetOpacity, lerpSpeed);
+
+        // Apply to all materials in the group
+        if (groupRef.current) {
+            groupRef.current.traverse((child) => {
+                if ((child as THREE.Mesh).isMesh) {
+                    const mesh = child as THREE.Mesh;
+                    const material = mesh.material as THREE.MeshStandardMaterial;
+                    if (material && material.isMeshStandardMaterial) {
+                        material.opacity = opacityRef.current;
+                    }
+                }
+            });
+        }
+    });
+
+
 
     // Store integration
     const setSelectedCFS = useStore((state) => state.setSelectedBlock);
@@ -120,7 +162,7 @@ const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rot
     };
 
     return (
-        <group position={[x, y, z]} rotation={[0, rotation * Math.PI / 180, 0]}>
+        <group ref={groupRef} position={[x, y, z]} rotation={[0, rotation * Math.PI / 180, 0]}>
             {/* Floor/Platform */}
             <mesh position={[0, 0.1, 0]} receiveShadow material={concreteMaterial}>
                 <boxGeometry args={[width, 0.2, depth]} />
@@ -153,7 +195,25 @@ const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rot
                 onPointerOver={() => setHoveredMarker(id)}
                 onPointerOut={() => setHoveredMarker(null)}
                 isOtherMarkerHovered={hoveredMarker !== null && hoveredMarker !== id}
+                disabled={isDimmed}
             />
+
+            {/* Child Trucks - rendered as children for automatic opacity inheritance */}
+            {childTrucks.map((truck) => {
+                const truckPos = entityPositionMap?.get(truck.id);
+                // Truck position is relative to CFS, so need to convert to local coords
+                const localX = (truckPos?.x ?? truck.position.x) - position[0];
+                const localZ = (truckPos?.z ?? truck.position.z) - position[2];
+
+                return (
+                    <Truck
+                        key={truck.id}
+                        position={[localX, 0.2, localZ]}
+                        rotation={truck.rotation || 0}
+                        containerColor={truck.props?.containerColor}
+                    />
+                );
+            })}
         </group>
     );
 };

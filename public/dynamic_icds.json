@@ -44,6 +44,26 @@
       "approved_by": "Nesthubz Infra Solutions",
       "entities": [
         {
+          "id": "resting_room_1",
+          "type": "resting_room",
+          "position": { "x": -356, "y": 0, "z": 20 }
+        },
+        {
+          "id": "generator_room_1",
+          "type": "generator_room",
+          "position": { "x": -370, "y": 0, "z": 2 }
+        },
+        {
+          "id": "terminal_dispatch_office_1",
+          "type": "terminal_dispatch_office",
+          "position": { "x": -294, "y": 0, "z": -34 }
+        },
+        {
+          "id": "terminal_office_annex_1",
+          "type": "terminal_office",
+          "position": { "x": -374, "y": 0, "z": -70 }
+        },
+        {
           "id": "trl_terminal",
           "type": "trl_terminal",
           "position": {
@@ -410,7 +430,7 @@
           "id": "cfs_area_1",
           "type": "cfs_area",
           "name": "CFS Area - 1",
-          "position": { "x": -215, "y": 0, "z": -11 },
+          "position": { "x": -215, "y": 0.3, "z": -11 },
           "dimensions": { "width": 70, "height": 22 },
           "rotation": 0
         },
@@ -418,7 +438,7 @@
           "id": "cfs_area_2",
           "type": "cfs_area",
           "name": "CFS Area - 2",
-          "position": { "x": -185, "y": 0, "z": 17 },
+          "position": { "x": -185, "y": 0.3, "z": 17 },
           "dimensions": { "width": 44, "height": 25 },
           "rotation": 0
         },
@@ -426,7 +446,7 @@
           "id": "warehouse_1",
           "type": "warehouse",
           "name": "Warehouse - 1",
-          "position": { "x": -310, "y": 0, "z": 17 },
+          "position": { "x": -310, "y": 0.3, "z": 17 },
           "dimensions": { "width": 44, "height": 25 },
           "rotation": 0
         },
@@ -434,14 +454,14 @@
           "id": "warehouse_2",
           "type": "warehouse",
           "name": "Warehouse - 2",
-          "position": { "x": -247, "y": 0, "z": 17 },
+          "position": { "x": -247, "y": 0.3, "z": 17 },
           "dimensions": { "width": 67, "height": 26 },
           "rotation": 0
         },
         {
             "id": "truck_cfs_1",
             "type": "truck",
-            "position": { "x": 0, "y": 0, "z": 0 },
+            "position": { "x": 0, "y": 0.3, "z": 0 },
             "placement": { "relative_to": "cfs_area_1", "offset_x": -25, "offset_z": -2 },
             "rotation": 0,
             "dimensions": { "width": 2.5, "height": 12 },
@@ -450,7 +470,7 @@
         {
             "id": "truck_cfs_2",
             "type": "truck",
-            "position": { "x": 0, "y": 0, "z": 0 },
+            "position": { "x": 0, "y": 0.3, "z": 0 },
             "placement": { "relative_to": "cfs_area_1", "offset_x": -15, "offset_z": -2 },
             "rotation": 0,
             "dimensions": { "width": 2.5, "height": 12 },
@@ -459,7 +479,7 @@
         {
             "id": "truck_cfs_3",
             "type": "truck",
-            "position": { "x": 0, "y": 0, "z": 0 },
+            "position": { "x": 0, "y": 0.3, "z": 0 },
             "placement": { "relative_to": "cfs_area_1", "offset_x": -5, "offset_z": -2 },
             "rotation": 0,
             "dimensions": { "width": 2.5, "height": 12 },
@@ -468,7 +488,7 @@
         {
             "id": "truck_cfs_4",
             "type": "truck",
-            "position": { "x": 0, "y": 0, "z": 0 },
+            "position": { "x": 0, "y": 0.3, "z": 0 },
             "placement": { "relative_to": "cfs_area_1", "offset_x": 5, "offset_z": -2 },
             "rotation": 0,
             "dimensions": { "width": 2.5, "height": 12 },

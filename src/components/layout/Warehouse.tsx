@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
+
+import React, { useRef } from 'react';
 import * as THREE from 'three';
-import { Text } from '@react-three/drei';
+import { Text, Billboard } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
 
 interface WarehouseProps {
     id: string;
@@ -9,44 +11,84 @@ interface WarehouseProps {
     width: number;
     depth: number;
     rotation?: number;
+    isDimmed?: boolean;
 }
 
+// --- Shared Materials (Module Scope) ---
+// Defined once to prevent duplication across N warehouse instances
+
+const wallMaterial = new THREE.MeshStandardMaterial({
+    color: '#78716C', // Warm gray
+    roughness: 0.8,
+    metalness: 0.1,
+    transparent: true
+});
+
+const roofMaterial = new THREE.MeshStandardMaterial({
+    color: '#57534E', // Dark warm gray
+    roughness: 0.9,
+    metalness: 0.2,
+    transparent: true
+});
+
+const doorMaterial = new THREE.MeshStandardMaterial({
+    color: '#292524', // Almost black
+    roughness: 0.4,
+    metalness: 0.5,
+    transparent: true
+});
+
+const stripeMaterial = new THREE.MeshStandardMaterial({
+    color: '#FCD34D', // Safety yellow
+    roughness: 0.6,
+    transparent: true
+});
+
+const concreteMaterial = new THREE.MeshStandardMaterial({
+    color: '#A8A29E',
+    roughness: 0.95,
+    transparent: true
+});
+
+const glassMaterial = new THREE.MeshStandardMaterial({
+    color: '#93C5FD',
+    metalness: 0.9,
+    roughness: 0.1
+});
+
+
 // Warehouse Component with 3D name label
-const Warehouse: React.FC<WarehouseProps> = ({ name, position, width, depth, rotation = 0 }) => {
+const Warehouse: React.FC<WarehouseProps> = ({ name, position, width, depth, rotation = 0, isDimmed = false }) => {
     const [x, y, z] = position;
     const height = 10; // Larger height for warehouses
+    const groupRef = useRef<THREE.Group>(null);
+    const opacityRef = useRef(1);
 
-    // Materials - Industrial warehouse colors
-    const wallMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: '#78716C', // Warm gray
-        roughness: 0.8,
-        metalness: 0.1
-    }), []);
+    // TELIA-STYLE: Animate material opacity using group.traverse
+    useFrame((_, delta) => {
+        const targetOpacity = isDimmed ? 0 : 1;
+        const lerpSpeed = delta * 3;
 
-    const roofMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: '#57534E', // Dark warm gray
-        roughness: 0.9,
-        metalness: 0.2
-    }), []);
+        // Smoothly lerp opacity
+        opacityRef.current = THREE.MathUtils.lerp(opacityRef.current, targetOpacity, lerpSpeed);
 
-    const doorMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: '#292524', // Almost black
-        roughness: 0.4,
-        metalness: 0.5
-    }), []);
-
-    const stripeMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: '#FCD34D', // Safety yellow
-        roughness: 0.6
-    }), []);
-
-    const concreteMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: '#A8A29E',
-        roughness: 0.95
-    }), []);
+        // Apply to all materials in the group
+        if (groupRef.current) {
+            groupRef.current.traverse((child) => {
+                if ((child as THREE.Mesh).isMesh) {
+                    const mesh = child as THREE.Mesh;
+                    const material = mesh.material as THREE.MeshStandardMaterial;
+                    if (material && material.isMeshStandardMaterial) {
+                        material.transparent = true;
+                        material.opacity = opacityRef.current;
+                    }
+                }
+            });
+        }
+    });
 
     return (
-        <group position={[x, y, z]} rotation={[0, rotation * Math.PI / 180, 0]}>
+        <group ref={groupRef} position={[x, y, z]} rotation={[0, rotation * Math.PI / 180, 0]}>
             {/* Main Building Structure */}
             <mesh position={[0, height / 2, 0]} castShadow receiveShadow material={wallMaterial}>
                 <boxGeometry args={[width, height, depth]} />
@@ -69,12 +111,6 @@ const Warehouse: React.FC<WarehouseProps> = ({ name, position, width, depth, rot
                     <mesh material={doorMaterial}>
                         <boxGeometry args={[10, 7, 0.2]} />
                     </mesh>
-                    {/* Horizontal lines on door */}
-                    {[0, 1.5, 3, 4.5].map((offset, j) => (
-                        <mesh key={`line-${j}`} position={[0, -3 + offset, 0.15]} material={stripeMaterial}>
-                            <boxGeometry args={[9.5, 0.1, 0.1]} />
-                        </mesh>
-                    ))}
                 </group>
             ))}
 
@@ -83,34 +119,36 @@ const Warehouse: React.FC<WarehouseProps> = ({ name, position, width, depth, rot
                 <boxGeometry args={[width, 0.3, 0.1]} />
             </mesh>
 
-            {/* Concrete apron in front */}
-            <mesh position={[0, 0.1, depth / 2 + 3]} receiveShadow material={concreteMaterial}>
-                <boxGeometry args={[width + 4, 0.2, 6]} />
-            </mesh>
-
             {/* Side windows (decorative) */}
             {Array.from({ length: Math.floor(depth / 8) }).map((_, i) => (
                 <mesh
                     key={`window-${i}`}
                     position={[width / 2 + 0.1, height - 2, -depth / 2 + 4 + i * 8]}
-                    material={new THREE.MeshStandardMaterial({ color: '#93C5FD', metalness: 0.9, roughness: 0.1 })}
+                    material={glassMaterial}
                 >
                     <boxGeometry args={[0.1, 2, 3]} />
                 </mesh>
             ))}
 
             {/* 3D Floating Name Label */}
-            <Text
+            <Billboard
                 position={[0, height + 5, 0]}
-                fontSize={3}
-                color="#FFFFFF"
-                anchorX="center"
-                anchorY="middle"
-                outlineWidth={0.15}
-                outlineColor="#1F2937"
+                follow={true}
+                lockX={false}
+                lockY={false}
+                lockZ={false}
             >
-                {name}
-            </Text>
+                <Text
+                    fontSize={3}
+                    color="#FFFFFF"
+                    anchorX="center"
+                    anchorY="middle"
+                    outlineWidth={0.15}
+                    outlineColor="#1F2937"
+                >
+                    {name}
+                </Text>
+            </Billboard>
         </group>
     );
 };

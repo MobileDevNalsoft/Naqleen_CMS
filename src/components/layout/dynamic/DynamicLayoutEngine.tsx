@@ -1,14 +1,33 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useStore } from '../../../store/store';
 import { ComponentRegistry } from './Registry';
 import { getBlocksWithCalculatedPositions } from '../../../utils/layoutUtils';
 import type { DynamicEntity, DynamicIcdLayout } from '../../../utils/layoutUtils';
+import { validateLayout } from '../../../utils/icdValidator';
 
 const DynamicLayoutEngine: React.FC = () => {
     // We need to cast the layout to Dynamic type because we haven't updated the store type yet
     // but at runtime it will be the new JSON
     const layoutWrapper = useStore((state) => state.layout) as DynamicIcdLayout | null;
     const selectedBlock = useStore((state) => state.selectedBlock);
+
+    // Validate Layout on Load
+    useEffect(() => {
+        if (layoutWrapper) {
+            try {
+                const result = validateLayout(layoutWrapper);
+                if (!result.isValid) {
+                    console.error('❌ [ICD Engine] Validation Failed:', result.errors);
+                } else if (result.warnings.length > 0) {
+                    console.warn('⚠️ [ICD Engine] Layout Warnings:', result.warnings);
+                } else {
+                    console.log('✅ [ICD Engine] Layout Validated Successfully');
+                }
+            } catch (err) {
+                console.error('🔥 [ICD Engine] Validation CRASHED:', err);
+            }
+        }
+    }, [layoutWrapper]);
 
     // Build a map of block IDs to their calculated positions
     const calculatedPositionMap = useMemo(() => {
@@ -63,14 +82,35 @@ const DynamicLayoutEngine: React.FC = () => {
         return map;
     }, [layoutWrapper, calculatedPositionMap]);
 
+    // Build parent-child entity map (for grouping trucks under CFS areas, etc.)
+    const childrenByParent = useMemo(() => {
+        if (!layoutWrapper) return new Map<string, DynamicEntity[]>();
+        const map = new Map<string, DynamicEntity[]>();
+
+        layoutWrapper.entities?.forEach(entity => {
+            const parentId = entity.placement?.relative_to;
+            if (parentId) {
+                if (!map.has(parentId)) {
+                    map.set(parentId, []);
+                }
+                map.get(parentId)!.push(entity);
+            }
+        });
+
+        return map;
+    }, [layoutWrapper]);
+
     if (!layoutWrapper) return null;
 
     // Use entities directly if available (new format), or fail gracefully
     const entities = layoutWrapper.entities || [];
 
+    // Filter out entities that have a parent (they'll be rendered by their parent)
+    const topLevelEntities = entities.filter(entity => !entity.placement?.relative_to);
+
     return (
         <group>
-            {entities.map((entity: DynamicEntity) => {
+            {topLevelEntities.map((entity: DynamicEntity) => {
                 const Component = ComponentRegistry[entity.type];
                 if (!Component) {
                     console.warn(`DynamicLayoutEngine: Unknown entity type '${entity.type}' for id '${entity.id}'`);
@@ -93,18 +133,24 @@ const DynamicLayoutEngine: React.FC = () => {
                     calculatedPos?.z ?? entity.position.z
                 ];
 
+                // Get child entities for this parent (e.g., trucks for CFS areas)
+                const childEntities = childrenByParent.get(entity.id) || [];
+
                 // 2. Merge root fields and props
                 const componentProps = {
                     id: entity.id,
                     type: entity.type,
-                    name: (entity as any).name, // Pass name from entity root
+                    name: entity.name, // Strict type access
                     position,
                     rotation: entity.rotation || 0,
                     dimensions: entity.dimensions,
                     corner_points: entity.corner_points,
                     isSelected,
                     isDimmed,
-                    ...entity.props // Spread generic props (color, opacity, etc.)
+                    childEntities, // Pass child entities for parent-child grouping
+                    entityPositionMap, // Pass position map so children can resolve their positions
+                    props: entity.props, // Pass original props object explicitly so components like GenericBlock can access structured data (lots, gaps)
+                    ...entity.props // Spread generic props (color, opacity, etc.) as top-level props
                 };
 
                 return <Component key={entity.id} {...componentProps} />;

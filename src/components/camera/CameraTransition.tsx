@@ -28,39 +28,52 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
 
     // Target positions
     const standardPos = new THREE.Vector3(0, 250, 420);
-    const topViewPos = new THREE.Vector3(0, 440, 1);
+    const topViewPos = new THREE.Vector3(0, 460, 1);
     const center = new THREE.Vector3(0, 0, 0);
     const startPos = new THREE.Vector3(0, 500, 10);
 
-    // Helper to animate camera
-    const animateCamera = (targetPos: THREE.Vector3, targetLookAt: THREE.Vector3) => {
+    // Helper to animate camera - Unified tween for smooth Telia-style transitions
+    const animateCamera = (targetPos: THREE.Vector3, targetLookAt: THREE.Vector3, duration: number = 1.5) => {
         if (!controlsRef.current) return;
 
-        // Kill any running tweens on camera and controls
-        gsap.killTweensOf(camera.position);
-        gsap.killTweensOf(controlsRef.current.target);
+        // Kill any running tweens
+        gsap.killTweensOf("cameraAnimation");
 
-        // Animate Position
-        gsap.to(camera.position, {
-            x: targetPos.x,
-            y: targetPos.y,
-            z: targetPos.z,
-            duration: 1.5,
-            ease: "power3.inOut",
-            onUpdate: () => {
-                // controlsRef.current.update(); 
-            }
-        });
+        // Capture current state
+        const animState = {
+            camX: camera.position.x,
+            camY: camera.position.y,
+            camZ: camera.position.z,
+            tarX: controlsRef.current.target.x,
+            tarY: controlsRef.current.target.y,
+            tarZ: controlsRef.current.target.z,
+        };
 
-        // Animate LookAt Target
-        gsap.to(controlsRef.current.target, {
-            x: targetLookAt.x,
-            y: targetLookAt.y,
-            z: targetLookAt.z,
-            duration: 1.5,
-            ease: "power3.inOut",
+        // Disable controls during animation to prevent fighting
+        controlsRef.current.enabled = false;
+
+        // Unified tween - animates camera position and lookAt target synchronously
+        gsap.to(animState, {
+            id: "cameraAnimation",
+            camX: targetPos.x,
+            camY: targetPos.y,
+            camZ: targetPos.z,
+            tarX: targetLookAt.x,
+            tarY: targetLookAt.y,
+            tarZ: targetLookAt.z,
+            duration: duration,
+            ease: "power2.inOut", // Softer easing for smoother feel
             onUpdate: () => {
+                // Update camera and target in sync each frame
+                camera.position.set(animState.camX, animState.camY, animState.camZ);
+                controlsRef.current.target.set(animState.tarX, animState.tarY, animState.tarZ);
                 controlsRef.current.update();
+            },
+            onComplete: () => {
+                // Always re-enable controls after animation completes
+                if (controlsRef.current) {
+                    controlsRef.current.enabled = true;
+                }
             }
         });
     };
@@ -93,18 +106,15 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
             const entity = entities[selectId];
             const containerPos = new THREE.Vector3(entity.x || 0, entity.y || 0, entity.z || 0);
 
-            // Check if a block is already selected
-            const isBlockAlreadySelected = !!selectedBlock;
-
             // Camera Offsets for Container View
-            // Different offsets based on whether block was already selected
-            const camOffsetX = isBlockAlreadySelected ? -15 : -20;
-            const camOffsetY = isBlockAlreadySelected ? 25 : 20;
-            const camOffsetZ = isBlockAlreadySelected ? 15 : 20;
+            // UNIFIED: Use standard offsets regardless of block selection (since we no longer lift blocks)
+            const camOffsetX = -20;
+            const camOffsetY = 20;
+            const camOffsetZ = 20;
 
-            // Target LookAt: Base Pos + Total Lift
-            const totalLift = isBlockAlreadySelected ? 25 : 12;
-            const shiftX = isBlockAlreadySelected ? 6 : 8;
+            // Target LookAt: Base Pos + Standard Lift
+            const totalLift = 12;
+            const shiftX = 8;
 
             const targetLookAt = new THREE.Vector3(
                 containerPos.x + shiftX,
@@ -138,31 +148,43 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
             animateCamera(targetPos, targetLookAt);
 
         } else if (selectedBlock && layout) {
-            // CFS Area Specific Focus Logic
-            // CFS areas are in layout.entities, NOT in getBlocksWithCalculatedPositions (which filters by type.includes('block'))
-            if (selectedBlock.startsWith('cfs_')) {
-                const cfsEntity = layout.entities?.find(e => e.id === selectedBlock);
+            // Find entity in layout
+            const entity = layout.entities?.find(e => e.id === selectedBlock);
 
-                if (cfsEntity) {
-                    const cfsCenter = new THREE.Vector3(
-                        cfsEntity.position?.x || 0,
-                        cfsEntity.position?.y || 0,
-                        cfsEntity.position?.z || 0
-                    );
+            if (entity && !entity.type.startsWith('container_block')) {
+                // GENERIC ENTITY FOCUS (CFS, Warehouse, Office, etc.)
+                // This handles any non-container-block entity that has a position
+                const center = new THREE.Vector3(
+                    entity.position?.x || 0,
+                    entity.position?.y || 0,
+                    entity.position?.z || 0
+                );
 
-                    // Camera offset for CFS Area - higher angle and offset to center object on LEFT
-                    const cameraOffset = new THREE.Vector3(0, 80, 60);
-                    // Shift the LookAt target to the right to frame object on left of viewport
-                    const viewShiftOffset = new THREE.Vector3(0, 0, 0);
+                // Default framing for buildings/areas
+                let cameraOffset = new THREE.Vector3(0, 80, 50); // High angle, front view
+                let viewShiftOffset = new THREE.Vector3(0, 0, 0);
 
-                    const targetLookAt = cfsCenter.clone().add(viewShiftOffset);
-                    const targetPos = targetLookAt.clone().add(cameraOffset);
-
-                    lastSelectionChangeTime.current = Date.now();
-                    animateCamera(targetPos, targetLookAt);
+                // Type-specific adjustments
+                if (entity.type === 'cfs_area') {
+                    // CFS: Offset right to frame object on left
+                    cameraOffset = new THREE.Vector3(0, 80, 30);
+                    viewShiftOffset = new THREE.Vector3(15, 0, 0);
+                } else if (entity.type === 'warehouse') {
+                    // Warehouse: Front-on view, slightly further back
+                    cameraOffset = new THREE.Vector3(0, 60, 100);
+                } else if (['terminal_office', 'terminal_dispatch_office', 'resting_room', 'generator_room'].includes(entity.type)) {
+                    // Smaller buildings: Closer zoom
+                    cameraOffset = new THREE.Vector3(0, 40, 60);
                 }
+
+                const targetLookAt = center.clone().add(viewShiftOffset);
+                const targetPos = targetLookAt.clone().add(cameraOffset);
+
+                lastSelectionChangeTime.current = Date.now();
+                animateCamera(targetPos, targetLookAt);
+
             } else {
-                // Standard Block Focus Logic
+                // CONTAINER BLOCK FOCUS (Uses calculated positions for slots)
                 const blocks = getBlocksWithCalculatedPositions(layout);
                 const block = blocks.find(b => b.id === selectedBlock);
 
@@ -279,8 +301,8 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
                         );
 
                         // Match logic from initial selection
-                        const cameraOffset = new THREE.Vector3(-10, 80, 80);
-                        const viewShiftOffset = new THREE.Vector3(50, 0, 0);
+                        const cameraOffset = new THREE.Vector3(0, 80, 30);
+                        const viewShiftOffset = new THREE.Vector3(15, 0, 0);
 
                         const targetLookAt = cfsCenter.clone().add(viewShiftOffset);
                         const targetPos = targetLookAt.clone().add(cameraOffset);
