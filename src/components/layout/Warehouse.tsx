@@ -44,12 +44,6 @@ const stripeMaterial = new THREE.MeshStandardMaterial({
     transparent: true
 });
 
-const concreteMaterial = new THREE.MeshStandardMaterial({
-    color: '#A8A29E',
-    roughness: 0.95,
-    transparent: true
-});
-
 const glassMaterial = new THREE.MeshStandardMaterial({
     color: '#93C5FD',
     metalness: 0.9,

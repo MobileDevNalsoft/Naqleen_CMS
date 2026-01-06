@@ -3,6 +3,8 @@ import { useUIStore } from '../../../store/uiStore';
 import {
     User,
     Shield,
+    LogOut,
+    X,
     Camera,
     Save,
     MoreHorizontal,
@@ -12,11 +14,12 @@ import {
     Edit2
 } from 'lucide-react';
 
+type SettingsTab = 'profile' | 'accessControl';
 type AccessControlTab = 'roles' | 'users';
 
 export default function SettingsPanel() {
-    const { activePanel } = useUIStore();
-    const settingsTab = useUIStore((state) => state.settingsTab);
+    const { activePanel, closePanel } = useUIStore();
+    const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
 
     // Only render if active
     if (activePanel !== 'settings') return null;
@@ -24,43 +27,144 @@ export default function SettingsPanel() {
     return (
         <div style={{
             position: 'fixed',
-            top: '85px', // Below header (15px + 54px + 16px gap)
-            left: '15px',
-            right: '15px',
-            bottom: '15px',
-            backgroundColor: 'var(--glass-bg)',
-            background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)',
-            borderRadius: '24px',
-            border: '1px solid rgba(247, 207, 155, 0.15)',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-            overflow: 'hidden',
-            color: 'white',
-            zIndex: 1900, // Below header (2000)
-            animation: 'slideUpPanel 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
             display: 'flex',
-            flexDirection: 'column'
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(8px)',
+            animation: 'fadeIn 0.2s ease-out'
         }}>
-            {/* Content Area - No Sidebar, No Header */}
-            <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-                {/* Content Transition Wrapper */}
+            {/* Main Card Container */}
+            <div style={{
+                display: 'flex',
+                width: '90%',
+                maxWidth: '1200px',
+                height: '70vh',
+                backgroundColor: 'var(--glass-bg)', // Using theme logic: rgba(75, 104, 108, 0.8) usually
+                background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)',
+                borderRadius: '24px',
+                border: '1px solid rgba(247, 207, 155, 0.15)',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                overflow: 'hidden',
+                color: 'white',
+                position: 'relative'
+            }}>
+                {/* Close Button Abstracted */}
+                <button
+                    onClick={closePanel}
+                    style={{
+                        position: 'absolute',
+                        top: '20px',
+                        right: '20px',
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'rgba(255, 255, 255, 0.4)',
+                        cursor: 'pointer',
+                        zIndex: 10
+                    }}
+                >
+                    <X size={24} />
+                </button>
+
+                {/* SIDEBAR */}
                 <div style={{
-                    height: '100%',
-                    overflowY: 'auto',
-                    animation: 'fadeIn 0.4s ease-out 0.2s backwards' // Delayed fade in
+                    width: '280px',
+                    borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '24px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.2)'
                 }}>
-                    {settingsTab === 'profile' && <ProfileSection />}
-                    {settingsTab === 'accessControl' && <AccessControlSection />}
+                    {/* Header */}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        marginBottom: '40px',
+                        paddingLeft: '12px'
+                    }}>
+                        <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: 'var(--secondary-gradient, linear-gradient(135deg, #F7CF9B 0%, #E2B478 100%))',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <SettingsIcon size={18} color="#1e293b" />
+                        </div>
+                        <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>Settings</h2>
+                    </div>
+
+                    {/* Navigation */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                        <NavButton
+                            active={activeTab === 'profile'}
+                            icon={<User size={18} />}
+                            label="Profile"
+                            onClick={() => setActiveTab('profile')}
+                        />
+                        <NavButton
+                            active={activeTab === 'accessControl'}
+                            icon={<Shield size={18} />}
+                            label="Access Control"
+                            onClick={() => setActiveTab('accessControl')}
+                        />
+                    </div>
+
+                    {/* User Footer */}
+                    <div style={{
+                        marginTop: 'auto',
+                        padding: '16px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px'
+                    }}>
+                        <div>
+                            <div style={{ fontSize: '14px', fontWeight: 600 }}>Admin User</div>
+                            <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)' }}>admin@nalsoft.net</div>
+                        </div>
+
+                        <button style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            width: '100%',
+                            padding: '8px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: 'rgba(255, 255, 255, 0.1)',
+                            color: 'white',
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            transition: 'background 0.2s'
+                        }}>
+                            <LogOut size={14} />
+                            Log out
+                        </button>
+                    </div>
+                </div>
+
+                {/* CONTENT AREA */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    {activeTab === 'profile' && <ProfileSection />}
+                    {activeTab === 'accessControl' && <AccessControlSection />}
                 </div>
             </div>
 
             <style>{`
-                @keyframes slideUpPanel {
-                    from { transform: translateY(100vh); opacity: 0; }
-                    to { transform: translateY(0); opacity: 1; }
-                }
                 @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
+                    from { opacity: 0; transform: scale(0.95); }
+                    to { opacity: 1; transform: scale(1); }
                 }
             `}</style>
         </div>
@@ -68,6 +172,33 @@ export default function SettingsPanel() {
 }
 
 // --- Sub-Components ---
+
+function NavButton({ active, icon, label, onClick }: { active: boolean, icon: React.ReactNode, label: string, onClick: () => void }) {
+    return (
+        <button
+            onClick={onClick}
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                border: 'none',
+                background: active ? 'rgba(247, 207, 155, 0.15)' : 'transparent',
+                color: active ? 'var(--secondary-color, #F7CF9B)' : 'rgba(255, 255, 255, 0.7)',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s ease'
+            }}
+        >
+            {icon}
+            {label}
+        </button>
+    );
+}
 
 function ProfileSection() {
     return (
@@ -227,6 +358,16 @@ function AccessControlSection() {
 }
 
 // --- Helper Components ---
+
+function SettingsIcon({ size, color }: { size: number, color: string }) {
+    // Custom SVG or lucide wrapper
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color }}>
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.35a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+    )
+}
 
 function FormInput({ label, defaultValue, readOnly, icon }: { label: string, defaultValue?: string, readOnly?: boolean, icon?: React.ReactNode }) {
     return (

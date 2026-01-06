@@ -33,6 +33,7 @@ export type ContainerBlockProps = z.infer<typeof ContainerBlockPropsSchema>;
 export type CFSAreaProps = z.infer<typeof CFSAreaPropsSchema>;
 export type WarehouseProps = z.infer<typeof WarehousePropsSchema>;
 export type TruckProps = z.infer<typeof TruckPropsSchema>;
+export type ZoneProps = z.infer<typeof ZonePropsSchema>;
 
 export type ContainerBlockEntity = z.infer<typeof ContainerBlockEntitySchema>;
 export type CFSAreaEntity = z.infer<typeof CFSAreaEntitySchema>;

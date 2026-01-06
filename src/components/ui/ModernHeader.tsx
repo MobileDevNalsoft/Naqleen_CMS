@@ -52,114 +52,6 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
     // Refs for dropdown containers
     const icdDropdownRef = useRef<HTMLDivElement>(null);
     const profileDropdownRef = useRef<HTMLDivElement>(null);
-    const activePanel = useUIStore((state) => state.activePanel);
-    const settingsTab = useUIStore((state) => state.settingsTab);
-    const setSettingsTab = useUIStore((state) => state.setSettingsTab);
-    const isSettingsOpen = activePanel === 'settings';
-
-    // ... existing refs and state ...
-
-    // [NEW] Unified Header for Settings
-    const UnifiedSettingsHeader = () => (
-        <div style={{
-            position: 'absolute',
-            top: '15px',
-            left: '15px',
-            right: '15px',
-            height: '54px',
-            background: 'var(--glass-bg)', // Unified background
-            backdropFilter: 'blur(20px)',
-            borderRadius: '16px', // Rounded corners
-            border: '1px solid var(--glass-border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 24px',
-            zIndex: 2000,
-            animation: 'expandMerge 0.6s cubic-bezier(0.16, 1, 0.3, 1)', // Premium ease
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
-        }}>
-            {/* Left: Title */}
-            <div style={{
-                fontSize: '20px',
-                fontWeight: 600,
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                opacity: 0,
-                animation: 'fadeInContent 0.4s ease-out 0.2s forwards'
-            }}>
-                <Settings size={24} color="var(--secondary-color)" />
-                Settings
-            </div>
-
-            {/* Center: Tabs */}
-            <div style={{
-                display: 'flex',
-                background: 'rgba(0,0,0,0.2)',
-                borderRadius: '50px',
-                padding: '4px',
-                opacity: 0,
-                animation: 'fadeInContent 0.4s ease-out 0.3s forwards'
-            }}>
-                <div
-                    onClick={() => setSettingsTab('profile')}
-                    style={{
-                        padding: '8px 24px',
-                        borderRadius: '40px',
-                        background: settingsTab === 'profile' ? 'var(--secondary-color)' : 'transparent',
-                        color: settingsTab === 'profile' ? '#1e293b' : 'rgba(255,255,255,0.6)',
-                        fontWeight: 600,
-                        fontSize: '14px',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                    }}
-                >
-                    My Profile
-                </div>
-                <div
-                    onClick={() => setSettingsTab('accessControl')}
-                    style={{
-                        padding: '8px 24px',
-                        borderRadius: '40px',
-                        background: settingsTab === 'accessControl' ? 'var(--secondary-color)' : 'transparent',
-                        color: settingsTab === 'accessControl' ? '#1e293b' : 'rgba(255,255,255,0.6)',
-                        fontWeight: 600,
-                        fontSize: '14px',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                    }}
-                >
-                    Access Control
-                </div>
-            </div>
-
-            {/* Right: Close */}
-            <div
-                onClick={() => useUIStore.getState().closePanel()}
-                style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    opacity: 0,
-                    animation: 'fadeInContent 0.4s ease-out 0.4s forwards'
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-            >
-                <X size={20} color="white" />
-            </div>
-        </div>
-    );
-
-    // ... existing refs ...d dropdown if clicking outside
     const notificationPanelRef = useRef<HTMLDivElement>(null);
     const searchContainerRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -362,7 +254,6 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
 
     return (
         <>
-            {isSettingsOpen && <UnifiedSettingsHeader />}
 
             {/* Left Header: Branding & Icd Selector */}
             <div style={{
@@ -378,10 +269,6 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 borderRadius: '50px',
                 border: '1px solid var(--glass-border)',
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-                opacity: isSettingsOpen ? 0 : 1,
-                transform: isSettingsOpen ? 'scale(0.95)' : 'scale(1)',
-                pointerEvents: isSettingsOpen ? 'none' : 'auto',
             }}>
                 {/* Left Section: Branding */}
                 <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -516,13 +403,8 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     position: 'absolute',
                     top: '15px',
                     left: '50%',
+                    transform: 'translateX(-50%)',
                     zIndex: 1000,
-                    transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-                    opacity: isSettingsOpen ? 0 : 1,
-                    transform: isSettingsOpen
-                        ? 'translateX(-50%) scale(0.95)'
-                        : 'translateX(-50%) scale(1)',
-                    pointerEvents: isSettingsOpen ? 'none' : 'auto',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
@@ -578,10 +460,6 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 top: '15px',
                 right: '15px',
                 zIndex: 1000,
-                transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-                opacity: isSettingsOpen ? 0 : 1,
-                transform: isSettingsOpen ? 'scale(0.95)' : 'scale(1)',
-                pointerEvents: isSettingsOpen ? 'none' : 'auto',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
@@ -1351,20 +1229,6 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     to {
                         opacity: 1;
                     }
-                }
-                @keyframes expandMerge {
-                    from {
-                        transform: scaleY(0.8) scaleX(0.95);
-                        opacity: 0;
-                    }
-                    to {
-                        transform: scaleY(1) scaleX(1);
-                        opacity: 1;
-                    }
-                }
-                @keyframes fadeInContent {
-                    from { opacity: 0; transform: translateY(5px); }
-                    to { opacity: 1; transform: translateY(0); }
                 }
             `}</style >
 

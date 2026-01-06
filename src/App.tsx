@@ -158,10 +158,7 @@ const App = () => {
           width: '100%',
           height: '200%', // Space for two full-screen sections
           transform: activeNav === 'Dashboard' ? 'translateY(-50%)' : 'translateY(0)',
-          transition: 'transform 0.8s cubic-bezier(0.65, 0, 0.35, 1), opacity 0.5s ease', // Premium ease-in-out-expo feel
-          opacity: activePanel === 'settings' ? 0 : 1,
-          pointerEvents: activePanel === 'settings' ? 'none' : 'auto',
-          filter: activePanel === 'settings' ? 'blur(10px)' : 'none', // Stronger cinematic feel
+          transition: 'transform 0.8s cubic-bezier(0.65, 0, 0.35, 1)', // Premium ease-in-out-expo feel
         }}
       >
         {/* 3D View Section */}
@@ -312,10 +309,10 @@ const App = () => {
       </div>
 
       {/* View Navigation Panel */}
-      {activeNav === '3D View' && !showLoadingScreen && activePanel !== 'accessControl' && activePanel !== 'settings' && <ViewNavigationPanel />}
+      {activeNav === '3D View' && !showLoadingScreen && activePanel !== 'accessControl' && <ViewNavigationPanel />}
 
       {/* Quick Actions Button */}
-      {activeNav === '3D View' && !showLoadingScreen && activePanel !== 'accessControl' && activePanel !== 'settings' && <QuickActionsButton />}
+      {activeNav === '3D View' && !showLoadingScreen && activePanel !== 'accessControl' && <QuickActionsButton />}
     </div>
   );
 }

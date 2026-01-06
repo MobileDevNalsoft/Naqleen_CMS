@@ -1,6 +1,4 @@
-import { z } from 'zod';
 import { IcdLayoutSchema as LayoutSchemaZod } from '../types/IcdSchema.zod';
-import type { IcdLayoutSchema } from '../types/IcdSchema';
 
 export interface ValidationResult {
     isValid: boolean;
@@ -17,7 +15,7 @@ export const validateLayout = (data: unknown): ValidationResult => {
 
     if (!result.success) {
         // Format Zod errors nicely
-        result.error.errors.forEach((err) => {
+        result.error.issues.forEach(err => {
             const path = err.path.join('.');
             errors.push(`[Schema Error] ${path}: ${err.message}`);
         });

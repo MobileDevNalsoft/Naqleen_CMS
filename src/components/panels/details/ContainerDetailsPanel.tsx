@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Truck, MapPin, FileText, Ship, Package, X, Check, ChevronsRight, ClipboardCheck, DoorOpen, DoorClosed, Archive, LogOut, ArrowLeftRight, PackageOpen, Boxes, PackageCheck, Plug, Unplug } from 'lucide-react';
+import { Truck, MapPin, FileText, Ship, Package, X, Check, ChevronsRight, ClipboardCheck, DoorOpen, DoorClosed, Archive, LogOut, ArrowLeftRight, PackageOpen, Boxes, PackageCheck, Plug } from 'lucide-react';
 import PlugIcon from '../../ui/icons/PlugIcon';
 import { useQuery } from '@tanstack/react-query';
 import { useStore } from '../../../store/store';

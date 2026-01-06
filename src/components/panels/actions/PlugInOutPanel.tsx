@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { History, Save, Power } from 'lucide-react';
+import { Save, Power } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import PanelLayout from '../PanelLayout';
 import { useUIStore } from '../../../store/uiStore';
