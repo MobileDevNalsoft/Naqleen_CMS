@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, MapControls, Environment as DreiEnvironment, ContactShadows } from '@react-three/drei';
+import { MapControls, Environment as DreiEnvironment, ContactShadows } from '@react-three/drei';
 import { useRef, useState, useEffect } from 'react';
 import LayoutEnvironment from './components/layout/Environment';
 import LoadingScreen from './components/ui/animations/LoadingScreen';
@@ -33,6 +33,7 @@ import Containers from './components/layout/Containers';
 import CustomerInventoryPanel from './components/panels/actions/CustomerInventoryPanel';
 import ReserveContainersPanel from './components/panels/actions/ReserveContainersPanel';
 import ReleaseContainerPanel from './components/panels/actions/ReleaseContainerPanel';
+import SettingsPanel from './components/panels/settings/SettingsPanel'; // [NEW] Import
 import SwapConnectionLines from './components/layout/SwapConnectionLines';
 import RestackConnectionLine from './components/layout/RestackConnectionLine';
 import GhostContainer from './components/layout/GhostContainer';
@@ -68,10 +69,10 @@ const App = () => {
 
       // Clamp target X and Z positions to stay within expanded yard bounds
       // Much larger bounds to allow free navigation across entire ICD
-      const minX = -800;
-      const maxX = 800;
-      const minZ = -200;
-      const maxZ = 200;
+      const minX = -400;
+      const maxX = 400;
+      const minZ = -80;
+      const maxZ = 80;
 
       target.x = Math.max(minX, Math.min(maxX, target.x));
       target.z = Math.max(minZ, Math.min(maxZ, target.z));
@@ -85,6 +86,7 @@ const App = () => {
   const [showLoadingScreen, setShowLoadingScreen] = useState(true);
 
   const activePanel = useUIStore((state) => state.activePanel);
+  const panelData = useUIStore((state) => state.panelData);
   const closePanel = useUIStore((state) => state.closePanel);
 
   const selectId = useStore((state) => state.selectId);
@@ -98,7 +100,10 @@ const App = () => {
       if (activePanel !== 'restack' && activePanel !== 'plugInOut') {
         setSelectId(null);
       }
-      setSelectedBlock(null);
+      // Don't clear selectedBlock for cfsPosition to allow CFS panel to reopen
+      if (activePanel !== 'cfsPosition') {
+        setSelectedBlock(null);
+      }
     }
   }, [activePanel, setSelectId, setSelectedBlock]);
 
@@ -125,22 +130,24 @@ const App = () => {
       }}
     >
       {/* Modern Branding Header - Fixed Overlay */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000, height: 0 }}>
-        <ModernHeader
-          activeNav={activeNav}
-          onNavChange={handleNavChange}
-          isSearchVisible={true}
-          isUIVisible={!showLoadingScreen}
-          selectedIcdId={selectedIcdId}
-          onIcdChange={setSelectedIcdId}
-          onLogout={() => {
-            setIsAuthenticated(false);
-            setShowLoadingScreen(true);
-            setActiveNav('3D View');
-          }}
-        />
-        <HoverInfoPanel />
-      </div>
+      {activePanel !== 'accessControl' && (
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000, height: 0 }}>
+          <ModernHeader
+            activeNav={activeNav}
+            onNavChange={handleNavChange}
+            isSearchVisible={true}
+            isUIVisible={!showLoadingScreen}
+            selectedIcdId={selectedIcdId}
+            onIcdChange={setSelectedIcdId}
+            onLogout={() => {
+              setIsAuthenticated(false);
+              setShowLoadingScreen(true);
+              setActiveNav('3D View');
+            }}
+          />
+          <HoverInfoPanel />
+        </div>
+      )}
 
       {/* Global Toast Notifications */}
       <ToastContainer />
@@ -151,7 +158,10 @@ const App = () => {
           width: '100%',
           height: '200%', // Space for two full-screen sections
           transform: activeNav === 'Dashboard' ? 'translateY(-50%)' : 'translateY(0)',
-          transition: 'transform 0.8s cubic-bezier(0.65, 0, 0.35, 1)', // Premium ease-in-out-expo feel
+          transition: 'transform 0.8s cubic-bezier(0.65, 0, 0.35, 1), opacity 0.5s ease', // Premium ease-in-out-expo feel
+          opacity: activePanel === 'settings' ? 0 : 1,
+          pointerEvents: activePanel === 'settings' ? 'none' : 'auto',
+          filter: activePanel === 'settings' ? 'blur(10px)' : 'none', // Stronger cinematic feel
         }}
       >
         {/* 3D View Section */}
@@ -247,11 +257,11 @@ const App = () => {
               enableDamping={false}
               screenSpacePanning={false}
               minDistance={1}
-              maxDistance={Infinity}
+              maxDistance={600}
               maxPolarAngle={Math.PI / 2 - 0.05}
               rotateSpeed={0.5}
               panSpeed={1}
-              zoomSpeed={2}
+              zoomSpeed={3}
               zoomToCursor={true}
               onChange={handleControlsChange}
             />
@@ -262,6 +272,12 @@ const App = () => {
           <BlockDetailsPanel />
           <CFSDetailsPanel />
           <PositionContainerPanel isOpen={activePanel === 'position'} onClose={closePanel} />
+          <PositionContainerPanel
+            isOpen={activePanel === 'cfsPosition'}
+            onClose={closePanel}
+            mode="cfs_container"
+            cfsContainer={panelData as any}
+          />
           <RestackContainersPanel isOpen={activePanel === 'restack'} onClose={closePanel} />
           <GateInPanel isOpen={activePanel === 'gateIn'} onClose={closePanel} />
           <GateOutPanel isOpen={activePanel === 'gateOut'} onClose={closePanel} />
@@ -272,6 +288,10 @@ const App = () => {
           <ReserveContainersPanel isOpen={activePanel === 'reserveContainers'} onClose={closePanel} />
           <ReleaseContainerPanel isOpen={activePanel === 'releaseContainer'} onClose={closePanel} />
           <CustomerInventoryPanel isOpen={activePanel === 'customerInventory'} onClose={closePanel} />
+
+          {/* Settings Panel (Centralized Configuration) */}
+          <SettingsPanel />
+
         </section>
 
         {/* Dashboard Section */}
@@ -292,10 +312,10 @@ const App = () => {
       </div>
 
       {/* View Navigation Panel */}
-      {activeNav === '3D View' && !showLoadingScreen && <ViewNavigationPanel />}
+      {activeNav === '3D View' && !showLoadingScreen && activePanel !== 'accessControl' && activePanel !== 'settings' && <ViewNavigationPanel />}
 
       {/* Quick Actions Button */}
-      {activeNav === '3D View' && !showLoadingScreen && <QuickActionsButton />}
+      {activeNav === '3D View' && !showLoadingScreen && activePanel !== 'accessControl' && activePanel !== 'settings' && <QuickActionsButton />}
     </div>
   );
 }

@@ -6,12 +6,7 @@ import ViewCard from './ViewCard';
 import './ViewNavigationPanel.css';
 
 // New Icons
-const WarehouseViewIcon = () => (
-    <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 21h18M5 21V7l8-4 8 4v14M5 10a2 2 0 012-2h10a2 2 0 012 2v11" />
-        <path d="M10 21v-4a2 2 0 012-2v0a2 2 0 012 2v4" />
-    </svg>
-);
+
 
 const CFSViewIcon = () => (
     <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -23,15 +18,7 @@ const CFSViewIcon = () => (
     </svg>
 );
 
-const BuildingViewIcon = () => (
-    <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="4" y="4" width="16" height="16" rx="2" />
-        <line x1="9" y1="20" x2="9" y2="4" />
-        <line x1="15" y1="20" x2="15" y2="4" />
-        <line x1="4" y1="9" x2="20" y2="9" />
-        <line x1="4" y1="15" x2="20" y2="15" />
-    </svg>
-);
+
 
 // Icons for different view types
 const MainViewIcon = () => (
@@ -120,17 +107,16 @@ const ViewNavigationPanel: React.FC = () => {
             layout.entities.forEach((entity) => {
                 // Check if it's a container block
                 if (entity.type.includes('container_block')) {
-                    // 1. Determine Terminal from ID prefix
-                    // Expected format: "trm_block_a", "trs_block_b"
-                    let terminal = ''; // No default "Blocks" section
-                    const idParts = entity.id.toLowerCase().split('_');
+                    // 1. Determine Terminal from ID prefix using Regex
+                    // matches "trm_block", "trl-1-block", "trs-block", "trl_1_block"
+                    let terminal = '';
 
-                    // Look for known terminal prefixes or patterns
-                    if (idParts.length >= 2 && idParts[1] === 'block') {
-                        // "trm_block_..." -> terminal = "TRM"
-                        terminal = idParts[0].toUpperCase();
-                        // Special case for TRL-1 if needed, or if ID is trl1_block...
-                        if (idParts[0] === 'trl1') terminal = 'TRL-1';
+                    const termMatch = entity.id.match(/^([a-z0-9_.-]+)[-_]block/i);
+                    if (termMatch) {
+                        terminal = termMatch[1].toUpperCase();
+                        // Normalize TRL1 to TRL-1 if it appears without hyphen
+                        if (terminal === 'TRL1') terminal = 'TRL-1';
+                        if (terminal === 'TRL_1') terminal = 'TRL-1'; // Check underscore variant
                     }
 
                     // 2. Determine Block Letter
@@ -140,10 +126,13 @@ const ViewNavigationPanel: React.FC = () => {
                         const match = entity.name.match(/Block\s*[-_]?\s*([A-Z0-9]+)/i);
                         if (match) letter = match[1].toUpperCase();
                     }
-                    // Fallback to ID part (last part)
-                    if (!letter && idParts.length > 0) {
-                        const last = idParts[idParts.length - 1];
-                        if (last.length <= 3) letter = last.toUpperCase();
+                    // Fallback to ID suffix
+                    if (!letter) {
+                        // Extract last part after - or _
+                        const letterMatch = entity.id.match(/[-_]([a-z0-9]+)$/i);
+                        if (letterMatch && letterMatch[1].length <= 3) {
+                            letter = letterMatch[1].toUpperCase();
+                        }
                     }
 
                     // Only add if we have both letter and a valid terminal (skips generic "Blocks")
@@ -182,7 +171,7 @@ const ViewNavigationPanel: React.FC = () => {
 
             // 2. CFS AREAS
             layout.entities
-                .filter(e => e.type === 'cfs_area')
+                .filter(e => e.type === 'cfs_area' && e.id !== 'cfs_area_2')
                 .forEach(cfs => {
                     items.push({
                         id: cfs.id,
@@ -195,38 +184,7 @@ const ViewNavigationPanel: React.FC = () => {
                     });
                 });
 
-            // 3. WAREHOUSES
-            layout.entities
-                .filter(e => e.type === 'warehouse')
-                .forEach(wh => {
-                    items.push({
-                        id: wh.id,
-                        title: wh.name || wh.id,
-                        description: wh.props?.description || 'Storage Warehouse',
-                        icon: <WarehouseViewIcon />,
-                        section: 'Warehouses',
-                        event: 'selectEntity',
-                        eventData: { id: wh.id },
-                    });
-                });
 
-            // 4. FACILITIES (Offices, Rooms)
-            const facilities = ['terminal_office', 'terminal_dispatch_office', 'resting_room', 'generator_room'];
-            layout.entities
-                .filter(e => facilities.includes(e.type))
-                .forEach(fac => {
-                    // Format title from type if name missing
-                    const title = fac.name || fac.type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                    items.push({
-                        id: fac.id,
-                        title: title,
-                        description: fac.props?.description || 'Facility Building',
-                        icon: <BuildingViewIcon />,
-                        section: 'Facilities',
-                        event: 'selectEntity',
-                        eventData: { id: fac.id },
-                    });
-                });
         }
 
         return items;
@@ -300,7 +258,7 @@ const ViewNavigationPanel: React.FC = () => {
                         {Object.entries(groupedItems)
                             .sort(([sectionA], [sectionB]) => {
                                 // Updated sort order with Terminals
-                                const order = ['General', 'TRM', 'TRS', 'TRL-1', 'TRL', 'CFS Areas', 'Warehouses', 'Facilities'];
+                                const order = ['General', 'TRM', 'TRS', 'TRL-1', 'TRL', 'CFS Areas'];
                                 const indexA = order.indexOf(sectionA);
                                 const indexB = order.indexOf(sectionB);
                                 // If both found, sort by index

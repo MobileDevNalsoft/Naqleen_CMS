@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { Html, Billboard } from '@react-three/drei';
+import { Html, Billboard, useTexture } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useStore } from '../../store/store';
 import Truck from './Truck';
@@ -41,7 +41,7 @@ const CFSMarker: React.FC<{
     onPointerOut: () => void;
     isOtherMarkerHovered: boolean;
     disabled?: boolean;
-}> = ({ position, areaName, onClick, onPointerOver, onPointerOut, isOtherMarkerHovered, disabled }) => {
+}> = ({ position, areaName, onClick, onPointerOver, onPointerOut, disabled }) => {
     const groupRef = useRef<THREE.Group>(null);
     const { camera } = useThree();
 
@@ -105,6 +105,92 @@ const CFSMarker: React.FC<{
     );
 };
 
+// 40ft Container Grid for CFS Area 1
+const CFSContainerGrid: React.FC<{ width: number; depth: number; containerCount: number }> = ({ width, depth, containerCount }) => {
+    // Texture for "Exact Look"
+    const texture = useTexture('/textures/container_side.png');
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.anisotropy = 4;
+
+    // Grid Configuration
+    const contLength = 12.19; // X axis
+    const contWidth = 2.44;   // Z axis
+    const contHeight = 2.59;
+    const gapX = 1.0;
+    const gapZ = 0.5;
+
+    // Industrial Colors (Memoized)
+    const colors = useMemo(() => [0x00695C, 0x1A237E, 0xD84315, 0xF9A825, 0xC62828, 0x00838F, 0xEF6C00, 0x6D4C41], []);
+
+    const elements = useMemo(() => {
+        const els = [];
+
+        // Start Top-Left (Relative to center)
+        const startX = -width / 2 + contLength / 2 + 2;
+        const startZ = -depth / 2 + contWidth / 2 + 2;
+
+        // Adjust grid count to fit within available space
+        const cols = Math.floor((width - 4) / (contLength + gapX));
+        const rows = Math.floor((depth - 4) / (contWidth + gapZ));
+
+        // Base color is #2D3748. Lighter version is #4A5568.
+        const markingColor = '#4A5568';
+
+        let placedCount = 0;
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const px = startX + c * (contLength + gapX);
+                const pz = startZ + r * (contWidth + gapZ);
+
+                // 1. Ground Marking (Lot Lines)
+                // User removed lines, so we only use the filled plane
+                // Position 0.3 matches user's manual adjustment
+                els.push(
+                    <group key={`mark-${r}-${c}`} position={[px, 0.28, pz]}>
+                        <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+                            <planeGeometry args={[contLength, contWidth]} />
+                            <meshStandardMaterial
+                                color={markingColor}
+                                transparent
+                                opacity={0.5}
+                                roughness={0.9} // Concrete-like roughness
+                                metalness={0.1}
+                                polygonOffset
+                                polygonOffsetFactor={-8}
+                            />
+                        </mesh>
+                    </group>
+                );
+
+                // 2. Container (Use actual containerCount from API)
+                if (placedCount < containerCount) {
+                    const py = 0.2 + contHeight / 2; // Level 1 base (Floor is 0.2)
+                    const colorHex = colors[placedCount % colors.length];
+                    const color = new THREE.Color(colorHex);
+
+                    els.push(
+                        <mesh key={`cont-${placedCount}`} position={[px, py, pz]} castShadow receiveShadow>
+                            <boxGeometry args={[contLength, contHeight, contWidth]} />
+                            <meshStandardMaterial
+                                map={texture}
+                                color={color} // Use object color to multiply texture
+                                metalness={0.4}
+                                roughness={0.6}
+                            />
+                        </mesh>
+                    );
+                    placedCount++;
+                }
+            }
+        }
+        return els;
+    }, [width, depth, texture, colors, containerCount]);
+
+    return <>{elements}</>;
+};
+
 // Main CFS Area Component
 const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rotation = 0, isDimmed = false, childTrucks = [], entityPositionMap }) => {
     const [x, y, z] = position;
@@ -113,8 +199,12 @@ const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rot
     const groupRef = useRef<THREE.Group>(null);
     const opacityRef = useRef(1);
 
+    // Get CFS container count from store
+    const cfsContainers = useStore((state) => state.cfsContainers);
+    const cfsContainerCount = cfsContainers.length;
+
     const concreteMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: '#2D3748', // Darker concrete (Slate 800) to reduce brightness
+        color: '#2D3748', // Darker concrete (Slate 800)
         roughness: 0.95,
         transparent: true
     }), []);
@@ -149,8 +239,6 @@ const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rot
             });
         }
     });
-
-
 
     // Store integration
     const setSelectedCFS = useStore((state) => state.setSelectedBlock);
@@ -195,25 +283,30 @@ const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rot
                 onPointerOver={() => setHoveredMarker(id)}
                 onPointerOut={() => setHoveredMarker(null)}
                 isOtherMarkerHovered={hoveredMarker !== null && hoveredMarker !== id}
-                disabled={isDimmed}
+                disabled={isDimmed || id === 'cfs_area_2'}
             />
 
-            {/* Child Trucks - rendered as children for automatic opacity inheritance */}
-            {childTrucks.map((truck) => {
-                const truckPos = entityPositionMap?.get(truck.id);
-                // Truck position is relative to CFS, so need to convert to local coords
-                const localX = (truckPos?.x ?? truck.position.x) - position[0];
-                const localZ = (truckPos?.z ?? truck.position.z) - position[2];
+            {/* Child Trucks or Container Grid based on ID */}
+            {id === 'cfs_area_1' ? (
+                <CFSContainerGrid width={width} depth={depth} containerCount={cfsContainerCount} />
+            ) : (
+                // Only render trucks for other areas
+                childTrucks.map((truck) => {
+                    const truckPos = entityPositionMap?.get(truck.id);
+                    // Truck position is relative to CFS, so need to convert to local coords
+                    const localX = (truckPos?.x ?? truck.position.x) - position[0];
+                    const localZ = (truckPos?.z ?? truck.position.z) - position[2];
 
-                return (
-                    <Truck
-                        key={truck.id}
-                        position={[localX, 0.2, localZ]}
-                        rotation={truck.rotation || 0}
-                        containerColor={truck.props?.containerColor}
-                    />
-                );
-            })}
+                    return (
+                        <Truck
+                            key={truck.id}
+                            position={[localX, 0.2, localZ]}
+                            rotation={truck.rotation || 0}
+                            containerColor={truck.props?.containerColor}
+                        />
+                    );
+                })
+            )}
         </group>
     );
 };

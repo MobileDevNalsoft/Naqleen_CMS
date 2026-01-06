@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export type ActivePanel =
     | null
     | 'position'
+    | 'cfsPosition'
     | 'restack'
     | 'gateIn'
     | 'gateOut'
@@ -12,7 +13,9 @@ export type ActivePanel =
     | 'cfsTask'
     | 'reserveContainers'
     | 'customerInventory'
-    | 'releaseContainer';
+    | 'releaseContainer'
+    | 'accessControl'
+    | 'settings';
 
 interface UIState {
     // Panel State
@@ -25,6 +28,15 @@ interface UIState {
     isViewPanelOpen: boolean;
     toggleViewPanel: () => void;
     setViewPanelOpen: (open: boolean) => void;
+
+    // Search Focus State (disables keyboard navigation)
+    // Search Focus State (disables keyboard navigation)
+    isSearchFocused: boolean;
+    setSearchFocused: (focused: boolean) => void;
+
+    // Settings State
+    settingsTab: 'profile' | 'accessControl';
+    setSettingsTab: (tab: 'profile' | 'accessControl') => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -38,4 +50,12 @@ export const useUIStore = create<UIState>((set) => ({
     isViewPanelOpen: false,
     toggleViewPanel: () => set((state) => ({ isViewPanelOpen: !state.isViewPanelOpen })),
     setViewPanelOpen: (open) => set({ isViewPanelOpen: open }),
+
+    // Search Focus State
+    isSearchFocused: false,
+    setSearchFocused: (focused) => set({ isSearchFocused: focused }),
+
+    // Settings State
+    settingsTab: 'profile',
+    setSettingsTab: (tab) => set({ settingsTab: tab }),
 }));

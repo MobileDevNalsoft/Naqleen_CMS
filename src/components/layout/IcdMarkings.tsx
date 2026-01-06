@@ -2,7 +2,7 @@ import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { Text, Billboard, Html } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useStore } from '../../store/store';
+import { useStore, type MarkingPosition } from '../../store/store';
 import { useUIStore } from '../../store/uiStore';
 import { type DynamicEntity, type ContainerBlockEntity, getAllDynamicBlocks, calculateBlockPosition } from '../../utils/layoutUtils';
 
@@ -187,7 +187,6 @@ const BlockMarker: React.FC<BlockMarkerProps> = ({
     blockName,
     onClick,
     isHovered: _isHovered, // Reserved for future use
-    isOtherMarkerHovered,
     onPointerOver,
     onPointerOut
 }) => {
@@ -266,6 +265,7 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
     const meshRef = useRef<THREE.InstancedMesh>(null);
     const dummy = useMemo(() => new THREE.Object3D(), []);
     const selectedBlock = useStore((state) => state.selectedBlock);
+    const setMarkingPositions = useStore((state) => state.setMarkingPositions);
 
     const [meshReady, setMeshReady] = useState(false);
 
@@ -277,9 +277,6 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
     const blockStates = useRef<Record<string, { startIndex: number; count: number; currentOpacity: number }>>({});
 
     const frameCount = useRef(0);
-
-    // Colors for dimming effect
-
 
     // Callback ref to detect when mesh is ready
     const meshCallbackRef = useCallback((node: THREE.InstancedMesh | null) => {
@@ -299,6 +296,8 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
 
         let index = 0;
         const states: Record<string, { startIndex: number; count: number; currentOpacity: number }> = {};
+        // Collect marking positions for O(1) lookup
+        const markingPositions: Record<string, MarkingPosition> = {};
 
         blocks.forEach(block => {
             const startIndex = index;
@@ -440,6 +439,22 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
 
                         mesh.setMatrixAt(index++, dummy.matrix);
                         count++;
+
+                        // Build unique position key: Terminal-Block-Lot-Row
+                        // Extract terminal and block letter from block.id (e.g., 'trs_block_a' -> 'TRS', 'A')
+                        const blockIdMatch = block.id.match(/^(trs|trm|trl)_block_([a-d])/i);
+                        if (blockIdMatch) {
+                            const terminal = blockIdMatch[1].toUpperCase();
+                            const blockLetter = blockIdMatch[2].toUpperCase();
+                            // currentLotNumber is the actual lot number (e.g., 1, 3, 5)
+                            // currentRowLabel is the row letter (e.g., 'A', 'B', 'K')
+                            const posKey = `${terminal}-${blockLetter}-${currentLotNumber}-${currentRowLabel}`;
+                            markingPositions[posKey] = {
+                                x: pos.x,
+                                y: pos.y,
+                                z: pos.z
+                            };
+                        }
                     }
                     // Add gap after this lot for next iteration
                     const lotNum = lotNumbers[b];
@@ -453,10 +468,16 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
         blockStates.current = states;
         mesh.instanceMatrix.needsUpdate = true;
 
+        // Store marking positions for O(1) container placement lookup
+        if (Object.keys(markingPositions).length > 0) {
+            setMarkingPositions(markingPositions);
+            console.log(`[SlotMarkings] Stored ${Object.keys(markingPositions).length} marking positions`);
+        }
+
         // Debug: show total slots set vs expected
         const totalSet = Object.values(states).reduce((acc, s) => acc + s.count, 0);
         console.log(`[useEffect] Total matrices set: ${totalSet}, mesh.count: ${mesh.count}`);
-    }, [blocks, dummy, meshReady]); // Re-run when blocks change or mesh becomes ready
+    }, [blocks, dummy, meshReady, setMarkingPositions]); // Re-run when blocks change or mesh becomes ready
 
     // Animate instance colors for Telia-style dimming (no Y position changes)
     useFrame((_, delta) => {

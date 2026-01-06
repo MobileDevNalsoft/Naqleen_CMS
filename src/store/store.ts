@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { DynamicIcdLayout } from '../utils/layoutUtils';
-import type { ContainerPosition } from '../api';
+import type { ContainerPosition, CfsContainer } from '../api';
 
 export type ContainerEntity = ContainerPosition;
 
@@ -32,6 +32,13 @@ export interface GhostContainer {
   blockId: string;        // For determining rotation
 }
 
+// Marking positions stored by unique ID: "Terminal-Block-Lot-Row"
+export interface MarkingPosition {
+  x: number;
+  y: number;
+  z: number;
+}
+
 interface StoreState {
   entities: Record<string, ContainerEntity>;
   ids: string[];
@@ -45,8 +52,11 @@ interface StoreState {
   releaseContainers: { container_nbr: string }[]; // Containers selected for release
   swapConnections: SwapConnection[];
   restackLine: RestackLine | null; // New state for restack visualization
+  cfsContainers: CfsContainer[]; // Containers in CFS area (no 3D position)
   customerByContainer: Record<string, string>; // Reverse lookup: container_nbr -> customer_name
   setEntitiesBatch: (updates: (Partial<ContainerEntity> & { id: string })[]) => void;
+  setCfsContainers: (containers: CfsContainer[]) => void;
+  removeCfsContainer: (containerId: string) => void;
   patchPositions: (posUpdates: { id: string; x: number; y: number; z: number }[]) => void;
   setSelectId: (id: string | null) => void;
   setSelectedBlock: (blockId: string | null) => void;
@@ -65,6 +75,9 @@ interface StoreState {
   setGhostContainer: (container: GhostContainer | null) => void;
   hoveredMarker: string | null;
   setHoveredMarker: (markerId: string | null) => void;
+  // Marking positions for O(1) container placement lookup
+  markingPositions: Record<string, MarkingPosition>;
+  setMarkingPositions: (positions: Record<string, MarkingPosition>) => void;
 }
 
 
@@ -82,10 +95,12 @@ export const useStore = create<StoreState>((set) => ({
   releaseContainers: [],
   swapConnections: [],
   restackLine: null,
+  cfsContainers: [],
   customerByContainer: {},
   focusPosition: null,
   ghostContainer: null,
   hoveredMarker: null,
+  markingPositions: {},
 
   setEntitiesBatch: (updates) => set((state) => {
     const entities = { ...state.entities };
@@ -119,6 +134,10 @@ export const useStore = create<StoreState>((set) => ({
   setSwapConnections: (connections) => set({ swapConnections: connections }),
   setRestackLine: (line) => set({ restackLine: line }),
   setCustomerByContainer: (map) => set({ customerByContainer: map }),
+  setCfsContainers: (containers) => set({ cfsContainers: containers }),
+  removeCfsContainer: (containerId) => set((state) => ({
+    cfsContainers: state.cfsContainers.filter(c => c.id !== containerId)
+  })),
   updateEntityStatus: (updates) => set((state) => {
     const entities = { ...state.entities };
     let changed = false;
@@ -133,5 +152,6 @@ export const useStore = create<StoreState>((set) => ({
   setFocusPosition: (position) => set({ focusPosition: position }),
   setGhostContainer: (container) => set({ ghostContainer: container }),
   setHoveredMarker: (markerId) => set({ hoveredMarker: markerId }),
+  setMarkingPositions: (positions) => set({ markingPositions: positions }),
 }));
 

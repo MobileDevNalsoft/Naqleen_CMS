@@ -1,6 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { useUIStore } from '../../store/uiStore';
 
 interface KeyboardNavigationProps {
     controlsRef: React.RefObject<any>;
@@ -9,12 +10,15 @@ interface KeyboardNavigationProps {
 
 export function KeyboardNavigation({ controlsRef, speed = 3 }: KeyboardNavigationProps) {
     const { camera } = useThree();
+    const isSearchFocused = useUIStore(state => state.isSearchFocused);
 
     // Track pressed keys
     const keysPressed = useRef<{ [key: string]: boolean }>({});
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // Skip if search is focused
+            if (isSearchFocused) return;
             keysPressed.current[e.key.toLowerCase()] = true;
             if (e.key.startsWith('Arrow')) {
                 // Map arrows to wasd for easier logic or just track them
@@ -36,7 +40,7 @@ export function KeyboardNavigation({ controlsRef, speed = 3 }: KeyboardNavigatio
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
         };
-    }, []);
+    }, [isSearchFocused]);
 
     useFrame((_, delta) => {
         if (!controlsRef.current) return;

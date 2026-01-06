@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, MapPin, Bell, User, Settings, LogOut, X, Package, Search, Truck, AlertCircle, Check, Info } from 'lucide-react';
 import { useIcdsQuery } from '../../api';
 import { useStore } from '../../store/store';
+import { useUIStore } from '../../store/uiStore';
 
 interface ModernHeaderProps {
     activeNav: string;
@@ -19,6 +20,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
     const [notificationCount] = useState(3); // Mock notification count
     // Local state removed in favor of props
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    const [isProfileMenuClosing, setIsProfileMenuClosing] = useState(false);
     const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
     const [isNotificationPanelClosing, setIsNotificationPanelClosing] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -40,6 +42,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
     const ids = useStore((state) => state.ids);
     const setSelectId = useStore((state) => state.setSelectId);
     const setSelectedCustomer = useStore((state) => state.setSelectedCustomer);
+    const setSearchFocused = useUIStore((state) => state.setSearchFocused);
 
     // Search Mode State
     type SearchMode = 'Container' | 'Customer' | 'Position';
@@ -49,6 +52,114 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
     // Refs for dropdown containers
     const icdDropdownRef = useRef<HTMLDivElement>(null);
     const profileDropdownRef = useRef<HTMLDivElement>(null);
+    const activePanel = useUIStore((state) => state.activePanel);
+    const settingsTab = useUIStore((state) => state.settingsTab);
+    const setSettingsTab = useUIStore((state) => state.setSettingsTab);
+    const isSettingsOpen = activePanel === 'settings';
+
+    // ... existing refs and state ...
+
+    // [NEW] Unified Header for Settings
+    const UnifiedSettingsHeader = () => (
+        <div style={{
+            position: 'absolute',
+            top: '15px',
+            left: '15px',
+            right: '15px',
+            height: '54px',
+            background: 'var(--glass-bg)', // Unified background
+            backdropFilter: 'blur(20px)',
+            borderRadius: '16px', // Rounded corners
+            border: '1px solid var(--glass-border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 24px',
+            zIndex: 2000,
+            animation: 'expandMerge 0.6s cubic-bezier(0.16, 1, 0.3, 1)', // Premium ease
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+        }}>
+            {/* Left: Title */}
+            <div style={{
+                fontSize: '20px',
+                fontWeight: 600,
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                opacity: 0,
+                animation: 'fadeInContent 0.4s ease-out 0.2s forwards'
+            }}>
+                <Settings size={24} color="var(--secondary-color)" />
+                Settings
+            </div>
+
+            {/* Center: Tabs */}
+            <div style={{
+                display: 'flex',
+                background: 'rgba(0,0,0,0.2)',
+                borderRadius: '50px',
+                padding: '4px',
+                opacity: 0,
+                animation: 'fadeInContent 0.4s ease-out 0.3s forwards'
+            }}>
+                <div
+                    onClick={() => setSettingsTab('profile')}
+                    style={{
+                        padding: '8px 24px',
+                        borderRadius: '40px',
+                        background: settingsTab === 'profile' ? 'var(--secondary-color)' : 'transparent',
+                        color: settingsTab === 'profile' ? '#1e293b' : 'rgba(255,255,255,0.6)',
+                        fontWeight: 600,
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
+                >
+                    My Profile
+                </div>
+                <div
+                    onClick={() => setSettingsTab('accessControl')}
+                    style={{
+                        padding: '8px 24px',
+                        borderRadius: '40px',
+                        background: settingsTab === 'accessControl' ? 'var(--secondary-color)' : 'transparent',
+                        color: settingsTab === 'accessControl' ? '#1e293b' : 'rgba(255,255,255,0.6)',
+                        fontWeight: 600,
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
+                >
+                    Access Control
+                </div>
+            </div>
+
+            {/* Right: Close */}
+            <div
+                onClick={() => useUIStore.getState().closePanel()}
+                style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    opacity: 0,
+                    animation: 'fadeInContent 0.4s ease-out 0.4s forwards'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+            >
+                <X size={20} color="white" />
+            </div>
+        </div>
+    );
+
+    // ... existing refs ...d dropdown if clicking outside
     const notificationPanelRef = useRef<HTMLDivElement>(null);
     const searchContainerRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -79,7 +190,9 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
 
             // Close profile dropdown if clicking outside
             if (profileDropdownRef.current && !profileDropdownRef.current.contains(target)) {
-                setIsProfileMenuOpen(false);
+                if (isProfileMenuOpen && !isProfileMenuClosing) {
+                    closeProfileMenu();
+                }
             }
 
             // Close notification panel if clicking outside
@@ -219,6 +332,27 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
         }, 400); // Match opening animation timing
     };
 
+    // Handle profile menu close with animation
+    const closeProfileMenu = () => {
+        if (!isProfileMenuOpen || isProfileMenuClosing) return;
+        setIsProfileMenuClosing(true);
+        setTimeout(() => {
+            setIsProfileMenuOpen(false);
+            setIsProfileMenuClosing(false);
+        }, 350); // Match collapse animation timing
+    };
+
+    // Toggle profile menu with animation
+    const toggleProfileMenu = () => {
+        if (isProfileMenuOpen) {
+            closeProfileMenu();
+        } else {
+            setIsProfileMenuOpen(true);
+            // Close other menus
+            if (isSearchOpen) handleSearchClose();
+        }
+    };
+
     const currentIcd = icds?.find(t => t.id === selectedIcdId);
 
     const handleIcdSelect = (icdId: string) => {
@@ -228,6 +362,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
 
     return (
         <>
+            {isSettingsOpen && <UnifiedSettingsHeader />}
 
             {/* Left Header: Branding & Icd Selector */}
             <div style={{
@@ -243,6 +378,10 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 borderRadius: '50px',
                 border: '1px solid var(--glass-border)',
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                opacity: isSettingsOpen ? 0 : 1,
+                transform: isSettingsOpen ? 'scale(0.95)' : 'scale(1)',
+                pointerEvents: isSettingsOpen ? 'none' : 'auto',
             }}>
                 {/* Left Section: Branding */}
                 <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -304,6 +443,8 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                     }}
                                 />
                             </div>
+
+
 
                             {/* Dropdown Menu */}
                             {isDropdownOpen && icds && (
@@ -375,8 +516,13 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     position: 'absolute',
                     top: '15px',
                     left: '50%',
-                    transform: 'translateX(-50%)',
                     zIndex: 1000,
+                    transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                    opacity: isSettingsOpen ? 0 : 1,
+                    transform: isSettingsOpen
+                        ? 'translateX(-50%) scale(0.95)'
+                        : 'translateX(-50%) scale(1)',
+                    pointerEvents: isSettingsOpen ? 'none' : 'auto',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
@@ -432,6 +578,10 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 top: '15px',
                 right: '15px',
                 zIndex: 1000,
+                transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                opacity: isSettingsOpen ? 0 : 1,
+                transform: isSettingsOpen ? 'scale(0.95)' : 'scale(1)',
+                pointerEvents: isSettingsOpen ? 'none' : 'auto',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
@@ -573,8 +723,12 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                         }
                                         handleSearchChange(val);
                                     }}
-                                    // Close mode dropdown if typing starts
-                                    onFocus={() => setIsSearchModeDropdownOpen(false)}
+                                    // Close mode dropdown if typing starts & disable scene navigation
+                                    onFocus={() => {
+                                        setIsSearchModeDropdownOpen(false);
+                                        setSearchFocused(true);
+                                    }}
+                                    onBlur={() => setSearchFocused(false)}
                                     style={{
                                         flex: 1,
                                         background: 'transparent',
@@ -931,13 +1085,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 {/* Profile Button */}
                 <div style={{ position: 'relative' }} ref={profileDropdownRef}>
                     <div
-                        onClick={() => {
-                            setIsProfileMenuOpen(!isProfileMenuOpen);
-                            // Close search when opening profile menu
-                            if (isSearchOpen) {
-                                handleSearchClose();
-                            }
-                        }}
+                        onClick={toggleProfileMenu}
                         style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -969,20 +1117,25 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     </div>
 
                     {/* Profile Dropdown Menu */}
-                    {isProfileMenuOpen && (
-                        <div style={{
-                            position: 'absolute',
-                            top: 'calc(100% + 14px)',
-                            right: 0,
-                            minWidth: '240px',
-                            background: 'rgba(75, 104, 108, 0.98)',
-                            backdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(247, 207, 155, 0.3)',
-                            borderRadius: '16px',
-                            boxShadow: '0 8px 32px rgba(247, 207, 155, 0.15)',
-                            overflow: 'hidden',
-                            animation: 'slideDown 0.2s ease-out',
-                        }}>
+                    {(isProfileMenuOpen || isProfileMenuClosing) && (
+                        <div
+                            ref={profileDropdownRef}
+                            style={{
+                                position: 'absolute',
+                                top: 'calc(100% + 14px)',
+                                right: 0,
+                                minWidth: '240px',
+                                background: 'rgba(75, 104, 108, 0.98)',
+                                backdropFilter: 'blur(20px)',
+                                border: '1px solid rgba(247, 207, 155, 0.3)',
+                                borderRadius: '16px',
+                                boxShadow: '0 8px 32px rgba(247, 207, 155, 0.15)',
+                                overflow: 'hidden',
+                                transformOrigin: 'top right',
+                                animation: isProfileMenuClosing
+                                    ? 'collapseProfilePremium 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+                                    : 'expandProfilePremium 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+                            }}>
                             {/* User Info */}
                             <div style={{
                                 padding: '12px',
@@ -1025,26 +1178,10 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                             {/* Menu Items */}
                             <div style={{ padding: '8px 0' }}>
                                 <div
-                                    style={{
-                                        width: '100%',
-                                        padding: '12px 16px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '12px',
-                                        color: 'white',
-                                        fontSize: '14px',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s',
-                                        outline: 'none',
+                                    onClick={() => {
+                                        closeProfileMenu();
+                                        useUIStore.getState().openPanel('settings');
                                     }}
-                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                >
-                                    <User size={18} />
-                                    <span>My Profile</span>
-                                </div>
-
-                                <div
                                     style={{
                                         width: '100%',
                                         padding: '12px 16px',
@@ -1061,7 +1198,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                 >
                                     <Settings size={18} />
-                                    <span>Preferences</span>
+                                    <span>Settings</span>
                                 </div>
                             </div>
 
@@ -1113,6 +1250,26 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     to {
                         opacity: 1;
                         transform: translateY(0);
+                    }
+                }
+                @keyframes expandProfilePremium {
+                    0% {
+                        opacity: 0;
+                        transform: scale(0.85) translateY(-15px);
+                    }
+                    100% {
+                        opacity: 1;
+                        transform: scale(1) translateY(0);
+                    }
+                }
+                @keyframes collapseProfilePremium {
+                    0% {
+                        opacity: 1;
+                        transform: scale(1) translateY(0);
+                    }
+                    100% {
+                        opacity: 0;
+                        transform: scale(0.85) translateY(-15px);
                     }
                 }
                 @keyframes slideFromEye {
@@ -1194,6 +1351,20 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     to {
                         opacity: 1;
                     }
+                }
+                @keyframes expandMerge {
+                    from {
+                        transform: scaleY(0.8) scaleX(0.95);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: scaleY(1) scaleX(1);
+                        opacity: 1;
+                    }
+                }
+                @keyframes fadeInContent {
+                    from { opacity: 0; transform: translateY(5px); }
+                    to { opacity: 1; transform: translateY(0); }
                 }
             `}</style >
 

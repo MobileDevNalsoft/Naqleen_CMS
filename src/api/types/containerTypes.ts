@@ -56,8 +56,20 @@ export interface ContainerType {
 /**
  * Result type for getContainers that includes both positions and lookup map
  */
+export interface CfsContainer {
+    id: string;
+    type: string;
+    status: string;
+    area: string;
+    customerName?: string;
+}
+
+/**
+ * Result type for getContainers that includes both positions and lookup map
+ */
 export interface GetContainersResponse {
     positions: ContainerPosition[];
+    cfsContainers: CfsContainer[];
     customerByContainer: Record<string, string>;
 }
 
@@ -66,14 +78,7 @@ export interface ContainerFromApi {
     container_nbr: string;
     type?: string;
     status?: string;
-    position: {
-        terminal: string;
-        block: string;
-        block_id: string;
-        lot: number;
-        row: number;
-        level: number;
-    };
+    position: string; // "TRS-A-2-D-1" (Terminal-Block-Lot-Row-Level) or "CFS"
 }
 
 // Customer group with nested containers (Option A structure)

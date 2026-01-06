@@ -6,7 +6,6 @@ import { yardApi } from '../../../api/handlers/yardApi';
 import PanelLayout from '../PanelLayout';
 import { useUIStore } from '../../../store/uiStore';
 import { useStore } from '../../../store/store';
-import { getDynamicContainerPosition } from '../../../utils/layoutUtils';
 
 interface RestackContainersPanelProps {
     isOpen: boolean;
@@ -31,7 +30,6 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
     const setRestackLine = useStore((state) => state.setRestackLine);
     const setFocusPosition = useStore((state) => state.setFocusPosition);
     const entities = useStore((state) => state.entities);
-    const layout = useStore((state) => state.layout);
 
     // Submit Restack Mutation
     const { mutate: submitRestack, isPending: isSubmitting } = useMutation({
@@ -40,60 +38,49 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
             if (res.response_code === 200) {
                 showToast('success', 'Container restacked successfully');
 
-                // Update container position in 3D scene using EXACT coordinates
+                // Update container position in 3D scene using marking positions
                 if (containerId && newPosition) {
-                    // Parse position string: TRM-A-1-B-2 -> terminal, block, lot, row, level
-                    const parts = newPosition.split('-');
-                    const terminal = parts[0] || '';
-                    const block = parts[1] || '';
-                    const lot = parseInt(parts[2] || '1');
-                    const rowLabel = parts[3] || 'A';
-                    const level = parseInt(parts[4] || '1');
-                    const rowIndex = rowLabel.charCodeAt(0) - 'A'.charCodeAt(0);
+                    // Extract marking key and level from position: "TRM-A-1-B-2" -> "TRM-A-1-B" + 2
+                    const lastDashIndex = newPosition.lastIndexOf('-');
+                    const markingKey = newPosition.substring(0, lastDashIndex).toUpperCase();
+                    const level = parseInt(newPosition.substring(lastDashIndex + 1), 10) || 1;
 
-                    // Get block definition from layout
-                    const layoutState = useStore.getState().layout;
-                    const expectedBlockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
-                    const blockEntity = layoutState?.entities?.find(e =>
-                        e.type?.includes('block') &&
-                        e.id.toLowerCase() === expectedBlockId
-                    );
+                    // Get marking position from store
+                    const markingPositions = useStore.getState().markingPositions;
+                    const markingPos = markingPositions[markingKey];
 
-                    if (blockEntity) {
-                        try {
-                            // Apply row reversal for Blocks B and D
-                            const blockRows = blockEntity.props?.rows || 11;
-                            const shouldReverseRow = block.toUpperCase() === 'B' || block.toUpperCase() === 'D';
-                            const actualRowIndex = shouldReverseRow ? (blockRows - 1 - rowIndex) : rowIndex;
+                    if (markingPos) {
+                        // Calculate Y position based on level and container type
+                        const is20ft = !containerType || containerType.startsWith('2');
+                        const containerHeight = is20ft ? 2.591 : 2.896;
+                        const levelGap = 0.02;
+                        const y = markingPos.y + containerHeight / 2 + (level - 1) * (containerHeight + levelGap);
 
-                            // Calculate EXACT position using the layout engine
-                            const positionVector = getDynamicContainerPosition(
-                                blockEntity,
-                                lot - 1,          // 0-based lot index
-                                actualRowIndex,   // 0-based row index (reversed for B/D)
-                                level - 1         // 0-based level index
-                            );
+                        // Derive other values from markingKey: "TRM-A-1-B"
+                        const keyParts = markingKey.split('-');
+                        const terminal = keyParts[0] || '';
+                        const block = keyParts[1] || '';
+                        const lot = parseInt(keyParts[2], 10) || 1;
+                        const rowLabel = keyParts[3] || 'A';
+                        const blockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
 
-                            // Update container entity with new position
-                            setEntitiesBatch([{
-                                id: containerId,
-                                x: positionVector.x,
-                                y: positionVector.y,
-                                z: positionVector.z,
-                                terminal,
-                                block,
-                                blockId: `${terminal.toLowerCase()}_block_${block.toLowerCase()}`,
-                                lot,
-                                row: actualRowIndex,
-                                level
-                            } as any]);
+                        // Update container entity with new position
+                        setEntitiesBatch([{
+                            id: containerId,
+                            x: markingPos.x,
+                            y,
+                            z: markingPos.z,
+                            terminal,
+                            block,
+                            blockId,
+                            lot,
+                            row: rowLabel.charCodeAt(0) - 'A'.charCodeAt(0),
+                            level
+                        } as any]);
 
-                            console.log('Container restacked in scene:', containerId, positionVector);
-                        } catch (e) {
-                            console.error('Error calculating restack position:', e);
-                        }
+                        console.log('Container restacked in scene:', containerId, { x: markingPos.x, y, z: markingPos.z });
                     } else {
-                        console.warn('Block entity not found for restack:', expectedBlockId);
+                        console.warn('Marking position not found for restack:', markingKey);
                     }
                 }
 
@@ -128,99 +115,82 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
             return;
         }
 
-        // Parse position string: TRM-A-1-B-2
-        const parts = newPosition.split('-');
-        if (parts.length < 5) return; // Wait for full position
+        // Extract marking key and level from position: "TRM-A-1-B-2" -> "TRM-A-1-B" + 2
+        const lastDashIndex = newPosition.lastIndexOf('-');
+        if (lastDashIndex === -1) return;
 
-        const terminal = parts[0] || '';
-        const block = parts[1] || '';
-        const lot = parseInt(parts[2] || '1');
-        const rowLabel = parts[3] || 'A';
-        const level = parseInt(parts[4] || '1');
-        const rowIndex = rowLabel.charCodeAt(0) - 'A'.charCodeAt(0);
+        const markingKey = newPosition.substring(0, lastDashIndex).toUpperCase();
+        const level = parseInt(newPosition.substring(lastDashIndex + 1), 10) || 1;
 
-        const expectedBlockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
-        const blockEntity = layout?.entities?.find(e =>
-            e.type?.includes('block') &&
-            e.id.toLowerCase() === expectedBlockId
-        );
+        // Get marking position from store
+        const markingPositions = useStore.getState().markingPositions;
+        const markingPos = markingPositions[markingKey];
 
-        if (blockEntity) {
-            try {
-                // Apply row reversal for Blocks B and D
-                const blockRows = blockEntity.props?.rows || 11;
-                const shouldReverseRow = block.toUpperCase() === 'B' || block.toUpperCase() === 'D';
-                const actualRowIndex = shouldReverseRow ? (blockRows - 1 - rowIndex) : rowIndex;
+        if (markingPos) {
+            // Calculate Y position based on level and container type
+            const is20ft = !containerType || containerType.startsWith('2');
+            const containerHeight = is20ft ? 2.591 : 2.896;
+            const levelGap = 0.02;
+            const y = markingPos.y + containerHeight / 2 + (level - 1) * (containerHeight + levelGap);
 
-                // 1. Calculate Destination Position
-                const destPos = getDynamicContainerPosition(
-                    blockEntity,
-                    lot - 1,
-                    actualRowIndex,
-                    level - 1
-                );
+            // Derive blockId from markingKey: "TRM-A-1-B" -> terminal=TRM, block=A
+            const keyParts = markingKey.split('-');
+            const terminal = keyParts[0] || '';
+            const block = keyParts[1] || '';
+            const blockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
 
-                // 2. Set Ghost Container
-                setGhostContainer({
-                    x: destPos.x,
-                    y: destPos.y,
-                    z: destPos.z,
-                    containerType,
-                    blockId: expectedBlockId
+            const destPos = { x: markingPos.x, y, z: markingPos.z };
+
+            // 1. Set Ghost Container
+            setGhostContainer({
+                x: destPos.x,
+                y: destPos.y,
+                z: destPos.z,
+                containerType,
+                blockId
+            });
+
+            // 2. Calculate Source Position (from entities)
+            const sourceEntity = entities[containerId];
+            if (sourceEntity) {
+                // Set Restack Line
+                setRestackLine({
+                    fromId: containerId,
+                    toPosition: destPos
                 });
 
-                // 3. Calculate Source Position (from entities)
-                const sourceEntity = entities[containerId];
-                if (sourceEntity) {
-                    // Set Restack Line
-                    setRestackLine({
-                        fromId: containerId,
-                        toPosition: destPos
-                    });
+                // 3. Calculate Optimal Camera View
+                // Midpoint
+                const sourceVec = { x: sourceEntity.x, y: sourceEntity.y, z: sourceEntity.z };
+                const midX = (sourceVec.x + destPos.x) / 2;
+                const midY = (sourceVec.y + destPos.y) / 2;
+                const midZ = (sourceVec.z + destPos.z) / 2;
 
-                    // 4. Calculate Optimal Camera View
-                    // Midpoint
-                    const sourceVec = { x: sourceEntity.x, y: sourceEntity.y, z: sourceEntity.z };
-                    const midX = (sourceVec.x + destPos.x) / 2;
-                    const midY = (sourceVec.y + destPos.y) / 2;
-                    const midZ = (sourceVec.z + destPos.z) / 2;
+                // Distance
+                const dx = sourceVec.x - destPos.x;
+                const dy = sourceVec.y - destPos.y;
+                const dz = sourceVec.z - destPos.z;
+                const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-                    // Distance
-                    const dx = sourceVec.x - destPos.x;
-                    const dy = sourceVec.y - destPos.y;
-                    const dz = sourceVec.z - destPos.z;
-                    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                const baseDist = 100;
+                const zoomFactor = Math.max(1, dist / 80);
+                const camDirX = -0.3;
+                const camDirY = 0.8;
+                const camDirZ = 1.0;
+                const camDist = baseDist * zoomFactor;
 
-                    // Camera position: Midpoint offset back
-                    // Standard offset direction approx: (-0.5, 0.8, 1) normalized?
-                    // Let's use standard offset (-25, 120, 160) which implies a direction.
-                    // We'll scale the distance from midpoint based on object separation.
-
-                    const baseDist = 100;
-                    const zoomFactor = Math.max(1, dist / 80); // Zoom out if far apart
-
-                    // Direction vector for camera (looking down-left)
-                    const camDirX = -0.3;
-                    const camDirY = 0.8;
-                    const camDirZ = 1.0;
-
-                    const camDist = baseDist * zoomFactor;
-
-                    setFocusPosition({
-                        positionString: newPosition, // ID for uniqueness
-                        x: midX,
-                        y: midY,
-                        z: midZ,
-                        cameraX: midX + (camDirX * camDist),
-                        cameraY: midY + (camDirY * camDist),
-                        cameraZ: midZ + (camDirZ * camDist)
-                    });
-                }
-            } catch (e) {
-                console.error('Error calculating visualization:', e);
+                setFocusPosition({
+                    positionString: newPosition,
+                    x: midX,
+                    y: midY,
+                    z: midZ,
+                    cameraX: midX + (camDirX * camDist),
+                    cameraY: midY + (camDirY * camDist),
+                    cameraZ: midZ + (camDirZ * camDist)
+                });
             }
         }
-    }, [containerId, newPosition, layout, entities, containerType, isOpen, setGhostContainer, setRestackLine, setFocusPosition]);
+    }, [containerId, newPosition, entities, containerType, isOpen, setGhostContainer, setRestackLine, setFocusPosition]);
 
     const handleRestack = () => {
         if (!containerId || !newPosition) return;

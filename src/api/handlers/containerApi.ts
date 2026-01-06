@@ -1,11 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useStore } from '../../store/store';
 import { useEffect } from 'react';
-import {
-    getDynamicContainerPosition,
-    getBlocksWithCalculatedPositions
-} from '../../utils/layoutUtils';
-import type { DynamicIcdLayout, DynamicEntity } from '../../utils/layoutUtils';
+import type { DynamicIcdLayout } from '../../utils/layoutUtils';
 import apiClient from '../apiClient';
 import { API_CONFIG } from '../apiConfig';
 
@@ -17,97 +13,118 @@ import type {
     CustomerContainerGroup,
     ContainerFromApi,
     RecommendedContainersResponse,
-    GetContainersResponse
+    GetContainersResponse,
+    CfsContainer
 } from '../types/containerTypes';
 
+// Container height constant - standardized for visual consistency
+// Using 2.591m for all containers to match the visual geometry in Containers.tsx
+const CONTAINER_HEIGHT = 2.591;
+const LEVEL_GAP = 0.02;
 
 /**
- * Fetch containers data (grouped by customer) and calculate positions based on layout
- * Implements Approach 2: Keep nested structure + Build Index Map
+ * Calculate Y position based on level
+ * Uses consistent height to prevent floating containers at higher levels
  */
-export async function getContainers(layout: DynamicIcdLayout): Promise<GetContainersResponse> {
-    // Fetch from ORDS API (now returns grouped structure)
+function calculateYPosition(baseY: number, level: number, _containerType?: string): number {
+    // Level 1 = ground level (baseY), Level 2 = one container up, etc.
+    return baseY + CONTAINER_HEIGHT / 2 + (level - 1) * (CONTAINER_HEIGHT + LEVEL_GAP);
+}
+
+/**
+ * Fetch containers data (grouped by customer) and calculate positions
+ * Uses marking positions for O(1) position lookup
+ */
+export async function getContainers(): Promise<GetContainersResponse> {
+    // Fetch from ORDS API (returns grouped structure)
     const response = await apiClient.get<ApiResponse<CustomerContainerGroup[]>>(API_CONFIG.ENDPOINTS.GET_CONTAINERS);
     const apiResponse = response.data;
 
     // Validate response structure
     if (apiResponse.response_code !== 200 || !Array.isArray(apiResponse.data)) {
         console.error('Invalid API response:', apiResponse);
-        return { positions: [], customerByContainer: {} };
+        return { positions: [], cfsContainers: [], customerByContainer: {} };
     }
 
     const customerGroups = apiResponse.data;
 
     // Build reverse lookup map: container_nbr -> customer_name
     const customerByContainer: Record<string, string> = {};
-
-    // Flatten containers while preserving customer link
-    const flatContainers: (ContainerFromApi & { customer_name: string })[] = [];
+    const cfsContainers: CfsContainer[] = [];
+    const yardContainers: { container: ContainerFromApi & { customer_name: string }; position: string }[] = [];
 
     customerGroups.forEach(group => {
         group.containers.forEach(container => {
             customerByContainer[container.container_nbr] = group.customer_name;
-            flatContainers.push({
-                ...container,
-                customer_name: group.customer_name
-            });
+
+            if (container.position === 'CFS') {
+                cfsContainers.push({
+                    id: container.container_nbr,
+                    type: container.type || '20GP',
+                    status: container.status || 'Active',
+                    area: 'CFS',
+                    customerName: group.customer_name
+                });
+            } else {
+                yardContainers.push({
+                    container: { ...container, customer_name: group.customer_name },
+                    position: container.position
+                });
+            }
         });
     });
 
-    // Calculate positions using pre-calculated block positions
-    const blocksWithPositions = getBlocksWithCalculatedPositions(layout);
-    const blockMap = new Map<string, DynamicEntity>();
-    blocksWithPositions.forEach(b => blockMap.set(b.id, b));
+    // Get marking positions from store for O(1) lookup
+    const markingPositions = useStore.getState().markingPositions;
 
-    const positions = flatContainers.map((c) => {
-        // Use block_id directly from API response
-        const mappedBlockId = c.position.block_id;
-        const terminal = c.position.terminal?.toUpperCase() || '';
-        const blockLetter = c.position.block?.toUpperCase() || '';
-
-        const block = blockMap.get(mappedBlockId);
-        if (!block) {
-            console.warn(`Block not found for container ${c.container_nbr} (${c.position.block_id})`);
-            return null; // Filter out invalid
+    // Build container positions using marking positions
+    const positions = yardContainers.map(({ container, position }) => {
+        // Position format: "TRS-A-2-D-1" = markingKey + level
+        // Extract level (last segment) and marking key (everything before last dash)
+        const lastDashIndex = position.lastIndexOf('-');
+        if (lastDashIndex === -1) {
+            console.warn(`Invalid position format: ${position}`);
+            return null;
         }
 
-        // Lot index is always 0-based from 1-based API value
-        const lotIndex = Math.max(0, c.position.lot - 1);
-        let rowIndex = Math.max(0, c.position.row - 1);
-        const levelIndex = Math.max(0, c.position.level - 1);
+        const markingKey = position.substring(0, lastDashIndex).toUpperCase(); // "TRS-A-2-D"
+        const level = parseInt(position.substring(lastDashIndex + 1), 10) || 1;
 
-        // Get number of rows from block props for reversal calculation
-        const blockRows = block.props?.rows || 11;
-
-        // Blocks B and D have reversed row labels (A at bottom, K at top)
-        // So we need to reverse the row index to match the physical label positions
-        const shouldReverseRowPlacement = blockLetter === 'B' || blockLetter === 'D';
-        if (shouldReverseRowPlacement) {
-            rowIndex = blockRows - 1 - rowIndex;
+        const markingPos = markingPositions[markingKey];
+        if (!markingPos) {
+            console.warn(`Marking position not found for container ${container.container_nbr} (${markingKey})`);
+            return null;
         }
 
-        // Pass container type to ensure correct slot sizing (dynamic 20ft vs 40ft spacing)
-        const pos = getDynamicContainerPosition(block, lotIndex, rowIndex, levelIndex);
+        // Calculate Y position based on level and container type
+        const y = calculateYPosition(markingPos.y, level, container.type);
 
+        // Derive blockId and other values from markingKey: "TRS-A-2-D" -> terminal=TRS, block=A
+        const keyParts = markingKey.split('-');
+        const terminal = keyParts[0] || '';
+        const block = keyParts[1] || '';
+        const lot = parseInt(keyParts[2], 10) || 1;
+        const row = keyParts[3] || 'A';
+        const blockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
 
         return {
-            id: c.container_nbr,
-            x: pos.x,
-            y: pos.y,
-            z: pos.z,
-            status: c.status, // Use status from API ('R' or 'N'), default to 'active'
-            terminal: terminal,       // Store terminal for easy access
-            block: blockLetter,       // Store block letter for easy access
-            blockId: mappedBlockId,   // Use mapped ID so UI finds the correct block entity (part1/part2)
-            lot: c.position.lot,      // Store as 1-based (matches API/UI)
-            row: rowIndex,            // Store as 0-based in app state
-            level: c.position.level,  // Store as 1-based (matches API/UI)
-            type: c.type,
-            customerName: c.customer_name // Embedded customer link
+            id: container.container_nbr,
+            x: markingPos.x,
+            y,
+            z: markingPos.z,
+            status: container.status || 'N',
+            terminal,
+            block,
+            blockId,
+            lot,
+            row: row.charCodeAt(0) - 'A'.charCodeAt(0), // Store as 0-based index
+            level,
+            type: container.type,
+            customerName: container.customer_name
         } as ContainerPosition;
     }).filter((c): c is ContainerPosition => c !== null);
 
-    return { positions, customerByContainer };
+    return { positions, cfsContainers, customerByContainer };
 }
 
 /**
@@ -202,26 +219,33 @@ export const useContainersQuery = (layout: DynamicIcdLayout | null) => {
     const setEntitiesBatch = useStore((state) => state.setEntitiesBatch);
     const setCustomerByContainer = useStore((state) => state.setCustomerByContainer);
 
+    // Query depends on layout being loaded and marking positions being populated
+    const markingPositions = useStore((state) => state.markingPositions);
+    const hasMarkingPositions = Object.keys(markingPositions).length > 0;
+
     const query = useQuery({
-        queryKey: ['containers', layout?.name || 'no-layout'],
+        queryKey: ['containers', layout?.name || 'no-layout', hasMarkingPositions],
         queryFn: async () => {
-            if (!layout) return { positions: [], customerByContainer: {} };
-            return getContainers(layout);
+            if (!layout || !hasMarkingPositions) return { positions: [], cfsContainers: [], customerByContainer: {} };
+            return getContainers();
         },
-        enabled: !!layout,
+        enabled: !!layout && hasMarkingPositions,
         staleTime: Infinity,
         refetchOnWindowFocus: false,
     });
 
+    const setCfsContainers = useStore((state) => state.setCfsContainers);
+
     useEffect(() => {
-        if (query.data && query.data.positions.length > 0) {
+        if (query.data && (query.data.positions.length > 0 || query.data.cfsContainers?.length > 0)) {
             const currentIds = useStore.getState().ids;
             if (currentIds.length === 0) {
                 setEntitiesBatch(query.data.positions);
                 setCustomerByContainer(query.data.customerByContainer);
+                setCfsContainers(query.data.cfsContainers || []);
             }
         }
-    }, [query.data, setEntitiesBatch, setCustomerByContainer]);
+    }, [query.data, setEntitiesBatch, setCfsContainers, setCustomerByContainer]);
 
     // Return positions for backwards compatibility with existing consumers
     return {
