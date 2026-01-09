@@ -161,6 +161,7 @@ export default function CFSDetailsPanel() {
             truckNbr: '',
             bookingNbr: containerDetails.booking_id || '',
             orderType: 'RELEASE_CFS',
+            releaseType: 'CFS_CONTAINER',
             customerNbr: '',
             customerName: containerDetails.customer_name || '',
             orderNbr: containerDetails.inbound_order_nbr || '',

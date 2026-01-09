@@ -87,4 +87,49 @@ select name,
           position;
 
 
-select terminal, block, lot_no, row_no,level_no, is_occupied, container_type from xxotm_position_master_t where terminal = 'TRL-1' order by terminal, block, lot_no, row_no, level_no;
+SELECT JSON_ARRAYAGG(
+      JSON_OBJECT(
+         'customer_name' VALUE cust_name,
+         'containers' VALUE containers
+         RETURNING CLOB
+      )
+      RETURNING CLOB
+   )
+   FROM (
+      SELECT 
+         i.cust_name,
+         JSON_ARRAYAGG(
+            JSON_OBJECT(
+               'container_nbr' VALUE i.container_nbr,
+               'type' VALUE i.container_type,
+               'status' VALUE CASE WHEN i.booking_id IS NOT NULL AND i.area <> 'CFS' THEN 'R' ELSE 'N' END,
+               'position' VALUE CASE WHEN i.area IS NULL THEN i.position ELSE i.area END
+            )
+            RETURNING CLOB
+         ) AS containers
+      FROM (
+         select cust_name, container_nbr, container_type, booking_id, position, shipment_name, null area, inbound_shipment_nbr, container_stored_time, container_released_time, outbound_shipment_nbr from xxotm_container_inventory_t where container_nbr not in (select container_nbr from xxotm_cfs_containers_t)
+         union all
+         select ci.cust_name, cf.container_nbr, ci.container_type, ci.booking_id, ci.position, ci.shipment_name, 'CFS' area, cf.shipment_nbr, cf.creation_date, cf.release_date, null outbound_shipment_nbr from xxotm_cfs_containers_t cf, xxotm_container_inventory_t ci where cf.shipment_nbr = ci.inbound_shipment_nbr
+      ) i
+      WHERE i.container_nbr IS NOT NULL
+        AND ((i.position IS NOT NULL AND i.position <> 'NA' AND i.container_stored_time IS NOT NULL) OR i.area = 'CFS')
+        AND i.inbound_shipment_nbr IS NOT NULL
+        AND i.container_released_time IS NULL
+        AND i.outbound_shipment_nbr IS NULL
+        AND i.cust_name IS NOT NULL
+      GROUP BY i.cust_name
+   );
+
+
+
+
+select cust_name, container_nbr, container_type, booking_id, position, shipment_name, null area, inbound_shipment_nbr, container_stored_time, container_released_time, outbound_shipment_nbr from xxotm_container_inventory_t where container_nbr not in (select container_nbr from xxotm_cfs_containers_t where container_nbr is not null)
+         union all
+         select ci.cust_name, cf.container_nbr, ci.container_type, ci.booking_id, ci.position, ci.shipment_name, 'CFS' area, cf.shipment_nbr, cf.creation_date, cf.release_date, null outbound_shipment_nbr from xxotm_cfs_containers_t cf, xxotm_container_inventory_t ci where cf.shipment_nbr = ci.inbound_shipment_nbr;
+
+
+
+
+
+

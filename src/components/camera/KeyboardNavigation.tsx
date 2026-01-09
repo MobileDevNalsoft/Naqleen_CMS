@@ -11,14 +11,15 @@ interface KeyboardNavigationProps {
 export function KeyboardNavigation({ controlsRef, speed = 3 }: KeyboardNavigationProps) {
     const { camera } = useThree();
     const isSearchFocused = useUIStore(state => state.isSearchFocused);
+    const activePanel = useUIStore(state => state.activePanel);
 
     // Track pressed keys
     const keysPressed = useRef<{ [key: string]: boolean }>({});
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Skip if search is focused
-            if (isSearchFocused) return;
+            // Skip if search is focused or settings is open
+            if (isSearchFocused || activePanel === 'settings') return;
             keysPressed.current[e.key.toLowerCase()] = true;
             if (e.key.startsWith('Arrow')) {
                 // Map arrows to wasd for easier logic or just track them
@@ -40,7 +41,7 @@ export function KeyboardNavigation({ controlsRef, speed = 3 }: KeyboardNavigatio
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
         };
-    }, [isSearchFocused]);
+    }, [isSearchFocused, activePanel]);
 
     useFrame((_, delta) => {
         if (!controlsRef.current) return;

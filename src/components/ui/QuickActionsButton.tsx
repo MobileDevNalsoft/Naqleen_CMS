@@ -9,6 +9,7 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
     const [isActionSelectorOpen, setIsActionSelectorOpen] = useState(false);
 
     const openPanel = useUIStore((state) => state.openPanel);
+    const activePanel = useUIStore((state) => state.activePanel);
 
     const handleToggleQuickActions = () => {
         if (isOpen) {
@@ -81,7 +82,11 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            transition: 'all 0.5s cubic-bezier(0.25, 1, 0.3, 1)',
+            opacity: activePanel === 'settings' ? 0 : 1,
+            transform: activePanel === 'settings' ? 'scale(0)' : 'scale(1)',
+            pointerEvents: activePanel === 'settings' ? 'none' : 'auto',
         }}>
             {/* Expanding Vertical Bar */}
             <div style={{

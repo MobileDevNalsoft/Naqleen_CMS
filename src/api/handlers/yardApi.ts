@@ -25,12 +25,12 @@ export const yardApi = {
         const queryParams: any = {};
         if (request.searchText) queryParams.searchText = request.searchText;
 
-        const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.positionTrucksEndpoint, { params: queryParams });
+        const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.POSITION_TRUCKS, { params: queryParams });
         return response.data;
     },
 
     getPositionTruckDetails: async (request: PositionTruckDetailsRequest): Promise<PositionTruckDetailsResponse> => {
-        const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.positionTruckDetails, { params: { truckNbr: request.truckNbr } });
+        const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.POSITION_TRUCK_DETAILS, { params: { truckNbr: request.truckNbr } });
         const raw = response.data;
 
         if (raw.response_code === 200 && raw.data) {
@@ -67,18 +67,18 @@ export const yardApi = {
         if (request.lot) params.lot = request.lot;
         if (request.containerNbr) params.container_nbr = request.containerNbr;
 
-        const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.getAvailablePositionLov, { params });
+        const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.GET_AVAILABLE_POSITION_LOV, { params });
         return response.data;
     },
 
     submitContainerPosition: async (request: SubmitContainerPositionRequest): Promise<SubmitContainerPositionResponse> => {
-        const response = await mobileApiClient.post(API_CONFIG.ENDPOINTS.submitContainerPosition, request);
+        const response = await mobileApiClient.post(API_CONFIG.ENDPOINTS.SUBMIT_CONTAINER_POSITION, request);
         return response.data;
     },
 
     // Restack Container API
     restackContainer: async (request: RestackContainerRequest): Promise<RestackContainerResponse> => {
-        const response = await mobileApiClient.post(API_CONFIG.ENDPOINTS.restackContainer, request);
+        const response = await mobileApiClient.post(API_CONFIG.ENDPOINTS.RESTACK_CONTAINER, request);
         return response.data;
     },
 
@@ -99,7 +99,7 @@ export const yardApi = {
             timestamp: request.timestamp
         };
 
-        const response = await mobileApiClient.post(API_CONFIG.ENDPOINTS.plugInOutContainer, payload);
+        const response = await mobileApiClient.post(API_CONFIG.ENDPOINTS.PLUG_IN_OUT_CONTAINER, payload);
         return response.data;
     },
 
@@ -108,7 +108,7 @@ export const yardApi = {
         // Checking PlugInOutDetailsRequest.toQuery() in Step 5420: {'p_contianer_nbr': containerNbr} 
         // Note the typo 'contianer' in the Flutter code query param! I must match it if the backend expects it.
 
-        const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.plugInOutContainerDetails, {
+        const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.PLUG_IN_OUT_CONTAINER_DETAILS, {
             params: { p_contianer_nbr: request.containerNbr }
         });
 
@@ -124,7 +124,7 @@ export const yardApi = {
 
     // Validate Container API
     validateCfsContainer: async (request: ValidateContainerRequest): Promise<ValidateContainerResponse> => {
-        const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.validateCfsContainer, {
+        const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.VALIDATE_CFS_CONTAINER, {
             params: { containerNbr: request.containerNbr }
         });
         return response.data;

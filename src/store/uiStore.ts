@@ -32,6 +32,10 @@ interface UIState {
     // Search Focus State (disables keyboard navigation)
     isSearchFocused: boolean;
     setSearchFocused: (focused: boolean) => void;
+
+    // Settings Tab State
+    settingsTab: 'profile' | 'accessControl';
+    setSettingsTab: (tab: 'profile' | 'accessControl') => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -49,4 +53,8 @@ export const useUIStore = create<UIState>((set) => ({
     // Search Focus State
     isSearchFocused: false,
     setSearchFocused: (focused) => set({ isSearchFocused: focused }),
+
+    // Settings Tab State
+    settingsTab: 'profile',
+    setSettingsTab: (tab) => set({ settingsTab: tab }),
 }));

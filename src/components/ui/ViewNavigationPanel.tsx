@@ -66,6 +66,7 @@ const ViewNavigationPanel: React.FC = () => {
     const isOpen = useUIStore((state) => state.isViewPanelOpen);
     const togglePanel = useUIStore((state) => state.toggleViewPanel);
     const setViewPanelOpen = useUIStore((state) => state.setViewPanelOpen);
+    const activePanel = useUIStore((state) => state.activePanel);
     const layout = useStore((state) => state.layout);
     const setSelectedBlock = useStore((state) => state.setSelectedBlock);
 
@@ -232,6 +233,13 @@ const ViewNavigationPanel: React.FC = () => {
                 onClick={togglePanel}
                 aria-label={isOpen ? 'Close navigation' : 'Open navigation'}
                 type="button"
+                style={{
+                    transform: activePanel === 'settings'
+                        ? 'translateY(-50%) translateX(-100px)'
+                        : isOpen
+                            ? undefined // specific to CSS class .open
+                            : undefined // specific to CSS class
+                }}
             >
                 <ChevronRight size={48} strokeWidth={2.5} />
             </button>

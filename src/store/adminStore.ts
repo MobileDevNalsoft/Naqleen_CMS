@@ -1,143 +1,198 @@
 import { create } from 'zustand';
-import { adminService } from '../api/services/adminService';
-import type { AdminUser, PermissionMatrixItem, CreateUserRequest } from '../api/types/adminTypes';
+import { adminService } from '../api/handlers/adminApi';
+import type { AdminUser, RoleConfig } from '../api/types/adminTypes';
 
-interface AdminStoreState {
+interface AdminStore {
     // Data State
+    roles: string[];
+    masterScreens: { screenName: string; screenPath: string }[];
     users: AdminUser[];
-    uniqueRoles: string[];
-    permissionMatrix: PermissionMatrixItem[];
-    isLoading: boolean;
-    error: string | null;
+    availableRoles: string[]; // For UserManagement dropdowns
 
-    // UI State
-    isUserModalOpen: boolean;
-    selectedUser: AdminUser | null; // For editing
+    // Role Config Cache (Map roleName -> config[])
+    roleConfigs: Record<string, RoleConfig[]>;
+
+    // Metadata
+    rolesLastFetched: number | null;
+    usersLastFetched: number | null;
 
     // Actions
+    fetchRolesAndScreens: (force?: boolean) => Promise<void>;
+    fetchUsers: (force?: boolean) => Promise<void>;
+    fetchRoleConfig: (roleName: string, force?: boolean) => Promise<void>;
+
+    // Updates
     setUsers: (users: AdminUser[]) => void;
-    setRoles: (roles: string[]) => void;
-    setPermissionMatrix: (matrix: PermissionMatrixItem[]) => void;
-
-    setLoading: (loading: boolean) => void;
-    setError: (error: string | null) => void;
-
-    openCreateUserModal: () => void;
-    openEditUserModal: (user: AdminUser) => void;
-    closeUserModal: () => void;
-
-    // Optimistic Updates
-    addUser: (user: AdminUser) => void;
-    updateUser: (id: number, updates: Partial<AdminUser>) => void;
-    updatePermission: (role: string, screenPath: string, hasAccess: boolean) => void;
-
-    // Async Actions
-    fetchInitialData: () => Promise<void>;
-    createUser: (user: CreateUserRequest) => Promise<void>;
-    savePermissionChange: (role: string, screenPath: string, hasAccess: boolean) => Promise<void>;
+    updateUser: (user: AdminUser) => void;
+    updateRoleConfigCache: (roleName: string, config: RoleConfig[]) => void;
+    createRole: (roleName: string) => Promise<void>;
+    deleteRole: (roleName: string) => Promise<void>;
 }
 
-
-
-export const useAdminStore = create<AdminStoreState>((set, get) => ({
+export const useAdminStore = create<AdminStore>((set, get) => ({
+    roles: [],
+    masterScreens: [],
     users: [],
-    uniqueRoles: [],
-    permissionMatrix: [],
-    isLoading: false,
-    error: null,
+    availableRoles: [],
+    roleConfigs: {},
+    rolesLastFetched: null,
+    usersLastFetched: null,
 
-    isUserModalOpen: false,
-    selectedUser: null,
+    fetchRolesAndScreens: async (force = false) => {
+        const { rolesLastFetched } = get();
+        // Cache valid for 5 minutes unless forced
+        if (!force && rolesLastFetched && (Date.now() - rolesLastFetched < 5 * 60 * 1000)) {
+            return;
+        }
+
+        try {
+            const [fetchedRoles, fetchedScreens] = await Promise.all([
+                adminService.getAllRoles(),
+                adminService.getMasterScreenList()
+            ]);
+            set({
+                roles: fetchedRoles,
+                masterScreens: fetchedScreens,
+                rolesLastFetched: Date.now()
+            });
+        } catch (error) {
+            console.error("Failed to fetch roles/screens", error);
+            // Fallback for offline dev
+            set({
+                roles: ['ADMIN', 'GATE_OPERATOR', 'VIEWER'],
+                masterScreens: [
+                    { screenName: 'Dashboard', screenPath: '/dashboard' },
+                    { screenName: 'Gate Operations', screenPath: '/gate' },
+                    { screenName: 'Yard View', screenPath: '/yard' },
+                    { screenName: 'User Management', screenPath: '/admin/users' },
+                ],
+                rolesLastFetched: Date.now()
+            });
+        }
+    },
+
+    fetchRoleConfig: async (roleName: string, force = false) => {
+        const { roleConfigs } = get();
+        // Check cache
+        if (!force && roleConfigs[roleName]) {
+            return;
+        }
+
+        try {
+            const config = await adminService.getRoleConfig(roleName);
+            set(state => ({
+                roleConfigs: {
+                    ...state.roleConfigs,
+                    [roleName]: config
+                }
+            }));
+        } catch (error) {
+            console.error(`Failed to fetch config for ${roleName}`, error);
+            // Don't set empty array unless we want to cache the failure
+        }
+    },
+
+    fetchUsers: async (force = false) => {
+        const { usersLastFetched } = get();
+        // Cache valid for 5 minutes unless forced
+        if (!force && usersLastFetched && (Date.now() - usersLastFetched < 5 * 60 * 1000)) {
+            return;
+        }
+
+        try {
+            const [fetchedUsers, fetchedRoles] = await Promise.all([
+                adminService.getUsers(),
+                adminService.getAllRoles()
+            ]);
+
+            set({
+                users: fetchedUsers,
+                availableRoles: fetchedRoles,
+                usersLastFetched: Date.now()
+            });
+        } catch (error) {
+            console.error("Failed to fetch users", error);
+            // Fallback
+            set({
+                users: [
+                    { USER_ID: 1, USERNAME: 'admin', EMAIL: 'admin@nalsoft.net', ROLES: ['ADMIN'], IS_ACTIVE: 'Y' },
+                    { USER_ID: 2, USERNAME: 'gateop', EMAIL: 'gate@nalsoft.net', ROLES: ['GATE_OPERATOR'], IS_ACTIVE: 'Y' }
+                ],
+                availableRoles: ['ADMIN', 'GATE_OPERATOR'],
+                usersLastFetched: Date.now()
+            });
+        }
+    },
 
     setUsers: (users) => set({ users }),
-    setRoles: (roles) => set({ uniqueRoles: roles }),
-    setPermissionMatrix: (matrix) => set({ permissionMatrix: matrix }),
 
-    setLoading: (loading) => set({ isLoading: loading }),
-    setError: (error) => set({ error }),
-
-    openCreateUserModal: () => set({ isUserModalOpen: true, selectedUser: null }),
-    openEditUserModal: (user) => set({ isUserModalOpen: true, selectedUser: user }),
-    closeUserModal: () => set({ isUserModalOpen: false, selectedUser: null }),
-
-    addUser: (newUser) => set((state) => ({ users: [...state.users, newUser] })),
-
-    updateUser: (id, updates) => set((state) => ({
-        users: state.users.map(u => u.id === id ? { ...u, ...updates } : u)
+    updateUser: (updatedUser) => set((state) => ({
+        users: state.users.map(u => u.USER_ID === updatedUser.USER_ID ? updatedUser : u)
     })),
 
-    updatePermission: (role, screenPath, hasAccess) => set((state) => {
-        const newMatrix = state.permissionMatrix.map(item => {
-            if (item.screenPath === screenPath) {
+    updateRoleConfigCache: (roleName, config) => set(state => ({
+        roleConfigs: {
+            ...state.roleConfigs,
+            [roleName]: config
+        }
+    })),
+
+    createRole: async (roleName: string) => {
+        try {
+            const { masterScreens } = get();
+
+            // Create with default 'N' permissions for all screens
+            const screensPayload = masterScreens.map(s => ({
+                screenName: s.screenName,
+                screenPath: s.screenPath,
+                isActive: false // Default denied
+            }));
+
+            await adminService.createRole({
+                roleName,
+                screens: screensPayload
+            });
+
+            // Optimistic Update
+            set(state => ({
+                roles: [...state.roles, roleName],
+                availableRoles: [...state.availableRoles, roleName], // Sync availableRoles
+                // Also initialize the cache for this new role
+                roleConfigs: {
+                    ...state.roleConfigs,
+                    [roleName]: masterScreens.map(s => ({
+                        ROLE: roleName,
+                        SCREEN_NAME: s.screenName,
+                        SCREEN_PATH: s.screenPath,
+                        IS_ACTIVE: 'N'
+                    }))
+                }
+            }));
+        } catch (error) {
+            console.error("Failed to create role", error);
+            throw error; // Re-throw so component can show error
+        }
+    },
+
+    deleteRole: async (roleName: string) => {
+        try {
+            await adminService.deleteRole(roleName);
+
+            set(state => {
+                const newRoleConfigs = { ...state.roleConfigs };
+                delete newRoleConfigs[roleName];
+
                 return {
-                    ...item,
-                    roles: { ...item.roles, [role]: hasAccess }
+                    roles: state.roles.filter(r => r !== roleName),
+                    availableRoles: state.availableRoles.filter(r => r !== roleName), // Sync availableRoles
+                    roleConfigs: newRoleConfigs,
+                    // If we deleted the only role or current selection, that's handled by component... 
+                    // But we can help by ensuring consistency? Component Effects handle selection.
                 };
-            }
-            return item;
-        });
-        return { permissionMatrix: newMatrix };
-    }),
-
-    // Async Implementations
-    fetchInitialData: async () => {
-        set({ isLoading: true, error: null });
-        try {
-            try {
-                const [users, roles, matrix] = await Promise.all([
-                    adminService.getUsers(),
-                    adminService.getRoles(),
-                    adminService.getPermissionMatrix()
-                ]);
-                set({ users, uniqueRoles: roles, permissionMatrix: matrix });
-            } catch (e) {
-                console.warn('Failed to fetch from API, loading mock data', e);
-                set({
-                    uniqueRoles: ['ADMIN', 'YARD_OPERATOR', 'DRIVER', 'GATE_OPERATOR'],
-                    users: [
-                        { id: 1, username: 'admin', email: 'admin@nalsoft.net', roles: ['ADMIN'], isActive: true, lastLoginAt: '2026-01-05T09:00:00Z' },
-                        { id: 2, username: 'yard1', email: 'yard1@nalsoft.net', roles: ['YARD_OPERATOR', 'GATE_OPERATOR'], isActive: true, lastLoginAt: '2026-01-04T14:30:00Z' }
-                    ],
-                    permissionMatrix: [
-                        { screenName: 'Gate In', screenPath: '/gate-in', roles: { 'ADMIN': true, 'GATE_OPERATOR': true } },
-                        { screenName: 'Gate Out', screenPath: '/gate-out', roles: { 'ADMIN': true, 'GATE_OPERATOR': true } },
-                        { screenName: 'Yard View', screenPath: '/yard', roles: { 'ADMIN': true, 'YARD_OPERATOR': true, 'GATE_OPERATOR': true } },
-                        { screenName: 'User Management', screenPath: '/admin/users', roles: { 'ADMIN': true } },
-                    ]
-                });
-            }
-        } catch (error: any) {
-            set({ error: error.message || 'Failed to fetch data' });
-        } finally {
-            set({ isLoading: false });
-        }
-    },
-
-    createUser: async (request: CreateUserRequest) => {
-        set({ isLoading: true });
-        try {
-            const newUser = await adminService.createUser(request);
-            set((state) => ({ users: [...state.users, newUser] }));
-            set({ isUserModalOpen: false });
-        } catch (e: any) {
-            console.error(e);
-            // Mock success
-            const mockUser: any = { ...request, id: Math.random(), lastLoginAt: undefined };
-            set((state) => ({ users: [...state.users, mockUser] }));
-            set({ isUserModalOpen: false });
-        } finally {
-            set({ isLoading: false });
-        }
-    },
-
-    savePermissionChange: async (role: string, screenPath: string, hasAccess: boolean) => {
-        get().updatePermission(role, screenPath, hasAccess);
-        try {
-            await adminService.updatePermission({ role, screenPath, screenName: '', hasAccess });
-        } catch (e) {
-            console.error("Failed to save permission", e);
-            // Revert
-            get().updatePermission(role, screenPath, !hasAccess);
+            });
+        } catch (error) {
+            console.error("Failed to delete role", error);
+            throw error;
         }
     }
 }));
