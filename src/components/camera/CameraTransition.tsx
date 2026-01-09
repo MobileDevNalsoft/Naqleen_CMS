@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useStore } from '../../store/store';
 import { useUIStore } from '../../store/uiStore';
-import { getAllDynamicBlocks } from '../../utils/layoutUtils';
+import { getBlocksWithCalculatedPositions } from '../../utils/layoutUtils';
 import gsap from 'gsap';
 
 interface CameraTransitionProps {
@@ -27,40 +27,53 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
     const lastSelectionChangeTime = useRef<number>(0);
 
     // Target positions
-    const standardPos = new THREE.Vector3(0, 150, 300);
-    const topViewPos = new THREE.Vector3(0, 300, 1);
+    const standardPos = new THREE.Vector3(0, 250, 430);
+    const topViewPos = new THREE.Vector3(0, 465, 1);
     const center = new THREE.Vector3(0, 0, 0);
     const startPos = new THREE.Vector3(0, 500, 10);
 
-    // Helper to animate camera
-    const animateCamera = (targetPos: THREE.Vector3, targetLookAt: THREE.Vector3) => {
+    // Helper to animate camera - Unified tween for smooth Telia-style transitions
+    const animateCamera = (targetPos: THREE.Vector3, targetLookAt: THREE.Vector3, duration: number = 1.5) => {
         if (!controlsRef.current) return;
 
-        // Kill any running tweens on camera and controls
-        gsap.killTweensOf(camera.position);
-        gsap.killTweensOf(controlsRef.current.target);
+        // Kill any running tweens
+        gsap.killTweensOf("cameraAnimation");
 
-        // Animate Position
-        gsap.to(camera.position, {
-            x: targetPos.x,
-            y: targetPos.y,
-            z: targetPos.z,
-            duration: 1.5,
-            ease: "power3.inOut",
-            onUpdate: () => {
-                // controlsRef.current.update(); 
-            }
-        });
+        // Capture current state
+        const animState = {
+            camX: camera.position.x,
+            camY: camera.position.y,
+            camZ: camera.position.z,
+            tarX: controlsRef.current.target.x,
+            tarY: controlsRef.current.target.y,
+            tarZ: controlsRef.current.target.z,
+        };
 
-        // Animate LookAt Target
-        gsap.to(controlsRef.current.target, {
-            x: targetLookAt.x,
-            y: targetLookAt.y,
-            z: targetLookAt.z,
-            duration: 1.5,
-            ease: "power3.inOut",
+        // Disable controls during animation to prevent fighting
+        controlsRef.current.enabled = false;
+
+        // Unified tween - animates camera position and lookAt target synchronously
+        gsap.to(animState, {
+            id: "cameraAnimation",
+            camX: targetPos.x,
+            camY: targetPos.y,
+            camZ: targetPos.z,
+            tarX: targetLookAt.x,
+            tarY: targetLookAt.y,
+            tarZ: targetLookAt.z,
+            duration: duration,
+            ease: "power2.inOut", // Softer easing for smoother feel
             onUpdate: () => {
+                // Update camera and target in sync each frame
+                camera.position.set(animState.camX, animState.camY, animState.camZ);
+                controlsRef.current.target.set(animState.tarX, animState.tarY, animState.tarZ);
                 controlsRef.current.update();
+            },
+            onComplete: () => {
+                // Always re-enable controls after animation completes
+                if (controlsRef.current) {
+                    controlsRef.current.enabled = true;
+                }
             }
         });
     };
@@ -93,18 +106,15 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
             const entity = entities[selectId];
             const containerPos = new THREE.Vector3(entity.x || 0, entity.y || 0, entity.z || 0);
 
-            // Check if a block is already selected
-            const isBlockAlreadySelected = !!selectedBlock;
-
             // Camera Offsets for Container View
-            // Different offsets based on whether block was already selected
-            const camOffsetX = isBlockAlreadySelected ? -15 : -20;
-            const camOffsetY = isBlockAlreadySelected ? 25 : 20;
-            const camOffsetZ = isBlockAlreadySelected ? 15 : 20;
+            // UNIFIED: Use standard offsets regardless of block selection (since we no longer lift blocks)
+            const camOffsetX = -20;
+            const camOffsetY = 20;
+            const camOffsetZ = 20;
 
-            // Target LookAt: Base Pos + Total Lift
-            const totalLift = isBlockAlreadySelected ? 25 : 12;
-            const shiftX = isBlockAlreadySelected ? 6 : 8;
+            // Target LookAt: Base Pos + Standard Lift
+            const totalLift = 12;
+            const shiftX = 8;
 
             const targetLookAt = new THREE.Vector3(
                 containerPos.x + shiftX,
@@ -138,25 +148,67 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
             animateCamera(targetPos, targetLookAt);
 
         } else if (selectedBlock && layout) {
-            const blocks = getAllDynamicBlocks(layout);
-            const block = blocks.find(b => b.id === selectedBlock);
+            // Find entity in layout
+            const entity = layout.entities?.find(e => e.id === selectedBlock);
 
-            if (block) {
-                const blockCenter = new THREE.Vector3(
-                    block.position.x,
-                    block.position.y,
-                    block.position.z
+            if (entity && !entity.type.startsWith('container_block')) {
+                // GENERIC ENTITY FOCUS (CFS, Warehouse, Office, etc.)
+                // This handles any non-container-block entity that has a position
+                const center = new THREE.Vector3(
+                    entity.position?.x || 0,
+                    entity.position?.y || 0,
+                    entity.position?.z || 0
                 );
 
-                const cameraOffset = new THREE.Vector3(-25, 120, 160);
-                const viewShiftOffset = new THREE.Vector3(40, 16, 0);
+                // Default framing for buildings/areas
+                let cameraOffset = new THREE.Vector3(0, 80, 50); // High angle, front view
+                let viewShiftOffset = new THREE.Vector3(0, 0, 0);
 
-                const targetLookAt = blockCenter.clone().add(viewShiftOffset);
+                // Type-specific adjustments
+                if (entity.type === 'cfs_area') {
+                    // CFS: Offset right to frame object on left
+                    cameraOffset = new THREE.Vector3(0, 80, 30);
+                    viewShiftOffset = new THREE.Vector3(15, 0, 0);
+                } else if (entity.type === 'warehouse') {
+                    // Warehouse: Front-on view, slightly further back
+                    cameraOffset = new THREE.Vector3(0, 60, 100);
+                } else if (['terminal_office', 'terminal_dispatch_office', 'resting_room', 'generator_room'].includes(entity.type)) {
+                    // Smaller buildings: Closer zoom
+                    cameraOffset = new THREE.Vector3(0, 40, 60);
+                }
+
+                const targetLookAt = center.clone().add(viewShiftOffset);
                 const targetPos = targetLookAt.clone().add(cameraOffset);
 
                 lastSelectionChangeTime.current = Date.now();
                 animateCamera(targetPos, targetLookAt);
+
+            } else {
+                // CONTAINER BLOCK FOCUS (Uses calculated positions for slots)
+                const blocks = getBlocksWithCalculatedPositions(layout);
+                const block = blocks.find(b => b.id === selectedBlock);
+
+                if (block) {
+                    const blockCenter = new THREE.Vector3(
+                        block.position.x,
+                        block.position.y,
+                        block.position.z
+                    );
+
+                    const cameraOffset = new THREE.Vector3(-25, 120, 160);
+                    const viewShiftOffset = new THREE.Vector3(40, 16, 0);
+
+                    const targetLookAt = blockCenter.clone().add(viewShiftOffset);
+                    const targetPos = targetLookAt.clone().add(cameraOffset);
+
+                    lastSelectionChangeTime.current = Date.now();
+                    animateCamera(targetPos, targetLookAt);
+                }
             }
+        } else {
+            // Nothing selected (no container, no block, no panel) - return to main view
+            lastSelectionChangeTime.current = Date.now();
+            animateCamera(standardPos, center);
         }
 
         // Spring-Back Lock: When user stops interacting, return to locked view
@@ -236,24 +288,51 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
             }
             // 3. Block selection spring-back (only if no container selected)
             else if (currentSelectedBlock && currentLayout) {
-                const blocks = getAllDynamicBlocks(currentLayout);
-                const block = blocks.find(b => b.id === currentSelectedBlock);
 
-                if (block) {
-                    const blockCenter = new THREE.Vector3(
-                        block.position.x,
-                        block.position.y,
-                        block.position.z
-                    );
-                    const cameraOffset = new THREE.Vector3(-25, 120, 160);
-                    const viewShiftOffset = new THREE.Vector3(40, 16, 0);
-                    const targetLookAt = blockCenter.clone().add(viewShiftOffset);
-                    const targetPos = targetLookAt.clone().add(cameraOffset);
+                // Check if it's a CFS Area
+                if (currentSelectedBlock.startsWith('cfs_')) {
+                    const cfsEntity = currentLayout.entities?.find(e => e.id === currentSelectedBlock);
 
-                    setTimeout(() => {
-                        if (Date.now() - lastSelectionChangeTime.current < 500) return;
-                        animateCamera(targetPos, targetLookAt);
-                    }, 100);
+                    if (cfsEntity) {
+                        const cfsCenter = new THREE.Vector3(
+                            cfsEntity.position?.x || 0,
+                            cfsEntity.position?.y || 0,
+                            cfsEntity.position?.z || 0
+                        );
+
+                        // Match logic from initial selection
+                        const cameraOffset = new THREE.Vector3(0, 80, 30);
+                        const viewShiftOffset = new THREE.Vector3(15, 0, 0);
+
+                        const targetLookAt = cfsCenter.clone().add(viewShiftOffset);
+                        const targetPos = targetLookAt.clone().add(cameraOffset);
+
+                        setTimeout(() => {
+                            if (Date.now() - lastSelectionChangeTime.current < 500) return;
+                            animateCamera(targetPos, targetLookAt);
+                        }, 100);
+                    }
+                } else {
+                    // Standard Block
+                    const blocks = getBlocksWithCalculatedPositions(currentLayout);
+                    const block = blocks.find(b => b.id === currentSelectedBlock);
+
+                    if (block) {
+                        const blockCenter = new THREE.Vector3(
+                            block.position.x,
+                            block.position.y,
+                            block.position.z
+                        );
+                        const cameraOffset = new THREE.Vector3(-25, 120, 160);
+                        const viewShiftOffset = new THREE.Vector3(40, 16, 0);
+                        const targetLookAt = blockCenter.clone().add(viewShiftOffset);
+                        const targetPos = targetLookAt.clone().add(cameraOffset);
+
+                        setTimeout(() => {
+                            if (Date.now() - lastSelectionChangeTime.current < 500) return;
+                            animateCamera(targetPos, targetLookAt);
+                        }, 100);
+                    }
                 }
             }
         };

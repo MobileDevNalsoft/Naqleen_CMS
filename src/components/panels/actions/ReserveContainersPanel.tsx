@@ -6,7 +6,7 @@ import PanelLayout from '../PanelLayout';
 import { useCustomersAndBookingsQuery, useRecommendedContainersQuery, useSwapContainersQuery, useReservationMutation, useDeleteReservationMutation, useSwapReservationMutation } from '../../../api';
 import type { SwapCandidate, ContainerType } from '../../../api';
 import { useStore } from '../../../store/store';
-import { showToast } from '../../ui/Toast';
+import { showToast } from '../../ui/custom-components/Toast';
 
 interface ReserveContainersPanelProps {
     isOpen: boolean;

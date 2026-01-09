@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, MapPin, Bell, User, Settings, LogOut, X, Package, Search, Truck, AlertCircle, Check, Info } from 'lucide-react';
 import { useIcdsQuery } from '../../api';
 import { useStore } from '../../store/store';
+import { useUIStore } from '../../store/uiStore';
 
 interface ModernHeaderProps {
     activeNav: string;
@@ -19,6 +20,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
     const [notificationCount] = useState(3); // Mock notification count
     // Local state removed in favor of props
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    const [isProfileMenuClosing, setIsProfileMenuClosing] = useState(false);
     const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
     const [isNotificationPanelClosing, setIsNotificationPanelClosing] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -40,6 +42,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
     const ids = useStore((state) => state.ids);
     const setSelectId = useStore((state) => state.setSelectId);
     const setSelectedCustomer = useStore((state) => state.setSelectedCustomer);
+    const setSearchFocused = useUIStore((state) => state.setSearchFocused);
 
     // Search Mode State
     type SearchMode = 'Container' | 'Customer' | 'Position';
@@ -79,7 +82,9 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
 
             // Close profile dropdown if clicking outside
             if (profileDropdownRef.current && !profileDropdownRef.current.contains(target)) {
-                setIsProfileMenuOpen(false);
+                if (isProfileMenuOpen && !isProfileMenuClosing) {
+                    closeProfileMenu();
+                }
             }
 
             // Close notification panel if clicking outside
@@ -219,6 +224,27 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
         }, 400); // Match opening animation timing
     };
 
+    // Handle profile menu close with animation
+    const closeProfileMenu = () => {
+        if (!isProfileMenuOpen || isProfileMenuClosing) return;
+        setIsProfileMenuClosing(true);
+        setTimeout(() => {
+            setIsProfileMenuOpen(false);
+            setIsProfileMenuClosing(false);
+        }, 350); // Match collapse animation timing
+    };
+
+    // Toggle profile menu with animation
+    const toggleProfileMenu = () => {
+        if (isProfileMenuOpen) {
+            closeProfileMenu();
+        } else {
+            setIsProfileMenuOpen(true);
+            // Close other menus
+            if (isSearchOpen) handleSearchClose();
+        }
+    };
+
     const currentIcd = icds?.find(t => t.id === selectedIcdId);
 
     const handleIcdSelect = (icdId: string) => {
@@ -226,8 +252,44 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
         setIsDropdownOpen(false);
     };
 
+    const activePanel = useUIStore(state => state.activePanel);
+    const settingsTab = useUIStore(state => state.settingsTab);
+    const isSettings = activePanel === 'settings';
+
+    // Premium Easing - Slower for visibility
+    // Open: Start immediately. Close: Start IMMEDIATELY (0s) to avoid "line" artifact, and slightly faster (0.9s).
+    const transitionStyle = isSettings
+        ? 'all 1.2s cubic-bezier(0.25, 1, 0.3, 1)'
+        : 'all 0.9s cubic-bezier(0.25, 1, 0.3, 1) 0s';
+
+    // Delayed background transition for "Fuse" effect
+    // When opening (isSettings): Wait 0.8s for expansion, then fade background
+    // When closing (!isSettings): Fade background INSTANTLY (0s) to avoid double-glass ghosting. 
+    // BUT Delay Border/Shadow (0.2s) so we don't see the "seam line" before separation.
+    const backgroundTransition = isSettings
+        ? 'background 0.5s ease-in-out 0.8s, backdrop-filter 0.5s ease-in-out 0.8s, border-color 0.5s ease-in-out 0.8s, box-shadow 0.5s ease-in-out 0.8s'
+        : 'background 0s linear 0s, backdrop-filter 0s linear 0s, border-color 0.2s linear 0.1s, box-shadow 0.2s linear 0.1s';
+
     return (
         <>
+            {/* Unified Background Layer (Visible only when merged to prevent seam) */}
+            <div style={{
+                position: 'absolute',
+                top: '15px',
+                left: '15px',
+                width: 'calc(100% - 30px)', // Full width minus margins
+                height: '64px',
+                borderRadius: '50px',
+                background: 'var(--glass-bg)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid var(--glass-border)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                zIndex: 990, // Behind content (1000)
+                opacity: isSettings ? 1 : 0,
+                // Delay appearance until expansion is done, hide immediately on close (0s)
+                transition: isSettings ? 'opacity 0.5s ease-in-out 0.8s' : 'opacity 0s linear 0s',
+                pointerEvents: 'none', // Purely visual
+            }} />
 
             {/* Left Header: Branding & Icd Selector */}
             <div style={{
@@ -237,12 +299,25 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 zIndex: 1000,
                 display: 'flex',
                 alignItems: 'center',
-                background: 'var(--glass-bg)',
-                backdropFilter: 'blur(20px)',
-                padding: '12px 20px',
-                borderRadius: '50px',
+                // Fade out individual glass properties when merged (Unified layer takes over)
+                background: isSettings ? 'transparent' : 'var(--glass-bg)',
+                backdropFilter: isSettings ? 'none' : 'blur(20px)',
+                padding: '0 20px',
+                height: '64px',
+                boxSizing: 'border-box',
+                // Use min-width to animate from auto content width to 50% + overlap
+                width: 'auto',
+                // Add 2px overlap to ensure motion connects, but transparency hides seam
+                minWidth: isSettings ? 'calc(50% - 13px)' : '0px',
+                // Remove right border radius when merged
+                borderRadius: isSettings ? '50px 0 0 50px' : '50px',
                 border: '1px solid var(--glass-border)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                // Hide border completely when merged
+                borderColor: isSettings ? 'transparent' : 'var(--glass-border)',
+                // Hide shadow when merged
+                boxShadow: isSettings ? 'none' : '0 8px 32px rgba(0, 0, 0, 0.1)',
+                // Combine motion transition with delayed background transition
+                transition: `${transitionStyle}, ${backgroundTransition}`,
             }}>
                 {/* Left Section: Branding */}
                 <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -256,7 +331,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     </span>
                 </div>
 
-                {/* Divider */}
+                {/* Divider - Always Visible */}
                 {activeNav !== 'Dashboard' && isUIVisible && (
                     <>
                         <div style={{
@@ -264,106 +339,146 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                             height: '28px',
                             background: 'rgba(255, 255, 255, 0.2)',
                             marginLeft: '16px',
+                            // Opacity constant: removed isSettings toggle
                         }} />
 
-                        {/* Icd Selector */}
-                        <div style={{ position: 'relative', marginLeft: '16px' }} ref={icdDropdownRef}>
+                        {/* Icd Selector Container with Transform */}
+                        <div style={{ position: 'relative', marginLeft: '16px' }}>
+
+                            {/* Original ICD Selector - Animate Out */}
                             <div
-                                onClick={() => {
-                                    setIsDropdownOpen(!isDropdownOpen);
-                                    // Close search when opening icd dropdown
-                                    if (isSearchOpen) {
-                                        handleSearchClose();
-                                    }
-                                }}
+                                ref={icdDropdownRef}
                                 style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    borderRadius: '30px',
-                                    padding: '8px 12px',
-                                    color: 'white',
-                                    fontSize: '14px',
-                                    fontWeight: 500,
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s',
-                                    outline: 'none',
+                                    opacity: isSettings ? 0 : 1,
+                                    transform: isSettings ? 'translateY(20px)' : 'translateY(0)',
+                                    transition: 'all 0.6s cubic-bezier(0.25, 1, 0.3, 1)',
+                                    pointerEvents: isSettings ? 'none' : 'auto',
                                 }}
-                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                             >
-                                <MapPin size={16} color="var(--secondary-color)" />
-                                <div style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
-                                    {isLoading ? 'Loading...' : currentIcd?.name || 'Select Icd'}
-                                </div>
-                                <ChevronDown
-                                    size={16}
-                                    style={{
-                                        transition: 'transform 0.2s',
-                                        transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+                                <div
+                                    onClick={() => {
+                                        setIsDropdownOpen(!isDropdownOpen);
+                                        // Close search when opening icd dropdown
+                                        if (isSearchOpen) {
+                                            handleSearchClose();
+                                        }
                                     }}
-                                />
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        borderRadius: '30px',
+                                        padding: '8px 12px',
+                                        color: 'white',
+                                        fontSize: '14px',
+                                        fontWeight: 500,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        outline: 'none',
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                >
+                                    <MapPin size={16} color="var(--secondary-color)" />
+                                    <div style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
+                                        {isLoading ? 'Loading...' : currentIcd?.name || 'Select Icd'}
+                                    </div>
+                                    <ChevronDown
+                                        size={16}
+                                        style={{
+                                            transition: 'transform 0.2s',
+                                            transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Dropdown Menu */}
+                                {isDropdownOpen && icds && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: 'calc(100% + 14px)',
+                                        right: 0,
+                                        minWidth: '175px',
+                                        background: 'rgba(75, 104, 108, 0.98)',
+                                        backdropFilter: 'blur(20px)',
+                                        border: '1px solid rgba(247, 207, 155, 0.3)',
+                                        borderRadius: '16px',
+                                        boxShadow: '0 8px 32px rgba(247, 207, 155, 0.15)',
+                                        overflow: 'hidden',
+                                        animation: 'slideDown 0.2s ease-out',
+                                        zIndex: 1002,
+                                    }}>
+                                        {icds.map((icd) => (
+                                            <div
+                                                key={icd.id}
+                                                onClick={() => handleIcdSelect(icd.id)}
+                                                style={{
+                                                    padding: '12px 16px',
+                                                    cursor: 'pointer',
+                                                    background: icd.id === selectedIcdId ? 'rgba(247, 207, 155, 0.1)' : 'transparent',
+                                                    borderLeft: icd.id === selectedIcdId ? '3px solid var(--secondary-color)' : '3px solid transparent',
+                                                    transition: 'all 0.2s',
+                                                }}
+                                                onMouseEnter={e => {
+                                                    if (icd.id !== selectedIcdId) {
+                                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                                                    }
+                                                }}
+                                                onMouseLeave={e => {
+                                                    if (icd.id !== selectedIcdId) {
+                                                        e.currentTarget.style.background = 'transparent';
+                                                    }
+                                                }}
+                                            >
+                                                <div style={{
+                                                    fontSize: '14px',
+                                                    fontWeight: 600,
+                                                    color: 'white',
+                                                    marginBottom: '4px'
+                                                }}>
+                                                    {icd.name}
+                                                </div>
+                                                <div style={{
+                                                    fontSize: '12px',
+                                                    color: 'rgba(255, 255, 255, 0.6)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px'
+                                                }}>
+                                                    <MapPin size={12} />
+                                                    {icd.location}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
-                            {/* Dropdown Menu */}
-                            {isDropdownOpen && icds && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: 'calc(100% + 14px)',
-                                    right: 0,
-                                    minWidth: '175px',
-                                    background: 'rgba(75, 104, 108, 0.98)',
-                                    backdropFilter: 'blur(20px)',
-                                    border: '1px solid rgba(247, 207, 155, 0.3)',
-                                    borderRadius: '16px',
-                                    boxShadow: '0 8px 32px rgba(247, 207, 155, 0.15)',
-                                    overflow: 'hidden',
-                                    animation: 'slideDown 0.2s ease-out',
+                            {/* Settings Title - Animate In */}
+                            <div style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                bottom: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                paddingLeft: '8px',
+                                opacity: isSettings ? 1 : 0,
+                                transform: isSettings ? 'translateY(0)' : 'translateY(-20px)',
+                                transition: 'all 0.6s cubic-bezier(0.25, 1, 0.3, 1)',
+                                pointerEvents: isSettings ? 'auto' : 'none',
+                            }}>
+                                <Settings size={18} color="var(--secondary-color)" />
+                                <span style={{
+                                    fontSize: '16px',
+                                    fontWeight: 600,
+                                    color: 'white',
+                                    letterSpacing: '0.01em'
                                 }}>
-                                    {icds.map((icd) => (
-                                        <div
-                                            key={icd.id}
-                                            onClick={() => handleIcdSelect(icd.id)}
-                                            style={{
-                                                padding: '12px 16px',
-                                                cursor: 'pointer',
-                                                background: icd.id === selectedIcdId ? 'rgba(247, 207, 155, 0.1)' : 'transparent',
-                                                borderLeft: icd.id === selectedIcdId ? '3px solid var(--secondary-color)' : '3px solid transparent',
-                                                transition: 'all 0.2s',
-                                            }}
-                                            onMouseEnter={e => {
-                                                if (icd.id !== selectedIcdId) {
-                                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                                                }
-                                            }}
-                                            onMouseLeave={e => {
-                                                if (icd.id !== selectedIcdId) {
-                                                    e.currentTarget.style.background = 'transparent';
-                                                }
-                                            }}
-                                        >
-                                            <div style={{
-                                                fontSize: '14px',
-                                                fontWeight: 600,
-                                                color: 'white',
-                                                marginBottom: '4px'
-                                            }}>
-                                                {icd.name}
-                                            </div>
-                                            <div style={{
-                                                fontSize: '12px',
-                                                color: 'rgba(255, 255, 255, 0.6)',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '4px'
-                                            }}>
-                                                <MapPin size={12} />
-                                                {icd.location}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                    Settings
+                                </span>
+                            </div>
                         </div>
                     </>
                 )}
@@ -376,53 +491,88 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     top: '15px',
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    zIndex: 1000,
+                    zIndex: 1001, // Keep interactive on top
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '4px',
-                    background: 'var(--glass-bg)',
-                    backdropFilter: 'blur(20px)',
+                    // Fade out background/border using opacity or color
+                    background: isSettings ? 'transparent' : 'var(--glass-bg)',
+                    backdropFilter: isSettings ? 'none' : 'blur(20px)',
                     padding: '6px',
                     borderRadius: '50px',
-                    border: '1px solid var(--glass-border)',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                    border: isSettings ? '1px solid transparent' : '1px solid var(--glass-border)',
+                    boxShadow: isSettings ? 'none' : '0 8px 32px rgba(0, 0, 0, 0.1)',
+                    // Open: Instant hide (0s). Close: Smooth fade in AFTER contraction starts (0.4s delay)
+                    transition: isSettings
+                        ? 'background 0s, border 0s, box-shadow 0s, backdrop-filter 0s'
+                        : 'all 0.8s cubic-bezier(0.25, 1, 0.3, 1) 0.4s',
+                    pointerEvents: isSettings ? 'none' : 'auto', // Disable interaction when merged/hidden
+                    // opacity: isSettings ? 0 : 1, // REMOVED: Element needs to stay visible for My Profile text
                 }}>
-                    {['3D View', 'Dashboard'].map((item) => (
-                        <div
-                            key={item}
-                            onClick={() => {
-                                onNavChange(item);
-                                // Close search when switching navigation
-                                if (isSearchOpen) {
-                                    handleSearchClose();
-                                }
-                            }}
-                            style={{
-                                padding: '10px 20px',
-                                borderRadius: '50px',
-                                background: activeNav === item ? 'rgba(197, 147, 90, 0.3)' : 'transparent',
-                                color: activeNav === item ? 'var(--secondary-color)' : 'white',
-                                fontSize: '14px',
-                                fontWeight: 500,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                whiteSpace: 'nowrap',
-                                outline: 'none',
-                            }}
-                            onMouseEnter={e => {
-                                if (activeNav !== item) {
-                                    e.currentTarget.style.background = 'rgba(247, 207, 155, 0.1)';
-                                }
-                            }}
-                            onMouseLeave={e => {
-                                if (activeNav !== item) {
-                                    e.currentTarget.style.background = 'transparent';
-                                }
-                            }}
-                        >
-                            {item}
-                        </div>
-                    ))}
+                    {/* Navigation Items - Fade Out */}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        opacity: isSettings ? 0 : 1,
+                        // Open: Instant opacity 0. Close: Smooth fade in matched with container
+                        transition: isSettings ? 'opacity 0s' : 'opacity 0.8s ease 0.4s',
+                    }}>
+                        {['3D View', 'Dashboard'].map((item) => (
+                            <div
+                                key={item}
+                                onClick={() => {
+                                    onNavChange(item);
+                                    // Close search when switching navigation
+                                    if (isSearchOpen) {
+                                        handleSearchClose();
+                                    }
+                                }}
+                                style={{
+                                    padding: '10px 20px',
+                                    borderRadius: '50px',
+                                    background: activeNav === item ? 'rgba(197, 147, 90, 0.3)' : 'transparent',
+                                    color: activeNav === item ? 'var(--secondary-color)' : 'white',
+                                    fontSize: '14px',
+                                    fontWeight: 500,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    whiteSpace: 'nowrap',
+                                    outline: 'none',
+                                }}
+                                onMouseEnter={e => {
+                                    if (activeNav !== item) {
+                                        e.currentTarget.style.background = 'rgba(247, 207, 155, 0.1)';
+                                    }
+                                }}
+                                onMouseLeave={e => {
+                                    if (activeNav !== item) {
+                                        e.currentTarget.style.background = 'transparent';
+                                    }
+                                }}
+                            >
+                                {item}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Dynamic Settings Title - Fade In Delayed on open, Instant hide on close */}
+                    <div style={{
+                        position: 'absolute',
+                        top: '32px', // Center vertically within 64px header
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        whiteSpace: 'nowrap',
+                        color: 'white',
+                        fontSize: '15px',
+                        fontWeight: 600,
+                        opacity: isSettings ? 1 : 0,
+                        // On open: wait 1.2s for merge, then fade in. On close: instant hide
+                        transition: isSettings ? 'opacity 0.6s ease-in-out 1.2s' : 'opacity 0.1s ease-out 0s',
+                    }}>
+                        {settingsTab === 'profile' ? 'My Profile' : 'Access Control'}
+                    </div>
                 </div>
             )}
 
@@ -434,17 +584,40 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 zIndex: 1000,
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'flex-end', // Ensure items stay right
                 gap: '12px',
-                background: 'var(--glass-bg)',
-                backdropFilter: 'blur(20px)',
-                padding: '12px 16px',
-                borderRadius: '50px',
+                // Fade out individual glass properties when merged
+                background: isSettings ? 'transparent' : 'var(--glass-bg)',
+                backdropFilter: isSettings ? 'none' : 'blur(20px)',
+                padding: '0 16px', // Remove vertical padding
+                height: '64px', // Fixed height
+                boxSizing: 'border-box',
+                // Use min-width animation for right side too
+                width: 'auto',
+                // Add 2px overlap: 50% - 15px + 2px
+                minWidth: isSettings ? 'calc(50% - 13px)' : '0px',
+                // Remove left border radius when merged
+                borderRadius: isSettings ? '0 50px 50px 0' : '50px',
                 border: '1px solid var(--glass-border)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                // Hide border completely when merged
+                borderColor: isSettings ? 'transparent' : 'var(--glass-border)',
+                // Hide shadow when merged
+                boxShadow: isSettings ? 'none' : '0 8px 32px rgba(0, 0, 0, 0.1)',
+                // Combine motion transition with delayed background transition
+                transition: `${transitionStyle}, ${backgroundTransition}`,
             }}>
-                {/* Search Button & Expandable Field */}
+                {/* Search Button & Expandable Field - Hide in Settings via CSS/Animation */}
                 {activeNav !== 'Dashboard' && isSearchVisible && isUIVisible && (
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }} ref={searchContainerRef}>
+                    <div style={{
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        // Animate container to hide seamlessley
+                        opacity: isSettings ? 0 : 1,
+                        transform: isSettings ? 'scale(0.8) translateY(10px)' : 'scale(1) translateY(0)',
+                        pointerEvents: isSettings ? 'none' : 'auto',
+                        transition: 'all 0.5s cubic-bezier(0.25, 1, 0.3, 1)',
+                    }} ref={searchContainerRef}>
                         {/* Search Icon Button */}
                         {!isSearchOpen && !isSearchClosing && (
                             <div
@@ -573,8 +746,12 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                         }
                                         handleSearchChange(val);
                                     }}
-                                    // Close mode dropdown if typing starts
-                                    onFocus={() => setIsSearchModeDropdownOpen(false)}
+                                    // Close mode dropdown if typing starts & disable scene navigation
+                                    onFocus={() => {
+                                        setIsSearchModeDropdownOpen(false);
+                                        setSearchFocused(true);
+                                    }}
+                                    onBlur={() => setSearchFocused(false)}
                                     style={{
                                         flex: 1,
                                         background: 'transparent',
@@ -865,7 +1042,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     }} />
                 )}
 
-                {/* Notifications Button */}
+                {/* Notifications Button - Hide in Settings */}
                 <div
                     onClick={() => {
                         setIsNotificationPanelOpen(!isNotificationPanelOpen);
@@ -883,10 +1060,13 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                         width: '40px',
                         height: '40px',
                         cursor: 'pointer',
-                        transition: 'all 0.2s',
+                        transition: 'all 0.5s cubic-bezier(0.25, 1, 0.3, 1)',
                         padding: '0px',
                         color: 'var(--secondary-color)',
                         outline: 'none',
+                        opacity: isSettings ? 0 : 1,
+                        transform: isSettings ? 'scale(0.8) translateY(10px)' : 'scale(1) translateY(0)',
+                        pointerEvents: isSettings ? 'none' : 'auto',
                     }}
                     onMouseEnter={e => {
                         e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
@@ -921,24 +1101,24 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     )}
                 </div>
 
-                {/* Divider */}
+                {/* Divider - Hide in Settings */}
                 <div style={{
                     width: '1px',
                     height: '28px',
                     background: 'rgba(255, 255, 255, 0.2)',
+                    opacity: isSettings ? 0 : 1,
+                    transition: 'opacity 0.2s',
                 }} />
 
-                {/* Profile Button */}
-                <div style={{ position: 'relative' }} ref={profileDropdownRef}>
+                {/* Profile Button / Close Button Container */}
+                <div style={{ position: 'relative', width: '40px', height: '40px' }} ref={profileDropdownRef}>
+                    {/* Profile Avatar - Animate Out */}
                     <div
-                        onClick={() => {
-                            setIsProfileMenuOpen(!isProfileMenuOpen);
-                            // Close search when opening profile menu
-                            if (isSearchOpen) {
-                                handleSearchClose();
-                            }
-                        }}
+                        onClick={toggleProfileMenu}
                         style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -947,7 +1127,6 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                             width: '40px',
                             height: '40px',
                             cursor: 'pointer',
-                            transition: 'all 0.3s ease',
                             outline: 'none',
                             boxSizing: 'border-box',
                             boxShadow: '0 4px 12px rgba(247, 207, 155, 0.3)',
@@ -955,34 +1134,78 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                             fontWeight: 700,
                             color: 'var(--primary-color)',
                             fontFamily: 'system-ui, -apple-system, sans-serif',
+                            opacity: isSettings ? 0 : 1,
+                            transform: isSettings ? 'scale(0.5) rotate(90deg)' : 'scale(1) rotate(0)',
+                            transition: 'all 0.6s cubic-bezier(0.25, 1, 0.3, 1)',
+                            pointerEvents: isSettings ? 'none' : 'auto',
                         }}
                         onMouseEnter={e => {
-                            e.currentTarget.style.transform = 'scale(1.08)';
+                            e.currentTarget.style.transform = isSettings ? 'scale(0.5) rotate(90deg)' : 'scale(1.08)';
                             e.currentTarget.style.boxShadow = '0 6px 20px rgba(247, 207, 155, 0.5)';
                         }}
                         onMouseLeave={e => {
-                            e.currentTarget.style.transform = 'scale(1)';
+                            e.currentTarget.style.transform = isSettings ? 'scale(0.5) rotate(90deg)' : 'scale(1)';
                             e.currentTarget.style.boxShadow = '0 4px 12px rgba(247, 207, 155, 0.3)';
                         }}
                     >
                         A
                     </div>
 
-                    {/* Profile Dropdown Menu */}
-                    {isProfileMenuOpen && (
-                        <div style={{
+                    {/* Close Button - Animate In */}
+                    <div
+                        onClick={() => useUIStore.getState().closePanel()}
+                        style={{
                             position: 'absolute',
-                            top: 'calc(100% + 14px)',
-                            right: 0,
-                            minWidth: '240px',
-                            background: 'rgba(75, 104, 108, 0.98)',
-                            backdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(247, 207, 155, 0.3)',
-                            borderRadius: '16px',
-                            boxShadow: '0 8px 32px rgba(247, 207, 155, 0.15)',
-                            overflow: 'hidden',
-                            animation: 'slideDown 0.2s ease-out',
-                        }}>
+                            top: 0,
+                            left: 0,
+                            width: '40px',
+                            height: '40px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            opacity: isSettings ? 1 : 0,
+                            transform: isSettings ? 'scale(1) rotate(0)' : 'scale(0.5) rotate(-90deg)',
+                            transition: 'all 0.6s cubic-bezier(0.25, 1, 0.3, 1)',
+                            cursor: 'pointer',
+                            pointerEvents: isSettings ? 'auto' : 'none',
+                            zIndex: 10,
+                        }}
+                    >
+                        <div style={{
+                            width: '36px', height: '36px',
+                            borderRadius: '50%',
+                            background: 'rgba(255, 255, 255, 0.15)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            transition: 'background 0.2s',
+                        }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
+                        >
+                            <X size={20} color="white" />
+                        </div>
+                    </div>
+
+                    {/* Profile Dropdown Menu */}
+                    {(isProfileMenuOpen || isProfileMenuClosing) && (
+                        <div
+                            ref={profileDropdownRef}
+                            style={{
+                                position: 'absolute',
+                                top: 'calc(100% + 14px)',
+                                right: 0,
+                                minWidth: '240px',
+                                background: 'rgba(75, 104, 108, 0.98)',
+                                backdropFilter: 'blur(20px)',
+                                border: '1px solid rgba(247, 207, 155, 0.3)',
+                                borderRadius: '16px',
+                                boxShadow: '0 8px 32px rgba(247, 207, 155, 0.15)',
+                                overflow: 'hidden',
+                                transformOrigin: 'top right',
+                                animation: isProfileMenuClosing
+                                    ? 'collapseProfilePremium 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+                                    : 'expandProfilePremium 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+                            }}>
                             {/* User Info */}
                             <div style={{
                                 padding: '12px',
@@ -1025,26 +1248,10 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                             {/* Menu Items */}
                             <div style={{ padding: '8px 0' }}>
                                 <div
-                                    style={{
-                                        width: '100%',
-                                        padding: '12px 16px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '12px',
-                                        color: 'white',
-                                        fontSize: '14px',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s',
-                                        outline: 'none',
+                                    onClick={() => {
+                                        closeProfileMenu();
+                                        useUIStore.getState().openPanel('settings');
                                     }}
-                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                >
-                                    <User size={18} />
-                                    <span>My Profile</span>
-                                </div>
-
-                                <div
                                     style={{
                                         width: '100%',
                                         padding: '12px 16px',
@@ -1061,7 +1268,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                 >
                                     <Settings size={18} />
-                                    <span>Preferences</span>
+                                    <span>Settings</span>
                                 </div>
                             </div>
 
@@ -1113,6 +1320,26 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     to {
                         opacity: 1;
                         transform: translateY(0);
+                    }
+                }
+                @keyframes expandProfilePremium {
+                    0% {
+                        opacity: 0;
+                        transform: scale(0.85) translateY(-15px);
+                    }
+                    100% {
+                        opacity: 1;
+                        transform: scale(1) translateY(0);
+                    }
+                }
+                @keyframes collapseProfilePremium {
+                    0% {
+                        opacity: 1;
+                        transform: scale(1) translateY(0);
+                    }
+                    100% {
+                        opacity: 0;
+                        transform: scale(0.85) translateY(-15px);
                     }
                 }
                 @keyframes slideFromEye {

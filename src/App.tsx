@@ -1,15 +1,18 @@
+import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { MapControls, Environment as DreiEnvironment, ContactShadows } from '@react-three/drei';
 import { useRef, useState, useEffect } from 'react';
-import Environment from './components/layout/Environment';
-import LoadingScreen from './components/ui/LoadingScreen';
+import LayoutEnvironment from './components/layout/Environment';
+import LoadingScreen from './components/ui/animations/LoadingScreen';
 import LoginScreen from './components/ui/LoginScreen';
 import ContainerDetailsPanel from './components/panels/details/ContainerDetailsPanel';
 import BlockDetailsPanel from './components/panels/details/BlockDetailsPanel';
+import CFSDetailsPanel from './components/panels/details/CFSDetailsPanel';
 import ModernHeader from './components/ui/ModernHeader';
 import HoverInfoPanel from './components/ui/HoverInfoPanel';
 import { CameraTransition } from './components/camera/CameraTransition';
 import { useLayoutQuery, useContainersQuery } from './api';
+import { KeyboardNavigation } from './components/camera/KeyboardNavigation';
 import DynamicLayoutEngine from './components/layout/dynamic/DynamicLayoutEngine';
 import Fencing from './components/layout/Fencing';
 import Gates from './components/layout/Gates';
@@ -30,10 +33,13 @@ import Containers from './components/layout/Containers';
 import CustomerInventoryPanel from './components/panels/actions/CustomerInventoryPanel';
 import ReserveContainersPanel from './components/panels/actions/ReserveContainersPanel';
 import ReleaseContainerPanel from './components/panels/actions/ReleaseContainerPanel';
+import SettingsPanel from './components/panels/settings/SettingsPanel'; // [NEW] Import
 import SwapConnectionLines from './components/layout/SwapConnectionLines';
 import RestackConnectionLine from './components/layout/RestackConnectionLine';
 import GhostContainer from './components/layout/GhostContainer';
-import ToastContainer from './components/ui/Toast';
+import ToastContainer from './components/ui/custom-components/Toast';
+import { EffectsWrapper } from './components/effects/EffectsWrapper';
+import ViewNavigationPanel from './components/ui/ViewNavigationPanel';
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -46,14 +52,10 @@ const App = () => {
   const canvasSectionRef = useRef<HTMLElement>(null);
   const dashboardSectionRef = useRef<HTMLElement>(null);
   const controlsRef = useRef<any>(null);
-  // Scroll Handling & Snap Logic - REMOVED
-
 
   const handleNavChange = (nav: string) => {
     setActiveNav(nav);
   };
-
-
 
   // Prevent panning outside environment boundaries
   const handleControlsChange = () => {
@@ -65,13 +67,12 @@ const App = () => {
         target.y = -1;
       }
 
-      // Clamp target X and Z positions to stay within extended yard bounds
-      // X: -458 to +180 (left to right)
-      // Z: -92.5 to +92.5 (depth)
-      const minX = -458;
-      const maxX = 180;
-      const minZ = -92.5;
-      const maxZ = 92.5;
+      // Clamp target X and Z positions to stay within expanded yard bounds
+      // Much larger bounds to allow free navigation across entire ICD
+      const minX = -400;
+      const maxX = 400;
+      const minZ = -80;
+      const maxZ = 80;
 
       target.x = Math.max(minX, Math.min(maxX, target.x));
       target.z = Math.max(minZ, Math.min(maxZ, target.z));
@@ -85,6 +86,7 @@ const App = () => {
   const [showLoadingScreen, setShowLoadingScreen] = useState(true);
 
   const activePanel = useUIStore((state) => state.activePanel);
+  const panelData = useUIStore((state) => state.panelData);
   const closePanel = useUIStore((state) => state.closePanel);
 
   const selectId = useStore((state) => state.selectId);
@@ -95,23 +97,22 @@ const App = () => {
   // Exclusive panel logic
   useEffect(() => {
     if (activePanel) {
-      // When a panel opens, clear selection
-      // EXCEPT for 'restack' and 'plugInOut' panels - we want to preserve selectId so Container Details can reappear
       if (activePanel !== 'restack' && activePanel !== 'plugInOut') {
         setSelectId(null);
       }
-      setSelectedBlock(null);
+      // Don't clear selectedBlock for cfsPosition to allow CFS panel to reopen
+      if (activePanel !== 'cfsPosition') {
+        setSelectedBlock(null);
+      }
     }
   }, [activePanel, setSelectId, setSelectedBlock]);
 
   useEffect(() => {
     if (selectId || selectedBlock) {
-      // When selection happens, close panels
       closePanel();
     }
   }, [selectId, selectedBlock, closePanel]);
 
-  // Show login screen if not authenticated
   if (!isAuthenticated) {
     return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
   }
@@ -128,24 +129,25 @@ const App = () => {
         background: '#111'
       }}
     >
-
       {/* Modern Branding Header - Fixed Overlay */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000, height: 0 }}>
-        <ModernHeader
-          activeNav={activeNav}
-          onNavChange={handleNavChange}
-          isSearchVisible={true}
-          isUIVisible={!showLoadingScreen}
-          selectedIcdId={selectedIcdId}
-          onIcdChange={setSelectedIcdId}
-          onLogout={() => {
-            setIsAuthenticated(false);
-            setShowLoadingScreen(true);
-            setActiveNav('3D View');
-          }}
-        />
-        <HoverInfoPanel />
-      </div>
+      {activePanel !== 'accessControl' && (
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000, height: 0 }}>
+          <ModernHeader
+            activeNav={activeNav}
+            onNavChange={handleNavChange}
+            isSearchVisible={true}
+            isUIVisible={!showLoadingScreen}
+            selectedIcdId={selectedIcdId}
+            onIcdChange={setSelectedIcdId}
+            onLogout={() => {
+              setIsAuthenticated(false);
+              setShowLoadingScreen(true);
+              setActiveNav('3D View');
+            }}
+          />
+          <HoverInfoPanel />
+        </div>
+      )}
 
       {/* Global Toast Notifications */}
       <ToastContainer />
@@ -179,57 +181,100 @@ const App = () => {
 
           <Canvas
             style={{ width: '100%', height: '100%', display: 'block' }}
-            camera={{ position: [0, 150, 300], fov: 45, near: 1.0 }}
+            camera={{ position: [0, 150, 300], fov: 45, near: 0.1, far: 5000 }} // Increased far clip
             shadows
+            dpr={[1, 1.5]}
+            gl={{
+              toneMapping: THREE.ACESFilmicToneMapping,
+              toneMappingExposure: 1.6,
+              antialias: true
+            }}
           >
-            <color attach="background" args={['#E6F4F1']} />
+            <color attach="background" args={['#BCE6FF']} />
+            <fog attach="fog" args={['#BCE6FF', 200, 3000]} /> {/* Seamless horizon blend */}
 
-            {/* Enhanced Lighting */}
-            <ambientLight intensity={0.7} />
+            {/* Professional Lighting Rig - High Key, Warm & Bright */}
+            <ambientLight intensity={1.0} color="#fffaf0" /> {/* Warm white, full fill */}
+            <hemisphereLight
+              intensity={0.9}
+              color="#b0e0e6" // Powder Blue sky
+              groundColor="#c3ebc3ff" // Light Green ground reflection
+              position={[0, 50, 0]}
+            />
             <directionalLight
-              position={[100, 200, 100]}
-              intensity={1.5}
+              position={[100, 150, 50]} // Higher sun position for softer shadows
+              intensity={0.8} // Reduced for softer contrast
               castShadow
-              shadow-mapSize-width={2048}
-              shadow-mapSize-height={2048}
+              shadow-mapSize={[2048, 2048]}
+              shadow-camera-near={0.5}
+              shadow-camera-far={500}
+              shadow-camera-left={-200}
+              shadow-camera-right={200}
+              shadow-camera-top={200}
+              shadow-camera-bottom={-200}
+              shadow-bias={-0.0001}
             />
-            <Environment />
-            <DynamicLayoutEngine />
-            <IcdMarkings />
-            <Fencing />
-            <Gates />
-            <Containers
-              controlsRef={controlsRef}
-              onReady={() => setSceneReady(true)}
+
+            {/* Cinematic Environment */}
+            <DreiEnvironment preset="city" blur={0.8} background={false} />
+
+            <ContactShadows
+              position={[0, -0.01, 0]}
+              opacity={0.45}
+              scale={2000}
+              blur={2.0}
+              far={10}
+              resolution={1024}
+              color="#000000"
             />
-            <SwapConnectionLines />
-            <GhostContainer />
-            <RestackConnectionLine />
+
+            <EffectsWrapper>
+              <LayoutEnvironment />
+              <DynamicLayoutEngine />
+              <IcdMarkings />
+              <Fencing />
+              <Gates />
+              <Containers
+                controlsRef={controlsRef}
+                onReady={() => setSceneReady(true)}
+              />
+              <SwapConnectionLines />
+              <GhostContainer />
+              <RestackConnectionLine />
+            </EffectsWrapper>
 
             <CameraTransition isLoading={showLoadingScreen} controlsRef={controlsRef} />
+            <KeyboardNavigation controlsRef={controlsRef} />
 
-            <OrbitControls
+            {/* MapControls for better large-scale navigation */}
+            <MapControls
               ref={controlsRef}
               makeDefault
+              enabled={true}
               enableDamping={false}
-              minPolarAngle={0}                    // Prevent looking straight down
-              maxPolarAngle={Math.PI / 2 - 0.05}     // Prevent going below horizontal
-              minDistance={0}                       // Minimum zoom distance (Prevents clipping/going inside)
-              maxDistance={600}                       // Maximum zoom distance (Restricted)
-              enablePan={true}                        // Allow panning
-              panSpeed={1}                            // Pan speed
-              rotateSpeed={0.8}                       // Rotation speed
-              onChange={handleControlsChange}         // Clamp target position
-              enableZoom={true}
-              zoomSpeed={6}
+              screenSpacePanning={false}
+              minDistance={1}
+              maxDistance={600}
+              maxPolarAngle={Math.PI / 2 - 0.05}
+              rotateSpeed={0.5}
+              panSpeed={1}
+              zoomSpeed={3}
               zoomToCursor={true}
+              onChange={handleControlsChange}
             />
           </Canvas>
 
           {/* Panels */}
           <ContainerDetailsPanel />
           <BlockDetailsPanel />
+          <CFSDetailsPanel />
           <PositionContainerPanel isOpen={activePanel === 'position'} onClose={closePanel} />
+          <PositionContainerPanel
+            isOpen={activePanel === 'cfsPosition'}
+            onClose={closePanel}
+            mode="cfs_container"
+            cfsContainer={panelData as any}
+          />
           <RestackContainersPanel isOpen={activePanel === 'restack'} onClose={closePanel} />
           <GateInPanel isOpen={activePanel === 'gateIn'} onClose={closePanel} />
           <GateOutPanel isOpen={activePanel === 'gateOut'} onClose={closePanel} />
@@ -240,6 +285,10 @@ const App = () => {
           <ReserveContainersPanel isOpen={activePanel === 'reserveContainers'} onClose={closePanel} />
           <ReleaseContainerPanel isOpen={activePanel === 'releaseContainer'} onClose={closePanel} />
           <CustomerInventoryPanel isOpen={activePanel === 'customerInventory'} onClose={closePanel} />
+
+          {/* Settings Panel (Centralized Configuration) */}
+          <SettingsPanel />
+
         </section>
 
         {/* Dashboard Section */}
@@ -251,7 +300,7 @@ const App = () => {
             position: 'relative',
             background: '#F5F7F7',
             zIndex: 10,
-            overflowY: 'auto', // Enable scrolling within the dashboard
+            overflowY: 'auto',
             overflowX: 'hidden'
           }}
         >
@@ -259,8 +308,11 @@ const App = () => {
         </section>
       </div>
 
-      {/* Quick Actions Button - Fixed position relative to viewport */}
-      {activeNav === '3D View' && !showLoadingScreen && <QuickActionsButton />}
+      {/* View Navigation Panel */}
+      {activeNav === '3D View' && !showLoadingScreen && activePanel !== 'accessControl' && <ViewNavigationPanel />}
+
+      {/* Quick Actions Button */}
+      {activeNav === '3D View' && !showLoadingScreen && activePanel !== 'accessControl' && <QuickActionsButton />}
     </div>
   );
 }

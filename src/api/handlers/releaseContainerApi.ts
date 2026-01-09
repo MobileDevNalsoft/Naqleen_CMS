@@ -110,6 +110,7 @@ export async function submitReleaseContainer(
             customer_nbr: request.customerNbr,
             customer_name: request.customerName,
             order_nbr: request.orderNbr,
+            ...(request.releaseType && { release_type: request.releaseType }),
             containers: request.containers.map(c => ({
                 container_nbr: c.containerNbr,
                 container_type: c.containerType,

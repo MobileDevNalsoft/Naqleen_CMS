@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { History, Save, Power } from 'lucide-react';
+import { Save, Power } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import PanelLayout from '../PanelLayout';
 import { useUIStore } from '../../../store/uiStore';
 import { yardApi } from '../../../api/handlers/yardApi';
-import { showToast } from '../../ui/Toast';
-import TemperatureScale from '../../ui/TemperatureScale';
-import Dropdown from '../../ui/Dropdown';
+import { showToast } from '../../ui/custom-components/Toast';
+import TemperatureScale from '../../ui/custom-components/TemperatureScale';
+import Dropdown from '../../ui/custom-components/Dropdown';
+import PlugLoader from '../../ui/animations/PlugLoader';
 import type { PlugInOutHistoryItem } from '../../../api/types/yardTypes';
 
 const REMARKS_OPTIONS = [
@@ -101,8 +102,18 @@ export default function PlugInOutPanel({ isOpen, onClose }: PlugInOutPanelProps)
                 remarks: ''
             });
 
-        } else if (panelData?.status) {
-            setStatus(panelData.status as 'Plugged' | 'Unplugged');
+        } else {
+            // No history - first time setting temperatures, default to 0
+            setStatus(panelData?.status as 'Plugged' | 'Unplugged' || 'Unplugged');
+            setSetPoint('0');
+            setCurrentTemp('0');
+            setRemarks('');
+
+            setInitialValues({
+                setPoint: '0',
+                currentTemp: '0',
+                remarks: ''
+            });
         }
     }, [detailsData, panelData]);
 
@@ -135,13 +146,25 @@ export default function PlugInOutPanel({ isOpen, onClose }: PlugInOutPanelProps)
         if (action === 'Plug Out') newStatus = 'Unplugged';
         // 'Update' keeps current status
 
+        // Format timestamp to match Flutter's DateTime.now().toIso8601String()
+        // Flutter: "2025-12-22T18:28:55.123456" (local time, no Z suffix)
+        // JS toISOString: "2025-12-22T12:58:55.123Z" (UTC time, with Z)
+        const now = new Date();
+        const timestamp = now.getFullYear() + '-' +
+            String(now.getMonth() + 1).padStart(2, '0') + '-' +
+            String(now.getDate()).padStart(2, '0') + 'T' +
+            String(now.getHours()).padStart(2, '0') + ':' +
+            String(now.getMinutes()).padStart(2, '0') + ':' +
+            String(now.getSeconds()).padStart(2, '0') + '.' +
+            String(now.getMilliseconds()).padStart(3, '0') + 'Z';
+
         saveReeferStatus({
             containerNbr: containerId,
             type: newStatus,
             setPointTemp: setPoint || '0',
             currentTemp: currentTemp || '0',
             remarks: remarks,
-            timestamp: new Date().toISOString()
+            timestamp: timestamp
         });
     };
 
@@ -310,85 +333,193 @@ export default function PlugInOutPanel({ isOpen, onClose }: PlugInOutPanelProps)
         >
             {/* Content Area */}
             <div style={{ flex: 1, minHeight: '300px', display: 'flex', flexDirection: 'column' }}>
-                {activeTab === 'control' ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
-
-                        {/* Temperature Controls (Scrolling Scales) */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                            <TemperatureScale
-                                label="SET POINT"
-                                value={Number(setPoint) || 0}
-                                onChange={(val) => setSetPoint(val.toString())}
-                                min={-30}
-                                max={130}
-                            />
-
-                            <TemperatureScale
-                                label="CURRENT TEMP"
-                                value={Number(currentTemp) || 0}
-                                onChange={(val) => setCurrentTemp(val.toString())}
-                                min={-30}
-                                max={130}
-                            />
-                        </div>
-
-                        {/* Remarks */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <Dropdown
-                                label="REMARKS"
-                                value={remarks}
-                                onChange={setRemarks}
-                                options={REMARKS_OPTIONS}
-                                placeholder="Select remarks"
-                            />
-                        </div>
-                        {/* Bottom Spacer */}
-                        <div style={{ height: '20px' }} />
-                    </div>
+                {isLoading ? (
+                    <PlugLoader />
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', maxHeight: '400px', paddingRight: '4px' }}>
-                        {isLoading ? (
-                            <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Loading history...</div>
-                        ) : detailsData?.data?.history?.length === 0 ? (
-                            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                                <History size={32} />
-                                <span style={{ fontSize: '14px' }}>No history records found</span>
+                    <>
+                        {activeTab === 'control' ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
+
+                                {/* Temperature Controls (Scrolling Scales) */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                                    <TemperatureScale
+                                        label="SET POINT"
+                                        value={Number(setPoint) || 0}
+                                        onChange={(val) => setSetPoint(val.toString())}
+                                        min={-30}
+                                        max={130}
+                                        disabled={
+                                            detailsData?.data?.history && detailsData.data.history.length > 0
+                                                ? detailsData.data.history.slice().sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0].type !== 'Unplugged'
+                                                : status !== 'Unplugged'
+                                        }
+                                    />
+
+                                    <TemperatureScale
+                                        label="CURRENT TEMP"
+                                        value={Number(currentTemp) || 0}
+                                        onChange={(val) => setCurrentTemp(val.toString())}
+                                        min={-30}
+                                        max={130}
+                                    />
+                                </div>
+
+                                {/* Remarks */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <Dropdown
+                                        label="REMARKS"
+                                        value={remarks}
+                                        onChange={setRemarks}
+                                        options={REMARKS_OPTIONS}
+                                        placeholder="Select remarks"
+                                    />
+                                </div>
+                                {/* Bottom Spacer */}
+                                <div style={{ height: '20px' }} />
                             </div>
                         ) : (
-                            detailsData?.data?.history
-                                ?.slice() // Create a copy before sorting
-                                .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                                .map((item: PlugInOutHistoryItem, index: number) => {
-                                    // Parse timestamp normally - server sends UTC (Z), browser converts to local
-                                    const localDate = new Date(item.timestamp);
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', maxHeight: '400px', paddingRight: '4px' }}>
+                                {isLoading ? (
+                                    <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Loading history...</div>
+                                ) : detailsData?.data?.history?.length === 0 ? (
+                                    <div style={{
+                                        padding: '48px 24px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        gap: '20px',
+                                        background: 'linear-gradient(180deg, rgba(75, 104, 108, 0.03) 0%, transparent 100%)',
+                                        borderRadius: '16px',
+                                        margin: '8px 0'
+                                    }}>
+                                        {/* Premium Empty State Illustration */}
+                                        <svg
+                                            width="120"
+                                            height="80"
+                                            viewBox="0 0 120 80"
+                                            fill="none"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                        >
+                                            <defs>
+                                                <linearGradient id="emptyPlugGrad" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor="#94a3b8" />
+                                                    <stop offset="100%" stopColor="#64748b" />
+                                                </linearGradient>
+                                                <filter id="emptyGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                                    <feGaussianBlur stdDeviation="2" result="blur" />
+                                                    <feMerge>
+                                                        <feMergeNode in="blur" />
+                                                        <feMergeNode in="SourceGraphic" />
+                                                    </feMerge>
+                                                </filter>
+                                            </defs>
 
-                                    return (
-                                        <LifecycleStage
-                                            key={index}
-                                            date={localDate.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-                                            time={localDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            title={item.type || 'Status Update'}
-                                            status={index === 0 ? 'current' : 'completed'}
-                                            isLast={index === (detailsData.data?.history?.length || 0) - 1}
-                                            isFirst={index === 0}
-                                            setPointTemp={item.setPointTemp}
-                                            details={
-                                                <span>
-                                                    {item.currentTemp && (
-                                                        <span>Actual: <b>{item.currentTemp}°C</b></span>
-                                                    )}
-                                                    {item.remarks && (
-                                                        <div style={{ marginTop: '4px', fontStyle: 'italic', opacity: 0.8 }}>
-                                                            "{item.remarks}"
-                                                        </div>
-                                                    )}
-                                                </span>
-                                            }
-                                        />
-                                    );
-                                })
+                                            {/* Background Circle */}
+                                            <circle cx="60" cy="40" r="36" fill="rgba(148, 163, 184, 0.08)" />
+                                            <circle cx="60" cy="40" r="28" fill="rgba(148, 163, 184, 0.05)" />
+
+                                            {/* Socket (Left) */}
+                                            <g transform="translate(30, 28)">
+                                                <rect x="0" y="0" width="20" height="24" rx="3" fill="url(#emptyPlugGrad)" opacity="0.6" />
+                                                <rect x="14" y="6" width="6" height="4" rx="1" fill="#475569" />
+                                                <rect x="14" y="14" width="6" height="4" rx="1" fill="#475569" />
+                                                <rect x="-6" y="9" width="6" height="6" rx="1" fill="url(#emptyPlugGrad)" opacity="0.6" />
+                                            </g>
+
+                                            {/* Plug (Right) - Disconnected, slightly separated */}
+                                            <g transform="translate(62, 28)" style={{ filter: 'url(#emptyGlow)' }}>
+                                                {/* Prongs */}
+                                                <rect x="0" y="6" width="8" height="4" rx="1" fill="#94a3b8" opacity="0.5" />
+                                                <rect x="0" y="14" width="8" height="4" rx="1" fill="#94a3b8" opacity="0.5" />
+                                                {/* Body */}
+                                                <rect x="6" y="0" width="22" height="24" rx="4" fill="url(#emptyPlugGrad)" opacity="0.6" />
+                                                {/* Grip lines */}
+                                                <line x1="14" y1="5" x2="14" y2="19" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" strokeLinecap="round" />
+                                                <line x1="18" y1="5" x2="18" y2="19" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" strokeLinecap="round" />
+                                                <line x1="22" y1="5" x2="22" y2="19" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" strokeLinecap="round" />
+                                                {/* Cord */}
+                                                <rect x="28" y="9" width="8" height="6" rx="2" fill="url(#emptyPlugGrad)" opacity="0.5" />
+                                            </g>
+
+                                            {/* Dotted line showing disconnection */}
+                                            <line
+                                                x1="52" y1="40" x2="60" y2="40"
+                                                stroke="#cbd5e1"
+                                                strokeWidth="2"
+                                                strokeDasharray="3 3"
+                                                opacity="0.6"
+                                            >
+                                                <animate
+                                                    attributeName="stroke-dashoffset"
+                                                    values="0;6"
+                                                    dur="1s"
+                                                    repeatCount="indefinite"
+                                                />
+                                            </line>
+                                        </svg>
+
+                                        {/* Text Content */}
+                                        <div style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            gap: '6px'
+                                        }}>
+                                            <span style={{
+                                                fontSize: '15px',
+                                                fontWeight: 600,
+                                                color: '#475569'
+                                            }}>
+                                                No Activity Yet
+                                            </span>
+                                            <span style={{
+                                                fontSize: '13px',
+                                                color: '#94a3b8',
+                                                textAlign: 'center',
+                                                maxWidth: '200px',
+                                                lineHeight: 1.5
+                                            }}>
+                                                Plug in or out actions will appear here
+                                            </span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    detailsData?.data?.history
+                                        ?.slice() // Create a copy before sorting
+                                        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                                        .map((item: PlugInOutHistoryItem, index: number) => {
+                                            // Parse timestamp normally - server sends UTC (Z), browser converts to local
+                                            const localDate = new Date(item.timestamp);
+
+                                            return (
+                                                <LifecycleStage
+                                                    key={index}
+                                                    date={localDate.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                                                    time={localDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    title={item.type || 'Status Update'}
+                                                    status={index === 0 ? 'current' : 'completed'}
+                                                    isLast={index === (detailsData.data?.history?.length || 0) - 1}
+                                                    isFirst={index === 0}
+                                                    setPointTemp={item.setPointTemp}
+                                                    details={
+                                                        <span>
+                                                            {item.currentTemp && (
+                                                                <span>Actual: <b>{item.currentTemp}°C</b></span>
+                                                            )}
+                                                            {item.remarks && (
+                                                                <div style={{ marginTop: '4px', fontStyle: 'italic', opacity: 0.8 }}>
+                                                                    "{item.remarks}"
+                                                                </div>
+                                                            )}
+                                                        </span>
+                                                    }
+                                                />
+                                            );
+                                        })
+                                )}
+                            </div>
                         )}
-                    </div>
+                    </>
                 )}
             </div>
 

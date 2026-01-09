@@ -1,15 +1,11 @@
-import GenericBlock from './components/GenericBlock';
 import GenericZone from './components/GenericZone';
+import { CFSAreaWrapper, WarehouseWrapper, TruckWrapper } from './components/InfrastructureWrappers';
 
 // Mapping of JSON 'type' to React Component
+// Note: Block types (container_block_*) are NOT registered here.
+// They are rendered by IcdMarkings (SlotMarkings + BlockLabels) which handles
+// slot grids, labels, and selection highlighting via instance colors.
 export const ComponentRegistry: Record<string, React.FC<any>> = {
-    // Blocks (Extruded/Glowing)
-    'container_block': GenericBlock,
-    'container_block_a': GenericBlock, // Legacy support if needed
-    'container_block_b': GenericBlock,
-    'container_block_c': GenericBlock,
-    'container_block_d': GenericBlock,
-
     // Zones (Flat/Textured)
     'road': GenericZone,
     'access': GenericZone,
@@ -20,8 +16,13 @@ export const ComponentRegistry: Record<string, React.FC<any>> = {
     'custom': GenericZone,
     'trs_terminal': GenericZone,
     'trm_terminal': GenericZone,
+    'trl_terminal': GenericZone,
+
+    // 3D Infrastructure Components
+    'cfs_area': CFSAreaWrapper,
+    'warehouse': WarehouseWrapper,
+    'truck': TruckWrapper,
 
     // Fallback/Generic
-    'zone': GenericZone,
-    'block': GenericBlock
+    'zone': GenericZone
 };

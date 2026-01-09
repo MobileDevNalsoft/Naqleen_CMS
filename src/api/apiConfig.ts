@@ -11,6 +11,7 @@ export const API_CONFIG = {
         BASIC_AUTH_PASSWORD: 'otm@2025'
     },
     ENDPOINTS: {
+        // Inventory endpoints
         GET_CONTAINERS: '/getContainers',
         GET_CUSTOMERS_AND_BOOKINGS: '/getCustomersAndBookings',
         GET_RECOMMENDED_CONTAINERS: '/getRecommendedContainers',
@@ -39,20 +40,26 @@ export const API_CONFIG = {
         RELEASE_CONTAINER_TRUCKS: '/getReleaseContainerTrucks',
         RELEASE_CONTAINER_TRUCK_DETAILS: '/releaseContainerTruckDetails',
         SUBMIT_RELEASE_CONTAINER: '/submitReleaseContainer',
-        // Yard endpoints
-        positionTrucksEndpoint: '/positionTrucks',
-        positionTruckDetails: '/positionTruckDetails',
-        getAvailablePositionLov: '/getAvailablePositionLov',
-        submitContainerPosition: '/submitContainerPosition',
-        restackContainer: '/restackContainer',
-        plugInOutContainer: '/plugInOutContainer',
-        plugInOutContainerDetails: '/plugInOutContainerDetails',
-        validateCfsContainer: '/validateCfsContainer',
+
         // Task Assignment
-        newTaskAssignmentShipments: '/getTaskAssignmentShipments',
-        assignedTaskAssignmentShipments: '/getAssignedTasks',
-        getTaskAssignmentShipmentDetails: '/getTaskAssignmentShipmentDetails',
-        getTaskAssignmentOperators: '/getTaskAssignmentOperators',
-        assignTaskToOperator: '/assignTaskToOperator',
+        NEW_TASK_ASSIGNMENT_SHIPMENTS: '/getTaskAssignmentShipments',
+        ASSIGNED_TASK_ASSIGNMENT_SHIPMENTS: '/getAssignedTasks',
+        GET_TASK_ASSIGNMENT_SHIPMENT_DETAILS: '/getTaskAssignmentShipmentDetails',
+        GET_TASK_ASSIGNMENT_OPERATORS: '/getTaskAssignmentOperators',
+        ASSIGN_TASK_TO_OPERATOR: '/assignTaskToOperator',
+        POSITION_TRUCKS: '/positionTrucks',
+        POSITION_TRUCK_DETAILS: '/positionTruckDetails',
+        GET_AVAILABLE_POSITION_LOV: '/getAvailablePositionLov',
+        SUBMIT_CONTAINER_POSITION: '/submitContainerPosition',
+        RESTACK_CONTAINER: '/restackContainer',
+        PLUG_IN_OUT_CONTAINER: '/plugInOutContainer',
+        PLUG_IN_OUT_CONTAINER_DETAILS: '/plugInOutContainerDetails',
+        VALIDATE_CFS_CONTAINER: '/validateCfsContainer',
+        // Admin endpoints
+        ADMIN_USERS: '/users',
+        ADMIN_ASSIGN_ROLE: '/users/assignRole',
+        ADMIN_ROLES: '/roles',
+        ADMIN_SCREENS: '/screens',
+        ADMIN_ROLE_PERMISSIONS: '/roles/permissions',
     }
 } as const;

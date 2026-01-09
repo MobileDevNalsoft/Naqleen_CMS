@@ -53,9 +53,9 @@ const GenericZone: React.FC<GenericZoneProps> = ({
 
     useFrame((_, delta) => {
         if (materialRef.current) {
-            // Opacity Animation (Ghost Mode)
-            const targetOpacity = isDimmed ? 0.1 : opacity;
-            materialRef.current.opacity = THREE.MathUtils.lerp(materialRef.current.opacity, targetOpacity, delta * 5);
+            // TELIA-STYLE: Fade to fully invisible when dimmed
+            const targetOpacity = isDimmed ? 0 : opacity;
+            materialRef.current.opacity = THREE.MathUtils.lerp(materialRef.current.opacity, targetOpacity, delta * 3);
         }
     });
 

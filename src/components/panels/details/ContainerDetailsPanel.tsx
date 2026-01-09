@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Truck, MapPin, FileText, Ship, Package, X, Check, ChevronsRight, Power } from 'lucide-react';
+import { Truck, MapPin, FileText, Ship, Package, X, Check, ChevronsRight, ClipboardCheck, DoorOpen, DoorClosed, Archive, LogOut, ArrowLeftRight, PackageOpen, Boxes, PackageCheck, Plug } from 'lucide-react';
+import PlugIcon from '../../ui/icons/PlugIcon';
 import { useQuery } from '@tanstack/react-query';
 import { useStore } from '../../../store/store';
 import { useUIStore } from '../../../store/uiStore';
@@ -347,35 +348,22 @@ export default function ContainerDetailsPanel() {
 
                 {/* Reefer Control Button (Only for RT containers) */}
                 {details?.container_type?.includes('RT') && (
-                    <button
-                        onClick={() => openPanel('plugInOut', {
-                            containerId: details.container_number,
-                            containerType: details.container_type,
-                            status: details.plug_in_status
-                        })}
+                    <div
                         style={{
                             marginLeft: 'auto',
                             marginTop: 'auto',
                             marginBottom: 'auto',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            background: details.plug_in_status === 'Plugged' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                            border: 'none',
-                            padding: '6px 12px',
-                            borderRadius: '20px',
-                            color: details.plug_in_status === 'Plugged' ? '#15803d' : '#b91c1c',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            transition: 'all 0.2s'
                         }}
                     >
-                        <Power size={14} />
-                        {details.plug_in_status === 'Plugged' ? 'Plugged' : 'Unplugged'}
-                    </button>
+                        <PlugIcon
+                            status={details.plug_in_status as 'Plugged' | 'Unplugged'}
+                            onClick={() => openPanel('plugInOut', {
+                                containerId: details.container_number,
+                                containerType: details.container_type,
+                                status: details.plug_in_status
+                            })}
+                        />
+                    </div>
                 )}
             </div>
 
@@ -433,53 +421,47 @@ export default function ContainerDetailsPanel() {
                 )}
 
                 {activeTab === 'lifecycle' && (
-                    <div style={{ position: 'relative', padding: '12px 0' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-                            <LifecycleStage
-                                date="24 Oct"
-                                time="06:00 AM"
-                                title="Vessel Arrival"
-                                details="MV OCEAN GIANT docked at berth 3"
-                                status="completed"
-                            />
-                            <LifecycleStage
-                                date="24 Oct"
-                                time="07:15 AM"
-                                title="Discharge"
-                                details="Unloaded by crane STS-02"
-                                status="completed"
-                            />
-                            <LifecycleStage
-                                date="24 Oct"
-                                time="08:30 AM"
-                                title="Gate In"
-                                details="Truck 4582 via Gate 1"
-                                status="completed"
-                            />
-                            <LifecycleStage
-                                date="24 Oct"
-                                time="09:00 AM"
-                                title="Inspection"
-                                details="Passed visual & customs check"
-                                status="completed"
-                            />
-                            <LifecycleStage
-                                date="24 Oct"
-                                time="09:45 AM"
-                                title="Yard Placement"
-                                details="Placed in Block A, Row 3"
-                                status="current"
-                            />
-                            <LifecycleStage
-                                date="26 Oct"
-                                time="Est. Time"
-                                title="Awaiting Delivery"
-                                details="Pending customer pickup"
-                                status="pending"
-                                isLast
-                            />
+                    isLoading ? (
+                        <ContainerLoader />
+                    ) : !details?.tracking_events?.length ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: '#94a3b8', fontSize: '13px' }}>
+                            No tracking events available
                         </div>
-                    </div>
+                    ) : (
+                        <div style={{ position: 'relative', padding: '12px 0' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+                                {details.tracking_events.map((event, index) => {
+                                    const eventDate = new Date(event.event_date);
+                                    const eventsLength = details.tracking_events?.length ?? 0;
+                                    const isLastEvent = index === eventsLength - 1;
+                                    // Check for 'R' (API code) or 'Reserved' (display name)
+                                    const isReserved = selectedContainer?.status === 'R' || selectedContainer?.status === 'Reserved';
+
+                                    return (
+                                        <LifecycleStage
+                                            key={`${event.event_type}-${event.event_date}`}
+                                            date={eventDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}
+                                            time={eventDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                            title={event.event_type}
+                                            status={isLastEvent && !isReserved ? 'current' : 'completed'}
+                                            isLast={isLastEvent && !isReserved}
+                                        />
+                                    );
+                                })}
+
+                                {/* Show "Awaiting Release" only for Reserved status (R or Reserved) */}
+                                {(selectedContainer?.status === 'R' || selectedContainer?.status === 'Reserved') && (
+                                    <LifecycleStage
+                                        date="--"
+                                        time="Pending"
+                                        title="Awaiting Release"
+                                        status="pending"
+                                        isLast
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    )
                 )}
             </div>
 
@@ -487,9 +469,8 @@ export default function ContainerDetailsPanel() {
             <div style={{
                 padding: '20px 24px',
                 borderTop: '1px solid rgba(0, 0, 0, 0.08)',
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '12px',
+                display: 'flex',
+                justifyContent: 'center',
                 background: 'linear-gradient(135deg, rgba(247, 207, 155, 0.25) 0%, rgba(247, 207, 155, 0.15) 100%)',
                 backdropFilter: 'blur(16px)',
                 boxShadow: 'inset 0 1px 0 rgba(247, 207, 155, 0.3), 0 -4px 12px rgba(0, 0, 0, 0.05)'
@@ -502,7 +483,6 @@ export default function ContainerDetailsPanel() {
                     disabled={!isTopLevel}
                     tooltip={!isTopLevel ? "Cannot restack: Container has other containers stacked above it" : undefined}
                 />
-                <ActionButton icon={<Package size={16} />} label="Release" />
             </div>
         </div>
     );
@@ -526,11 +506,39 @@ const InfoItem = ({ label, value, fullWidth }: { label: string, value: string, f
     </div>
 );
 
-const LifecycleStage = ({ date, time, title, details, status, isLast }: {
+const getEventIcon = (title: string, status: string, mainColor: string) => {
+    // Normalize title for matching
+    const upperTitle = title.toUpperCase();
+
+    const iconProps = {
+        size: 18,
+        color: status === 'completed' ? 'white' : mainColor,
+        strokeWidth: 2.5
+    };
+
+    if (upperTitle.includes('VEHICLE ENTERED')) return <Truck {...iconProps} />;
+    if (upperTitle.includes('INSPECTED')) return <ClipboardCheck {...iconProps} />;
+    if (upperTitle.includes('GATE IN')) return <DoorOpen {...iconProps} />;
+    if (upperTitle.includes('CONTAINER STORED')) return <Archive {...iconProps} />; // Changed to Archive for better distinction
+    if (upperTitle.includes('CONTAINER RELEASED')) return <LogOut {...iconProps} />;
+    if (upperTitle.includes('CONTAINER RESTACKED')) return <ArrowLeftRight {...iconProps} />;
+    if (upperTitle.includes('DESTUFFED')) return <PackageOpen {...iconProps} />;
+    if (upperTitle.includes('MATERIAL STORED')) return <Boxes {...iconProps} />;
+    if (upperTitle.includes('STUFFED')) return <PackageCheck {...iconProps} />;
+    if (upperTitle.includes('GATE OUT')) return <DoorClosed {...iconProps} />;
+    if (upperTitle.includes('VEHICLE EXIT')) return <Truck {...iconProps} style={{ transform: 'scaleX(-1)' }} />; // Mirrored truck
+    if (upperTitle.includes('PLUGGED')) return <Plug {...iconProps} />;
+
+    // Default fallback
+    if (status === 'completed') return <Check {...iconProps} strokeWidth={3} />;
+    if (status === 'current') return <ChevronsRight {...iconProps} strokeWidth={3} />;
+    return <div style={{ width: '8px', height: '8px', background: mainColor, borderRadius: '50%' }} />;
+};
+
+const LifecycleStage = ({ date, time, title, status, isLast }: {
     date: string,
     time: string,
     title: string,
-    details: string,
     status: 'completed' | 'current' | 'pending',
     isLast?: boolean
 }) => {
@@ -543,15 +551,18 @@ const LifecycleStage = ({ date, time, title, details, status, isLast }: {
 
     const currentStyle = colors[status];
 
+    // Handle multiline titles (splitting by " | ")
+    const [mainTitle, subTitle] = title.includes(' | ') ? title.split(' | ') : [title, null];
+
     return (
-        <div style={{ display: 'flex', gap: '16px', position: 'relative', minHeight: '80px' }}>
+        <div style={{ display: 'flex', gap: '16px', position: 'relative', minHeight: '66px' }}>
             {/* Left: Date & Time */}
             <div style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'flex-end',
                 minWidth: '60px',
-                paddingTop: '4px',
+                paddingTop: '6px',
                 textAlign: 'right'
             }}>
                 <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '12px' }}>{date}</div>
@@ -560,10 +571,10 @@ const LifecycleStage = ({ date, time, title, details, status, isLast }: {
 
             {/* Center: Timeline */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-                {/* Icon */}
+                {/* Icon Circle - INCREASED SIZE */}
                 <div style={{
-                    width: '24px',
-                    height: '24px',
+                    width: '32px',
+                    height: '32px',
                     borderRadius: '50%',
                     background: status === 'completed' ? currentStyle.main : 'white',
                     border: status === 'completed' ? 'none' : `2px solid ${currentStyle.main}`,
@@ -571,18 +582,17 @@ const LifecycleStage = ({ date, time, title, details, status, isLast }: {
                     alignItems: 'center',
                     justifyContent: 'center',
                     zIndex: 2,
-                    boxShadow: status === 'current' ? `0 0 0 4px ${currentStyle.main}40` : 'none'
+                    boxShadow: status === 'current' ? `0 0 0 4px ${currentStyle.main}40` : 'none',
+                    transition: 'all 0.3s ease'
                 }}>
-                    {status === 'completed' && <Check size={14} color="white" strokeWidth={3} />}
-                    {status === 'current' && <ChevronsRight size={14} color={currentStyle.main} strokeWidth={3} />}
-                    {status === 'pending' && <div style={{ width: '8px', height: '8px', background: currentStyle.main, borderRadius: '50%' }} />}
+                    {getEventIcon(mainTitle, status, currentStyle.main)}
                 </div>
 
                 {/* Vertical Line */}
                 {!isLast && (
                     <div style={{
                         position: 'absolute',
-                        top: '24px',
+                        top: '32px',
                         bottom: '-16px',
                         width: '2px',
                         background: status === 'completed' ? '#4B686C' : '#e2e8f0',
@@ -598,15 +608,21 @@ const LifecycleStage = ({ date, time, title, details, status, isLast }: {
                 border: `1px solid ${status === 'pending' ? '#e2e8f0' : currentStyle.border}`,
                 borderRadius: '12px',
                 padding: '12px 16px',
-                marginBottom: '24px',
+                marginBottom: '20px',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                opacity: status === 'pending' ? 0.7 : 1
+                opacity: status === 'pending' ? 0.7 : 1,
+                display: 'flex',
+                alignItems: 'center'
             }}>
-                <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '13px', marginBottom: '4px' }}>
-                    {title}
-                </div>
-                <div style={{ color: '#64748b', fontSize: '11px', lineHeight: '1.4' }}>
-                    {details}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '13px' }}>
+                        {mainTitle}
+                    </div>
+                    {subTitle && (
+                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 500 }}>
+                            {subTitle}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

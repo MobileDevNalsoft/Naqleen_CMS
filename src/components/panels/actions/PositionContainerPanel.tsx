@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, ChevronDown, CheckCircle, Truck, ArrowRight, X, Loader2, ArrowLeft } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { showToast } from '../../ui/Toast';
+import { showToast } from '../../ui/custom-components/Toast';
 import { yardApi } from '../../../api/handlers/yardApi';
 import PanelLayout from '../PanelLayout';
 import type {
@@ -12,15 +12,24 @@ import type {
 import { useMemo } from 'react';
 import TruckLoader from '../../ui/animations/TruckLoader';
 import { useStore } from '../../../store/store';
-import { getDynamicContainerPosition } from '../../../utils/layoutUtils';
+
+interface CfsContainerData {
+    containerNbr: string;
+    containerType: string;
+    shipmentNbr: string;
+    customerName?: string;
+}
 
 interface PositionContainerPanelProps {
     isOpen: boolean;
     onClose: () => void;
+    mode?: 'truck_flow' | 'cfs_container';
+    cfsContainer?: CfsContainerData;
 }
 
-export default function PositionContainerPanel({ isOpen, onClose }: PositionContainerPanelProps) {
-    const [step, setStep] = useState<'truck_list' | 'details' | 'success'>('truck_list');
+export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_flow', cfsContainer }: PositionContainerPanelProps) {
+    const isCfsMode = mode === 'cfs_container';
+    const [step, setStep] = useState<'truck_list' | 'details' | 'success'>(isCfsMode ? 'details' : 'truck_list');
 
     // Search state
     const [searchText, setSearchText] = useState('');
@@ -62,6 +71,8 @@ export default function PositionContainerPanel({ isOpen, onClose }: PositionCont
 
     // 3. Submit Position
     const setEntitiesBatch = useStore((state) => state.setEntitiesBatch);
+    const removeCfsContainer = useStore((state) => state.removeCfsContainer);
+    const setGhostContainer = useStore((state) => state.setGhostContainer);
 
     const { mutate: submitPosition, isPending: isSubmitting } = useMutation({
         mutationFn: yardApi.submitContainerPosition,
@@ -69,86 +80,86 @@ export default function PositionContainerPanel({ isOpen, onClose }: PositionCont
             if (res.response_code === 200) {
                 showToast('success', 'Container Positioned Successfully');
 
-                // Add container to 3D scene using EXACT coordinates from layout engine
-                if (selectedTruck && selectedPosition) {
-                    // Parse position string: TRM-A-1-5-1 -> terminal, block, lot, row, level
-                    const parts = selectedPosition.split('-');
-                    const terminal = parts[0] || '';
-                    const block = parts[1] || '';
-                    const lot = parseInt(parts[2] || '1');
-                    const rowLabel = parts[3] || 'A';
-                    const level = parseInt(parts[4] || '1');
-                    const rowIndex = rowLabel.charCodeAt(0) - 'A'.charCodeAt(0);
+                // Get container data (either from truck flow or CFS mode)
+                const containerId = isCfsMode
+                    ? cfsContainer?.containerNbr
+                    : selectedTruck?.containerNbr;
+                const containerType = isCfsMode
+                    ? cfsContainer?.containerType || '20'
+                    : selectedTruck?.containerType || '20';
 
-                    // Get block definition from layout
-                    // Block ID format in layout: "trs_block_a" or "trm_block_a"
-                    const layoutState = useStore.getState().layout;
-                    const expectedBlockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
-                    const blockEntity = layoutState?.entities?.find(e =>
-                        e.type?.includes('block') &&
-                        e.id.toLowerCase() === expectedBlockId
-                    );
+                // Add container to 3D scene using marking positions for O(1) lookup
+                if (containerId && selectedPosition) {
+                    // Extract marking key and level: "TRM-A-1-D-1" -> "TRM-A-1-D" + 1
+                    const lastDashIndex = selectedPosition.lastIndexOf('-');
+                    const markingKey = selectedPosition.substring(0, lastDashIndex).toUpperCase();
+                    const level = parseInt(selectedPosition.substring(lastDashIndex + 1), 10) || 1;
 
-                    if (blockEntity) {
-                        try {
-                            // Apply row reversal for Blocks B and D (same as getContainers)
-                            const blockRows = blockEntity.props?.rows || 11;
-                            const shouldReverseRow = block.toUpperCase() === 'B' || block.toUpperCase() === 'D';
-                            const actualRowIndex = shouldReverseRow ? (blockRows - 1 - rowIndex) : rowIndex;
+                    // Get marking position from store for O(1) lookup
+                    const markingPositions = useStore.getState().markingPositions;
+                    const markingPos = markingPositions[markingKey];
 
-                            // Calculate EXACT position using the layout engine
-                            const positionVector = getDynamicContainerPosition(
-                                blockEntity,
-                                lot - 1,          // 0-based lot index
-                                actualRowIndex,   // 0-based row index (reversed for B/D)
-                                level - 1         // 0-based level index
-                            );
+                    if (markingPos) {
+                        // Calculate Y position based on level and container type
+                        const is20ft = !containerType || containerType.startsWith('2');
+                        const containerHeight = is20ft ? 2.591 : 2.896;
+                        const levelGap = 0.02;
+                        const y = markingPos.y + containerHeight / 2 + (level - 1) * (containerHeight + levelGap);
 
-                            // Determine container type/status
-                            const containerType = selectedTruck.containerType || '20';
-                            const status = 'active';
+                        // Derive values from markingKey: "TRM-A-1-D" -> terminal, block, lot, row
+                        const keyParts = markingKey.split('-');
+                        const terminal = keyParts[0] || '';
+                        const block = keyParts[1] || '';
+                        const lot = parseInt(keyParts[2], 10) || 1;
+                        const rowLabel = keyParts[3] || 'A';
+                        const blockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
 
-                            // Create new container entity with EXACT coordinates
-                            const newContainer = {
-                                id: selectedTruck.containerNbr,
-                                x: positionVector.x,
-                                y: positionVector.y,
-                                z: positionVector.z,
-                                terminal,
-                                block,
-                                blockId: `${terminal}_block_${block}`,
-                                lot,
-                                row: rowIndex,
-                                level,
-                                type: containerType,
-                                status
-                            };
+                        const newContainer = {
+                            id: containerId,
+                            x: markingPos.x,
+                            y,
+                            z: markingPos.z,
+                            terminal,
+                            block,
+                            blockId,
+                            lot,
+                            row: rowLabel.charCodeAt(0) - 'A'.charCodeAt(0),
+                            level,
+                            type: containerType,
+                            status: 'active'
+                        };
 
-                            // Add to 3D scene
-                            setEntitiesBatch([newContainer]);
-                            setGhostContainer(null); // Clear ghost container to show real container
-                            console.log('Container added to scene:', newContainer);
-                        } catch (e) {
-                            console.error('Error calculating container position:', e);
-                        }
+                        // Add to 3D scene
+                        setEntitiesBatch([newContainer]);
+                        console.log('Container added to scene:', newContainer);
                     } else {
-                        console.warn('Block entity not found for container placement:', block);
+                        console.warn('Marking position not found for container placement:', markingKey);
                     }
                 } else {
                     console.warn('Could not add container to scene:', {
-                        hasSelectedTruck: !!selectedTruck,
+                        containerId,
                         selectedPosition
                     });
                 }
 
-                // Remove the positioned truck from local cache (instant feedback, no refetch)
-                queryClient.setQueryData(['positionTrucks', 'all'], (oldData: any) => {
-                    if (!oldData?.data) return oldData;
-                    return {
-                        ...oldData,
-                        data: oldData.data.filter((t: string) => t !== selectedTruck?.truckNbr)
-                    };
-                });
+                // Clear ghost container
+                setGhostContainer(null);
+
+                // Mode-specific cleanup
+                if (isCfsMode && cfsContainer?.containerNbr) {
+                    // Remove container from CFS list
+                    removeCfsContainer(cfsContainer.containerNbr);
+                    console.log('Removed from CFS list:', cfsContainer.containerNbr);
+                } else {
+                    // Remove the positioned truck from local cache (instant feedback, no refetch)
+                    queryClient.setQueryData(['positionTrucks', 'all'], (oldData: any) => {
+                        if (!oldData?.data) return oldData;
+                        return {
+                            ...oldData,
+                            data: oldData.data.filter((t: string) => t !== selectedTruck?.truckNbr)
+                        };
+                    });
+                }
 
                 setStep('success');
             } else {
@@ -165,9 +176,8 @@ export default function PositionContainerPanel({ isOpen, onClose }: PositionCont
         return allTrucks.filter(truck => truck.toUpperCase().includes(search));
     }, [allTrucks, searchText]);
 
-    // Get setFocusPosition and setGhostContainer for cleanup
+    // Get setFocusPosition for cleanup (setGhostContainer already defined above)
     const setFocusPosition = useStore((state) => state.setFocusPosition);
-    const setGhostContainer = useStore((state) => state.setGhostContainer);
 
     // Reset when panel closes
     useEffect(() => {
@@ -175,27 +185,38 @@ export default function PositionContainerPanel({ isOpen, onClose }: PositionCont
             setSearchText('');
             setSelectedTruck(null);
             setSelectedPosition('');
-            setStep('truck_list');
+            setStep(isCfsMode ? 'details' : 'truck_list');
             setFocusPosition(null); // Reset camera to main view
             setGhostContainer(null); // Clear ghost container
         } else {
             // Invalidate cache when opening to ensure fresh list on next access
-            queryClient.invalidateQueries({ queryKey: ['positionTrucks', 'all'] });
+            if (!isCfsMode) {
+                queryClient.invalidateQueries({ queryKey: ['positionTrucks', 'all'] });
+            }
         }
-    }, [isOpen]);
+    }, [isOpen, isCfsMode]);
 
     const handleSelectTruck = (truck: string) => {
         fetchTruckDetails({ truckNbr: truck });
     };
 
     const handlePlace = () => {
-        if (!selectedTruck || !selectedPosition) return;
-
-        submitPosition({
-            shipment_nbr: selectedTruck.shipmentNbr,
-            container_nbr: selectedTruck.containerNbr,
-            position: selectedPosition
-        });
+        // For CFS mode, use cfsContainer data; otherwise use selectedTruck
+        if (isCfsMode && cfsContainer) {
+            if (!selectedPosition) return;
+            submitPosition({
+                shipment_nbr: cfsContainer.shipmentNbr,
+                container_nbr: cfsContainer.containerNbr,
+                position: selectedPosition
+            });
+        } else {
+            if (!selectedTruck || !selectedPosition) return;
+            submitPosition({
+                shipment_nbr: selectedTruck.shipmentNbr,
+                container_nbr: selectedTruck.containerNbr,
+                position: selectedPosition
+            });
+        }
     };
 
     // Styles (Copied from GateInPanel for consistency)
@@ -215,13 +236,19 @@ export default function PositionContainerPanel({ isOpen, onClose }: PositionCont
         borderBottom: '1px solid rgba(75, 104, 108, 0.1)'
     };
 
-    // Handle Done button - return to truck list
+    // Handle Done button - return to truck list or close panel for CFS mode
     const handleDone = () => {
         setSelectedTruck(null);
         setSelectedPosition('');
         setFocusPosition(null); // Reset camera
-        setStep('truck_list');
-        // No need to refetch - we already updated the cache locally after positioning
+
+        if (isCfsMode) {
+            // CFS mode: close panel to return to CFS Details
+            onClose();
+        } else {
+            // Truck flow: return to truck list
+            setStep('truck_list');
+        }
     };
 
     const renderFooter = () => {
@@ -245,7 +272,8 @@ export default function PositionContainerPanel({ isOpen, onClose }: PositionCont
         // Details Footer: Confirm Button
         // Only enable if position is FULLY complete (Terminal-Block-Lot-Row-Level)
         const isPositionComplete = selectedPosition && selectedPosition.split('-').length === 5;
-        const isEnabled = selectedTruck && isPositionComplete && !isSubmitting;
+        const hasRequiredData = isCfsMode ? !!cfsContainer : !!selectedTruck;
+        const isEnabled = hasRequiredData && isPositionComplete && !isSubmitting;
 
         return (
             <button
@@ -262,7 +290,7 @@ export default function PositionContainerPanel({ isOpen, onClose }: PositionCont
             >
                 {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : (
                     <>
-                        Confirm Position <ArrowRight size={16} />
+                        Submit Position <ArrowRight size={16} />
                     </>
                 )}
             </button>
@@ -384,133 +412,195 @@ export default function PositionContainerPanel({ isOpen, onClose }: PositionCont
     );
 
     // Render details view
-    const renderDetailsView = () => (
-        <>
-            {/* Loading Details or Submitting */}
-            {(isLoadingDetails || isSubmitting) && (
-                <div style={{
-                    height: '100%', display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center', paddingBottom: '40px', boxSizing: 'border-box'
-                }}>
-                    <TruckLoader
-                        message={isSubmitting ? "CONFIRMING POSITION" : "RETRIEVING DETAILS"}
-                        subMessage={isSubmitting ? "Updating container location..." : "Fetching truck information..."}
-                        height="200px"
-                    />
-                </div>
-            )}
+    const renderDetailsView = () => {
+        // Determine container type for position selectors
+        const effectiveContainerType = isCfsMode
+            ? cfsContainer?.containerType || '20GP'
+            : selectedTruck?.containerType || '20GP';
 
-            {/* Content */}
-            {selectedTruck && !isLoadingDetails && !isSubmitting && (
-                <>
-                    {/* Truck Details Card (Premium UI) */}
-                    <div style={cardStyle}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{
-                                    width: '36px', height: '36px', borderRadius: '10px',
-                                    background: 'var(--secondary-gradient)', display: 'flex',
-                                    alignItems: 'center', justifyContent: 'center'
-                                }}>
-                                    <Truck size={20} style={{ color: 'var(--primary-color)' }} />
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--primary-color)' }}>{selectedTruck.truckNbr}</div>
-                                    <div style={{ fontSize: '12px', color: 'var(--text-color)', opacity: 0.7 }}>Truck Details</div>
-                                </div>
-                            </div>
-                            <span style={{
-                                padding: '4px 10px', background: 'rgba(75, 104, 108, 0.1)',
-                                borderRadius: '6px', fontSize: '11px', fontWeight: 600,
-                                color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.3px'
-                            }}>
-                                3PL
-                            </span>
-                        </div>
-
-                        <div style={detailRowStyle}>
-                            <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Driver Name</span>
-                            <span style={{ color: 'var(--text-color)', fontSize: '13px', fontWeight: 600 }}>{selectedTruck.driverNbr || 'N/A'}</span>
-                        </div>
-                        <div style={detailRowStyle}>
-                            <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Driver Iqama</span>
-                            <span style={{ color: 'var(--text-color)', fontSize: '13px', fontWeight: 600 }}>{selectedTruck.driverIqama || 'N/A'}</span>
-                        </div>
-
-                        {/* Additional details */}
-                        <div style={detailRowStyle}>
-                            <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Shipment Type</span>
-                            <span style={{
-                                padding: '2px 8px', background: 'rgba(34, 197, 94, 0.1)',
-                                borderRadius: '4px', fontSize: '12px', fontWeight: 600, color: '#22c55e'
-                            }}>
-                                {selectedTruck.shipmentName}
-                            </span>
-                        </div>
-                        <div style={detailRowStyle}>
-                            <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Shipment No</span>
-                            <span style={{ color: 'var(--text-color)', fontSize: '13px', fontWeight: 600 }}>{selectedTruck.shipmentNbr || 'N/A'}</span>
-                        </div>
-                        <div style={detailRowStyle}>
-                            <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Container</span>
-                            <span style={{ color: 'var(--text-color)', fontSize: '13px', fontWeight: 600 }}>{selectedTruck.containerNbr || 'N/A'}</span>
-                        </div>
-                        <div style={{ ...detailRowStyle, borderBottom: 'none' }}>
-                            <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Container Type</span>
-                            <span style={{
-                                padding: '2px 8px', background: 'rgba(75, 104, 108, 0.1)',
-                                borderRadius: '4px', fontSize: '12px', fontWeight: 600, color: 'var(--primary-color)'
-                            }}>
-                                {selectedTruck.containerType || 'N/A'}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Composed Position Display */}
+        return (
+            <>
+                {/* Loading Details or Submitting (Not applicable for CFS mode) */}
+                {!isCfsMode && (isLoadingDetails || isSubmitting) && (
                     <div style={{
-                        marginBottom: '16px',
-                        padding: '16px',
-                        background: 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.4) 100%)',
-                        borderRadius: '16px',
-                        border: '1px solid rgba(255, 255, 255, 0.6)',
-                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)',
-                        textAlign: 'center',
-                        backdropFilter: 'blur(10px)'
+                        height: '100%', display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center', paddingBottom: '40px', boxSizing: 'border-box'
                     }}>
-                        <div style={{
-                            fontSize: '11px',
-                            textTransform: 'uppercase',
-                            color: 'var(--text-color)',
-                            opacity: 0.6,
-                            fontWeight: 600,
-                            letterSpacing: '1.5px',
-                            marginBottom: '6px'
-                        }}>
-                            Target Position
-                        </div>
-                        <div style={{
-                            fontSize: '24px',
-                            fontWeight: 800,
-                            color: selectedPosition ? 'var(--primary-color)' : 'rgba(0,0,0,0.2)',
-                            fontFamily: 'monospace',
-                            letterSpacing: '2px',
-                            minHeight: '32px'
-                        }}>
-                            {selectedPosition || 'Select Position'}
-                        </div>
+                        <TruckLoader
+                            message={isSubmitting ? "CONFIRMING POSITION" : "RETRIEVING DETAILS"}
+                            subMessage={isSubmitting ? "Updating container location..." : "Fetching truck information..."}
+                            height="200px"
+                        />
                     </div>
+                )}
 
-                    {/* Position Selectors */}
-                    <PositionSelectors
-                        containerType={selectedTruck.containerType}
-                        onPositionChange={setSelectedPosition}
+                {/* CFS Mode - Simplified Direct Position Selection */}
+                {isCfsMode && cfsContainer && !isSubmitting && (
+                    <>
+                        {/* Composed Position Display */}
+                        <div style={{
+                            marginBottom: '16px',
+                            padding: '16px',
+                            background: 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.4) 100%)',
+                            borderRadius: '16px',
+                            border: '1px solid rgba(255, 255, 255, 0.6)',
+                            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)',
+                            textAlign: 'center',
+                            backdropFilter: 'blur(10px)'
+                        }}>
+                            <div style={{
+                                fontSize: '11px',
+                                textTransform: 'uppercase',
+                                color: 'var(--text-color)',
+                                opacity: 0.6,
+                                fontWeight: 600,
+                                letterSpacing: '1.5px',
+                                marginBottom: '6px'
+                            }}>
+                                Target Position
+                            </div>
+                            <div style={{
+                                fontSize: '24px',
+                                fontWeight: 800,
+                                color: selectedPosition ? 'var(--primary-color)' : 'rgba(0,0,0,0.2)',
+                                fontFamily: 'monospace',
+                                letterSpacing: '2px',
+                                minHeight: '32px'
+                            }}>
+                                {selectedPosition || 'Select Position'}
+                            </div>
+                        </div>
+
+                        {/* Position Selectors */}
+                        <PositionSelectors
+                            containerType={effectiveContainerType}
+                            onPositionChange={setSelectedPosition}
+                        />
+                    </>
+                )}
+
+                {/* Truck Flow Mode - Full Details Card */}
+                {!isCfsMode && selectedTruck && !isLoadingDetails && !isSubmitting && (
+                    <>
+                        {/* Truck Details Card (Premium UI) */}
+                        <div style={cardStyle}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div style={{
+                                        width: '36px', height: '36px', borderRadius: '10px',
+                                        background: 'var(--secondary-gradient)', display: 'flex',
+                                        alignItems: 'center', justifyContent: 'center'
+                                    }}>
+                                        <Truck size={20} style={{ color: 'var(--primary-color)' }} />
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--primary-color)' }}>{selectedTruck.truckNbr}</div>
+                                        <div style={{ fontSize: '12px', color: 'var(--text-color)', opacity: 0.7 }}>Truck Details</div>
+                                    </div>
+                                </div>
+                                <span style={{
+                                    padding: '4px 10px', background: 'rgba(75, 104, 108, 0.1)',
+                                    borderRadius: '6px', fontSize: '11px', fontWeight: 600,
+                                    color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.3px'
+                                }}>
+                                    3PL
+                                </span>
+                            </div>
+
+                            <div style={detailRowStyle}>
+                                <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Driver Name</span>
+                                <span style={{ color: 'var(--text-color)', fontSize: '13px', fontWeight: 600 }}>{selectedTruck.driverNbr || 'N/A'}</span>
+                            </div>
+                            <div style={detailRowStyle}>
+                                <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Driver Iqama</span>
+                                <span style={{ color: 'var(--text-color)', fontSize: '13px', fontWeight: 600 }}>{selectedTruck.driverIqama || 'N/A'}</span>
+                            </div>
+
+                            {/* Additional details */}
+                            <div style={detailRowStyle}>
+                                <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Shipment Type</span>
+                                <span style={{
+                                    padding: '2px 8px', background: 'rgba(34, 197, 94, 0.1)',
+                                    borderRadius: '4px', fontSize: '12px', fontWeight: 600, color: '#22c55e'
+                                }}>
+                                    {selectedTruck.shipmentName}
+                                </span>
+                            </div>
+                            <div style={detailRowStyle}>
+                                <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Shipment No</span>
+                                <span style={{ color: 'var(--text-color)', fontSize: '13px', fontWeight: 600 }}>{selectedTruck.shipmentNbr || 'N/A'}</span>
+                            </div>
+                            <div style={detailRowStyle}>
+                                <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Container</span>
+                                <span style={{ color: 'var(--text-color)', fontSize: '13px', fontWeight: 600 }}>{selectedTruck.containerNbr || 'N/A'}</span>
+                            </div>
+                            <div style={{ ...detailRowStyle, borderBottom: 'none' }}>
+                                <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Container Type</span>
+                                <span style={{
+                                    padding: '2px 8px', background: 'rgba(75, 104, 108, 0.1)',
+                                    borderRadius: '4px', fontSize: '12px', fontWeight: 600, color: 'var(--primary-color)'
+                                }}>
+                                    {selectedTruck.containerType || 'N/A'}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Composed Position Display */}
+                        <div style={{
+                            marginBottom: '16px',
+                            padding: '16px',
+                            background: 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.4) 100%)',
+                            borderRadius: '16px',
+                            border: '1px solid rgba(255, 255, 255, 0.6)',
+                            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)',
+                            textAlign: 'center',
+                            backdropFilter: 'blur(10px)'
+                        }}>
+                            <div style={{
+                                fontSize: '11px',
+                                textTransform: 'uppercase',
+                                color: 'var(--text-color)',
+                                opacity: 0.6,
+                                fontWeight: 600,
+                                letterSpacing: '1.5px',
+                                marginBottom: '6px'
+                            }}>
+                                Target Position
+                            </div>
+                            <div style={{
+                                fontSize: '24px',
+                                fontWeight: 800,
+                                color: selectedPosition ? 'var(--primary-color)' : 'rgba(0,0,0,0.2)',
+                                fontFamily: 'monospace',
+                                letterSpacing: '2px',
+                                minHeight: '32px'
+                            }}>
+                                {selectedPosition || 'Select Position'}
+                            </div>
+                        </div>
+
+                        {/* Position Selectors */}
+                        <PositionSelectors
+                            containerType={effectiveContainerType}
+                            onPositionChange={setSelectedPosition}
+                        />
+                    </>
+                )}
+
+                {/* CFS Mode Submitting State */}
+                {isCfsMode && isSubmitting && (
+                    <TruckLoader
+                        message="POSITIONING CONTAINER"
+                        subMessage="Please wait..."
+                        height="280px"
                     />
-                </>
-            )}
-        </>
-    );
+                )}
+            </>
+        );
+    };
 
-    const headerActions = step === 'details' ? (
+    // Hide back button in CFS mode
+    const headerActions = (step === 'details' && !isCfsMode) ? (
         <button
             onClick={() => {
                 setStep('truck_list');
@@ -543,10 +633,15 @@ export default function PositionContainerPanel({ isOpen, onClose }: PositionCont
         </button>
     ) : null;
 
+    // Determine panel title
+    const panelTitle = isCfsMode && cfsContainer
+        ? cfsContainer.containerNbr
+        : (selectedTruck ? selectedTruck.containerNbr : `CONTAINER${allTrucks.length > 0 ? ` (${allTrucks.length})` : ''}`);
+
     return (
         <PanelLayout
-            title={selectedTruck ? selectedTruck.containerNbr : `CONTAINER${allTrucks.length > 0 ? ` (${allTrucks.length})` : ''}`}
-            category="POSITIONING"
+            title={panelTitle}
+            category={isCfsMode ? 'CFS POSITIONING' : 'POSITIONING'}
             isOpen={isOpen}
             onClose={onClose}
             headerActions={headerActions}
@@ -683,59 +778,47 @@ function PositionSelectors({ containerType, onPositionChange }: { containerType:
     // Handle camera focus when position is complete
     useEffect(() => {
         if (isComplete) {
-            // Position is complete - calculate EXACT 3D coordinates using layout engine
-            const positionString = buildPositionString();
+            // Position is complete - build full position string then extract marking key
+            const positionString = buildPositionString(); // "TRS-A-1-D-1"
 
-            // Convert row letter to index (A=0, B=1, etc.)
-            const rowIndex = row.charCodeAt(0) - 'A'.charCodeAt(0);
-            const lotNum = parseInt(lot, 10);
-            const levelNum = parseInt(level, 10);
+            // Extract marking key and level: "TRS-A-1-D-1" -> "TRS-A-1-D" + 1
+            const lastDashIndex = positionString.lastIndexOf('-');
+            const markingKey = positionString.substring(0, lastDashIndex).toUpperCase();
+            const levelNum = parseInt(positionString.substring(lastDashIndex + 1), 10) || 1;
 
-            // Get block definition from layout
-            // Block ID format in layout: "trs_block_a" or "trm_block_a"
-            const layoutState = useStore.getState().layout;
-            const expectedBlockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
-            const blockEntity = layoutState?.entities?.find(e =>
-                e.type?.includes('block') &&
-                e.id.toLowerCase() === expectedBlockId
-            );
+            // Get marking position from store for O(1) lookup
+            const markingPositions = useStore.getState().markingPositions;
+            const markingPos = markingPositions[markingKey];
 
-            if (blockEntity) {
-                try {
-                    // Apply row reversal for Blocks B and D (same as getContainers)
-                    const blockRows = blockEntity.props?.rows || 11;
-                    const shouldReverseRow = block.toUpperCase() === 'B' || block.toUpperCase() === 'D';
-                    const actualRowIndex = shouldReverseRow ? (blockRows - 1 - rowIndex) : rowIndex;
+            if (markingPos) {
+                // Calculate Y position based on level and container type
+                const is20ft = !containerType || containerType.startsWith('2');
+                const containerHeight = is20ft ? 2.591 : 2.896;
+                const levelGap = 0.02;
+                const y = markingPos.y + containerHeight / 2 + (levelNum - 1) * (containerHeight + levelGap);
 
-                    // Calculate EXACT position using the layout engine
-                    // Note: Levels and Lots are 1-based in UI but 0-based in engine
-                    const positionVector = getDynamicContainerPosition(
-                        blockEntity,
-                        lotNum - 1,       // 0-based lot index
-                        actualRowIndex,   // 0-based row index (reversed for B/D)
-                        levelNum - 1      // 0-based level index
-                    );
+                // Derive blockId from markingKey: "TRS-A-1-D" -> terminal=TRS, block=A
+                const keyParts = markingKey.split('-');
+                const terminalPart = keyParts[0] || '';
+                const blockPart = keyParts[1] || '';
+                const blockId = `${terminalPart.toLowerCase()}_block_${blockPart.toLowerCase()}`;
 
-                    setFocusPosition({
-                        positionString,
-                        x: positionVector.x,
-                        y: positionVector.y,
-                        z: positionVector.z
-                    });
+                setFocusPosition({
+                    positionString,
+                    x: markingPos.x,
+                    y,
+                    z: markingPos.z
+                });
 
-                    // Set ghost container for 3D preview
-                    setGhostContainer({
-                        x: positionVector.x,
-                        y: positionVector.y,
-                        z: positionVector.z,
-                        containerType: containerType,
-                        blockId: blockEntity.id
-                    });
-                } catch (e) {
-                    console.error('Error calculating focus position:', e);
-                }
+                setGhostContainer({
+                    x: markingPos.x,
+                    y,
+                    z: markingPos.z,
+                    containerType: containerType,
+                    blockId
+                });
             } else {
-                console.warn('Block entity not found in layout for:', block);
+                console.warn('Marking position not found for:', markingKey);
             }
             wasCompleteRef.current = true;
         } else if (wasCompleteRef.current) {

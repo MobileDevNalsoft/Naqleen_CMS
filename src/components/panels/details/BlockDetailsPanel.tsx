@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Package, Grid3x3 } from 'lucide-react';
+import type { ContainerBlockProps } from '../../../types/IcdSchema';
 import { useStore } from '../../../store/store';
 import { getAllDynamicBlocks } from '../../../utils/layoutUtils';
 
@@ -62,7 +63,7 @@ export default function BlockDetailsPanel() {
             return entity && entity.blockId === selectedBlock;
         });
 
-        const props = block.props || {};
+        const props = (block.props || {}) as ContainerBlockProps;
         const totalCapacity = (props.lots || 1) * (props.rows || 1) * 6; // Assuming 6-high stacks
         const currentCount = containersInBlock.length;
         const occupancyPercent = Math.round((currentCount / totalCapacity) * 100);
@@ -95,7 +96,7 @@ export default function BlockDetailsPanel() {
     if (!blockData) return null;
 
     const { block, containersInBlock, currentCount, totalCapacity, occupancyPercent } = blockData;
-    const props = block.props || {};
+    const props = (block.props || {}) as ContainerBlockProps;
 
     const containerTypeLabel = props.container_type || '40ft';
     const availableSlots = Math.max(totalCapacity - currentCount, 0);

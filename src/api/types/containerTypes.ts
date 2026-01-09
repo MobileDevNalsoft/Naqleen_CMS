@@ -15,6 +15,12 @@ export interface ContainerPosition {
     customerName?: string; // Linked from grouped response
 }
 
+// Tracking event from API
+export interface TrackingEvent {
+    event_type: string;
+    event_date: string;
+}
+
 // Detailed object for UI panel
 export interface ContainerDetailsResponse {
     container_number: string;
@@ -26,6 +32,7 @@ export interface ContainerDetailsResponse {
     container_stored_time: string | null;
     shipment_name: string | null;
     plug_in_status?: string | null;
+    tracking_events?: TrackingEvent[];
 }
 
 export interface RecommendedContainersResponse {
@@ -49,8 +56,20 @@ export interface ContainerType {
 /**
  * Result type for getContainers that includes both positions and lookup map
  */
+export interface CfsContainer {
+    id: string;
+    type: string;
+    status: string;
+    area: string;
+    customerName?: string;
+}
+
+/**
+ * Result type for getContainers that includes both positions and lookup map
+ */
 export interface GetContainersResponse {
     positions: ContainerPosition[];
+    cfsContainers: CfsContainer[];
     customerByContainer: Record<string, string>;
 }
 
@@ -59,14 +78,7 @@ export interface ContainerFromApi {
     container_nbr: string;
     type?: string;
     status?: string;
-    position: {
-        terminal: string;
-        block: string;
-        block_id: string;
-        lot: number;
-        row: number;
-        level: number;
-    };
+    position: string; // "TRS-A-2-D-1" (Terminal-Block-Lot-Row-Level) or "CFS"
 }
 
 // Customer group with nested containers (Option A structure)

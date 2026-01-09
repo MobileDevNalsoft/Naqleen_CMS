@@ -146,3 +146,229 @@ button:focus-visible {
 .modern-input::placeholder {
   color: #94a3b8;
 }
+
+@keyframes slideInVertical {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.shimmer {
+  background: #f6f7f8;
+  background-image: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
+  background-repeat: no-repeat;
+  background-size: 800px 100%;
+  display: inline-block;
+  position: relative;
+  animation-duration: 1s;
+  animation-fill-mode: forwards;
+  animation-iteration-count: infinite;
+  animation-name: shimmer;
+  animation-timing-function: linear;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -468px 0;
+  }
+  100% {
+    background-position: 468px 0;
+  }
+}
+
+/* Dark mode shimmer override for this specific dark panel */
+.dark-shimmer {
+  background: rgba(255, 255, 255, 0.05);
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.1) 20%, rgba(255, 255, 255, 0.05) 40%, rgba(255, 255, 255, 0.05) 100%);
+  background-repeat: no-repeat;
+  background-size: 800px 100%;
+  animation-duration: 1.5s;
+  animation-fill-mode: forwards;
+  animation-iteration-count: infinite;
+  animation-name: shimmer;
+  animation-timing-function: linear;
+}
+
+/* Role Permissions UI */
+.permission-row {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.permission-row:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.toggle-btn {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.toggle-btn:active {
+  transform: scale(0.96);
+}
+
+.toggle-btn.allowed {
+  box-shadow: 0 0 15px rgba(74, 222, 128, 0.2);
+}
+
+.toggle-btn.denied:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Folder Tabs */
+.folder-tabs-container {
+  display: flex;
+  align-items: flex-end;
+  padding-left: 0;
+  margin-bottom: 0;
+  position: relative;
+  z-index: 10;
+}
+
+.folder-tab {
+  position: relative;
+  height: 40px; 
+  /* Padding: Left 20px, Right 60px (20px Text Padding + 40px Tail) */
+  padding: 0 60px 0 20px;
+  margin-right: 0; /* No overlap */
+  
+  background: rgba(255, 255, 255, 0.05); /* Default transparent white */
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  /* Left Side: Straight vertical with rounded top corner (Visual left border) */
+  border-radius: 12px 0 0 0;
+  
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* Left align content effectively */
+  
+  /* COMPOSITE MASK: Body (Rectangle) + Tail (SVG) */
+  /* Tail Width: 40px */
+  -webkit-mask-image: 
+    linear-gradient(to right, black, black), /* Body */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40' preserveAspectRatio='none'%3E%3Cpath d='M0,0 C20,0 20,40 40,40 L0,40 Z' fill='black'/%3E%3C/svg%3E"); /* Tail */
+    
+  mask-image: 
+    linear-gradient(to right, black, black),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40' preserveAspectRatio='none'%3E%3Cpath d='M0,0 C20,0 20,40 40,40 L0,40 Z' fill='black'/%3E%3C/svg%3E");
+
+  -webkit-mask-position: 
+    left top,  /* Body Position */
+    right top; /* Tail Position */
+    
+  mask-position: 
+    left top, 
+    right top;
+
+  -webkit-mask-size: 
+    calc(100% - 39px) 100%, /* Body Width (Total - Tail + Overlap) */
+    40px 100%; /* Tail Width */
+    
+  mask-size: 
+    calc(100% - 39px) 100%, 
+    40px 100%;
+
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+.folder-tab span {
+  display: block;
+  pointer-events: none;
+}
+
+.folder-tab:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  z-index: 5;
+}
+
+.folder-tab.active {
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  font-weight: 600;
+  z-index: 20;
+}
+
+@keyframes tabContentEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* Secondary Tabs (Users, etc.): Symmetric Slant (Trapezoid) */
+.folder-tab:not(:first-child) {
+  /* Remove top-left roundness since we are slanting it */
+  border-radius: 0;
+  
+  /* Add Left Padding to compensate for the slant overlap */
+  padding-left: 60px; /* 20px Text + 40px Head */
+  
+  /* Overlap slightly with the previous tab */
+  margin-left: -10px; 
+  
+  /* COMPOSITE MASK: Head (Left Slant) + Body + Tail (Right Slant) */
+  -webkit-mask-image: 
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40' preserveAspectRatio='none'%3E%3Cpath d='M40,0 C20,0 20,40 0,40 L40,40 Z' fill='black'/%3E%3C/svg%3E"), /* Head */
+    linear-gradient(to right, black, black), /* Body */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40' preserveAspectRatio='none'%3E%3Cpath d='M0,0 C20,0 20,40 40,40 L0,40 Z' fill='black'/%3E%3C/svg%3E"); /* Tail */
+
+  mask-image: 
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40' preserveAspectRatio='none'%3E%3Cpath d='M40,0 C20,0 20,40 0,40 L40,40 Z' fill='black'/%3E%3C/svg%3E"),
+    linear-gradient(to right, black, black),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40' preserveAspectRatio='none'%3E%3Cpath d='M0,0 C20,0 20,40 40,40 L0,40 Z' fill='black'/%3E%3C/svg%3E");
+
+  -webkit-mask-position: 
+    left top,                           /* Head */
+    40px top,                           /* Body (Starts after Head) */
+    right top;                          /* Tail */
+
+  mask-position: 
+    left top, 
+    40px top, 
+    right top;
+
+  -webkit-mask-size: 
+    40px 100%,                          /* Head Width */
+    calc(100% - 80px) 100%,             /* Body Width (Total - Head - Tail) */
+    40px 100%;                          /* Tail Width */
+
+  mask-size: 
+    40px 100%, 
+    calc(100% - 80px) 100%, 
+    40px 100%;
+}
+
+
+

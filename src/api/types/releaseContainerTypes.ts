@@ -59,6 +59,7 @@ export interface ReleaseContainerRequest {
     customerNbr: string;
     customerName: string;
     orderNbr?: string;
+    releaseType?: string;
     containers: ReleaseContainerItem[];
 }
 
