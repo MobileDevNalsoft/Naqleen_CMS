@@ -15,11 +15,11 @@ export default function CityModel() {
     useLayoutEffect(() => {
         // Materials
         const roadMaterial = new THREE.MeshBasicMaterial({
-            color: '#adadad',
+            color: '#5e5e5e',
         });
 
         const buildingMaterial = new THREE.MeshStandardMaterial({
-            color: '#ffffff',
+            color: '#79888f',
             roughness: 1.0,
             metalness: 0.0,
             flatShading: true

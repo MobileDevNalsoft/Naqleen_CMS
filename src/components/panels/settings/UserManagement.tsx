@@ -389,7 +389,7 @@ export default function UserManagement() {
                         Actually, transforming the button directly is cleaner if we wrapper it.
                     */}
 
-                    {!isAddUserExpanded && (
+                    {!isAddUserExpanded && !editingUser && (
                         <button
                             ref={addUserBtnRef}
                             onClick={handleOpenAddUser}

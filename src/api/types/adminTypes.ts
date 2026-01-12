@@ -70,12 +70,6 @@ export interface UpdateUserRequest {
     assigned_roles?: string[];
 }
 
-export interface AssignRoleRequest {
-    userId: number;
-    roleCode: string; // XX_USER_ROLE_ASSIGNMENT uses ROLE_CODE
-    action: 'assign' | 'remove';
-}
-
 export interface ApiResponse<T = any> {
     response_code: number;
     response_message: string;

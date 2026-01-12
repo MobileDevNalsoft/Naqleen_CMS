@@ -5,7 +5,6 @@ import type {
     RoleConfig,
     CreateRoleRequest,
     UpdateRolePermissionRequest,
-    AssignRoleRequest,
     ApiResponse,
     CreateUserRequest,
     UpdateUserRequest
@@ -26,10 +25,6 @@ class AdminService {
 
     async updateUser(payload: UpdateUserRequest): Promise<void> {
         await webApiClient.post(API_CONFIG.ENDPOINTS.USERS_UPDATE, payload);
-    }
-
-    async assignRoleToUser(payload: AssignRoleRequest): Promise<void> {
-        await webApiClient.post(API_CONFIG.ENDPOINTS.ADMIN_ASSIGN_ROLE, payload);
     }
 
     async deleteUser(email: string): Promise<void> {

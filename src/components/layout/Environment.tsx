@@ -163,6 +163,8 @@ export default function Environment() {
                 intensity={1.0}
                 color="#FFFFFF"
             />
+
+
             <mesh
                 ref={terrainRef}
                 rotation={[-Math.PI / 2, 0, 0]}

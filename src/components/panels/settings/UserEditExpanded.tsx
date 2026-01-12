@@ -255,7 +255,8 @@ export default function UserEditExpanded({ user, availableRoles, onSave, onCance
                             {isRoleDropdownOpen && (
                                 <div style={{
                                     position: 'absolute', top: 'calc(100% + 8px)', left: 0, right: 0,
-                                    background: '#1e293b',
+                                    background: 'linear-gradient(135deg, rgba(75, 104, 108, 0.95) 0%, rgba(58, 82, 85, 0.95) 100%)',
+                                    backdropFilter: 'blur(12px)',
                                     border: '1px solid rgba(255,255,255,0.1)',
                                     borderRadius: '12px',
                                     padding: '6px',
@@ -311,7 +312,7 @@ export default function UserEditExpanded({ user, availableRoles, onSave, onCance
                     <div style={{
                         display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px'
                     }}>
-                        {availableRoles.map(role => {
+                        {availableRoles.filter(role => role !== editFormData.primaryRole).map(role => {
                             const isAssigned = editFormData.assignedRoles.includes(role);
                             return (
                                 <div
