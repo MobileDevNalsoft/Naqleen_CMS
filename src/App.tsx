@@ -41,8 +41,12 @@ import ToastContainer from './components/ui/custom-components/Toast';
 import { EffectsWrapper } from './components/effects/EffectsWrapper';
 import ViewNavigationPanel from './components/ui/ViewNavigationPanel';
 
+import { useAuthStore } from './store/authStore';
+
 const App = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const logout = useAuthStore(state => state.logout);
+
   const [selectedIcdId, setSelectedIcdId] = useState('naqleen-jeddah');
   const { data: layout, isLoading: layoutLoading } = useLayoutQuery(selectedIcdId);
   const { isLoading: containersLoading } = useContainersQuery(layout || null);
@@ -69,10 +73,10 @@ const App = () => {
 
       // Clamp target X and Z positions to stay within expanded yard bounds
       // Much larger bounds to allow free navigation across entire ICD
-      const minX = -400;
-      const maxX = 400;
-      const minZ = -80;
-      const maxZ = 80;
+      const minX = -900;
+      const maxX = 900;
+      const minZ = -900;
+      const maxZ = 900;
 
       target.x = Math.max(minX, Math.min(maxX, target.x));
       target.z = Math.max(minZ, Math.min(maxZ, target.z));
@@ -114,7 +118,8 @@ const App = () => {
   }, [selectId, selectedBlock, closePanel]);
 
   if (!isAuthenticated) {
-    return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
+    // Authentication state is handled solely by the store
+    return <LoginScreen />;
   }
 
   return (
@@ -140,7 +145,8 @@ const App = () => {
             selectedIcdId={selectedIcdId}
             onIcdChange={setSelectedIcdId}
             onLogout={() => {
-              setIsAuthenticated(false);
+              closePanel(); // Close Settings or any open panel
+              logout();
               setShowLoadingScreen(true);
               setActiveNav('3D View');
             }}
@@ -191,14 +197,14 @@ const App = () => {
             }}
           >
             <color attach="background" args={['#BCE6FF']} />
-            <fog attach="fog" args={['#BCE6FF', 200, 3000]} /> {/* Seamless horizon blend */}
+            <fog attach="fog" args={['#BCE6FF', 800, 4000]} /> {/* Clean yard, far horizon fog */}
 
             {/* Professional Lighting Rig - High Key, Warm & Bright */}
             <ambientLight intensity={1.0} color="#fffaf0" /> {/* Warm white, full fill */}
             <hemisphereLight
               intensity={0.9}
               color="#b0e0e6" // Powder Blue sky
-              groundColor="#c3ebc3ff" // Light Green ground reflection
+              groundColor="#c3ebc3" // Light Green ground reflection
               position={[0, 50, 0]}
             />
             <directionalLight
@@ -254,7 +260,7 @@ const App = () => {
               enableDamping={false}
               screenSpacePanning={false}
               minDistance={1}
-              maxDistance={600}
+              maxDistance={1000}
               maxPolarAngle={Math.PI / 2 - 0.05}
               rotateSpeed={0.5}
               panSpeed={1}

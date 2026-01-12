@@ -1,218 +1,13 @@
 import { Line } from '@react-three/drei';
-import { useMemo, useEffect, useRef, useLayoutEffect } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useThree, useFrame } from '@react-three/fiber';
 import { useStore } from '../../store/store';
 import { RestingRoom, GeneratorRoom } from './RestingRoom';
 import { TerminalDispatchOffice, TerminalOffice } from './TerminalOffice';
+import CityModel from './surroundings/CityModel';
 
 // --- Shared Geometries ---
-const warehouseBodyGeometry = new THREE.BoxGeometry(15, 8, 25);
-const warehouseDoorGeometry = new THREE.PlaneGeometry(6, 4);
-
-// Industrial Assets
-const lightPoleGeometry = new THREE.CylinderGeometry(0.2, 0.3, 12, 8);
-const lightBaseGeometry = new THREE.BoxGeometry(1, 1, 1);
-const lightArmGeometry = new THREE.BoxGeometry(3, 0.2, 0.2);
-const lightFixtureGeometry = new THREE.BoxGeometry(1, 0.2, 0.5);
-
-const bgContainerGeometry = new THREE.BoxGeometry(6, 2.6, 2.44); // 20ft scale
-
-
-// Warehouse Roof Shape
-const roofShape = new THREE.Shape();
-roofShape.moveTo(-9, 0);
-roofShape.lineTo(9, 0);
-roofShape.lineTo(0, 5);
-roofShape.lineTo(-9, 0);
-const warehouseRoofGeometry = new THREE.ExtrudeGeometry(roofShape, {
-    depth: 25,
-    bevelEnabled: false
-});
-
-// --- Shared Materials ---
-const warehouseRoofMaterial = new THREE.MeshStandardMaterial({ color: "#5D5D5D", roughness: 0.6, metalness: 0.3 }); // Darker industrial roof
-const warehouseDoorMaterial = new THREE.MeshStandardMaterial({ color: "#2D3748", roughness: 0.7 });
-
-const lightPoleMaterial = new THREE.MeshStandardMaterial({ color: "#666666", roughness: 0.5, metalness: 0.7 });
-const lightBaseMaterial = new THREE.MeshStandardMaterial({ color: "#444444", roughness: 0.9 });
-const lightEmissiveMaterial = new THREE.MeshStandardMaterial({ color: "#FFEEAA", emissive: "#FFEEAA", emissiveIntensity: 2 });
-
-const bgContainerMaterials = [
-    new THREE.MeshStandardMaterial({ color: "#8B3A3A", roughness: 0.7 }), // Rust Red
-    new THREE.MeshStandardMaterial({ color: "#2F4F4F", roughness: 0.7 }), // Dark Slate
-    new THREE.MeshStandardMaterial({ color: "#4682B4", roughness: 0.7 }), // Steel Blue
-    new THREE.MeshStandardMaterial({ color: "#A0522D", roughness: 0.8 }), // Sienna
-    new THREE.MeshStandardMaterial({ color: "#555555", roughness: 0.7 }), // Grey
-];
-
-// Pre-create warehouse body materials
-const warehouseColors = ['#6B7280', '#8B95A0', '#9CA3AF', '#B0B7BE', '#7B8794'];
-const warehouseMaterials = warehouseColors.map(color =>
-    new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.15 })
-);
-
-// Light Pole Instance Manager
-const InstancedLightPoles = ({ data }: { data: { position: [number, number, number], rotation: number }[] }) => {
-    const baseRef = useRef<THREE.InstancedMesh>(null);
-    const poleRef = useRef<THREE.InstancedMesh>(null);
-    const armRef = useRef<THREE.InstancedMesh>(null);
-    const fixtureRef = useRef<THREE.InstancedMesh>(null);
-
-    // Update matrices
-    useLayoutEffect(() => {
-        const dummy = new THREE.Object3D();
-
-        [baseRef, poleRef, armRef, fixtureRef].forEach((ref, partIndex) => {
-            if (!ref.current) return;
-
-            data.forEach((item, i) => {
-                const { position, rotation } = item;
-                dummy.position.set(position[0], position[1], position[2]);
-                dummy.rotation.set(0, rotation, 0); // Apply Y rotation
-                dummy.scale.set(1, 1, 1);
-
-                // Local offsets for parts (must be applied AFTER rotation in world space for correct alignment? 
-                // No, standard scene graph logic: Parent (Dummy) transforms Children (Parts).
-                // But here we are instancing. We can't have parent-child.
-                // We must manually offset relative to the rotation.
-
-                // Rotated Offset Calculation
-                // P' = P + Rot * Offset
-                let offsetX = 0, offsetY = 0;
-
-                if (partIndex === 0) offsetY = 0.5; // Base
-                if (partIndex === 1) offsetY = 6;   // Pole
-                if (partIndex === 2) { // Arm
-                    offsetX = 1;
-                    offsetY = 11.5;
-                }
-                if (partIndex === 3) { // Fixture
-                    offsetX = 2;
-                    offsetY = 11.3;
-                }
-
-                // Apply local offset rotated by the pole's rotation
-                const rotationY = rotation;
-
-                dummy.position.set(position[0], position[1], position[2]);
-                dummy.rotation.set(0, rotationY, 0);
-                dummy.translateX(offsetX);
-                dummy.translateY(offsetY);
-                // translateZ is 0
-
-                dummy.updateMatrix();
-                ref.current!.setMatrixAt(i, dummy.matrix);
-            });
-            ref.current.instanceMatrix.needsUpdate = true;
-        });
-
-    }, [data]);
-
-    return (
-        <group>
-            <instancedMesh ref={baseRef} args={[lightBaseGeometry, lightBaseMaterial, data.length]} castShadow />
-            <instancedMesh ref={poleRef} args={[lightPoleGeometry, lightPoleMaterial, data.length]} castShadow />
-            <instancedMesh ref={armRef} args={[lightArmGeometry, lightPoleMaterial, data.length]} castShadow />
-            <instancedMesh ref={fixtureRef} args={[lightFixtureGeometry, lightEmissiveMaterial, data.length]} />
-        </group>
-    );
-};
-
-// Background Container Instance Manager
-const InstancedBgContainers = ({ data }: { data: { position: [number, number, number], rotation: number, colorIndex: number }[] }) => {
-    const meshRef = useRef<THREE.InstancedMesh>(null);
-
-    useLayoutEffect(() => {
-        if (!meshRef.current) return;
-        const dummy = new THREE.Object3D();
-
-        data.forEach((item, i) => {
-            dummy.position.set(item.position[0], item.position[1], item.position[2]);
-            dummy.rotation.set(0, item.rotation, 0);
-            dummy.updateMatrix();
-            meshRef.current!.setMatrixAt(i, dummy.matrix);
-
-            // Set Color
-            const color = bgContainerMaterials[item.colorIndex % bgContainerMaterials.length].color;
-            meshRef.current!.setColorAt(i, color);
-        });
-        meshRef.current.instanceMatrix.needsUpdate = true;
-        meshRef.current.instanceColor!.needsUpdate = true;
-
-    }, [data]);
-
-    return (
-        <instancedMesh ref={meshRef} args={[bgContainerGeometry, undefined, data.length]} castShadow receiveShadow>
-            {/* Use a white material so instanceColor shows through correctly */}
-            <meshStandardMaterial roughness={0.7} />
-        </instancedMesh>
-    );
-};
-
-// Enhanced warehouse with more detail
-const Warehouse = ({ position, rotation = 0, colorIndex = 0 }: { position: [number, number, number]; rotation?: number; colorIndex?: number }) => {
-    return (
-        <group position={position} rotation={[0, rotation, 0]} frustumCulled={false}>
-            {/* Main Building */}
-            <mesh
-                position={[0, 4, 0]}
-                castShadow
-                receiveShadow
-                geometry={warehouseBodyGeometry}
-                material={warehouseMaterials[colorIndex % warehouseMaterials.length]}
-                renderOrder={1}
-            />
-            {/* Roof - Triangular Prism */}
-            <mesh
-                position={[0, 8, -12.5]}
-                castShadow
-                receiveShadow
-                geometry={warehouseRoofGeometry}
-                material={warehouseRoofMaterial}
-                renderOrder={1}
-            />
-            {/* Door - moved further out to prevent z-fighting */}
-            <mesh
-                position={[0, 2, 13]}
-                geometry={warehouseDoorGeometry}
-                material={warehouseDoorMaterial}
-                renderOrder={2}
-            />
-        </group>
-    );
-};
-
-// Helper function to calculate terrain height
-const getTerrainHeight = (x: number, z: number) => {
-    const yardMinX = -380;
-    const yardMaxX = 380;
-    const yardMinZ = -92.5;
-    const yardMaxZ = 92.5;
-    const yardPadding = 50;
-
-    const isInsideYard = x >= yardMinX - yardPadding && x <= yardMaxX + yardPadding &&
-        z >= yardMinZ - yardPadding && z <= yardMaxZ + yardPadding;
-
-    if (isInsideYard) return 0;
-
-    const distFromYardX = x < yardMinX - yardPadding ? (yardMinX - yardPadding) - x :
-        x > yardMaxX + yardPadding ? x - (yardMaxX + yardPadding) : 0;
-    const distFromYardZ = z < yardMinZ - yardPadding ? (yardMinZ - yardPadding) - z :
-        z > yardMaxZ + yardPadding ? z - (yardMaxZ + yardPadding) : 0;
-    const distFromYard = Math.sqrt(distFromYardX * distFromYardX + distFromYardZ * distFromYardZ);
-
-    const blendDistance = 100;
-    const blend = Math.min(1, distFromYard / blendDistance);
-    const smoothBlend = blend * blend * (3 - 2 * blend);
-
-    const h1 = Math.sin(x * 0.005) * Math.cos(z * 0.005) * 20;
-    const h2 = Math.sin(x * 0.01 + 1.5) * Math.cos(z * 0.01 + 2.3) * 8;
-    const h3 = Math.sin(x * 0.03) * Math.sin(z * 0.03) * 2;
-
-    let height = (h1 + h2 + h3) * smoothBlend;
-    return Math.max(-5, height);
-};
 
 export default function Environment() {
     useThree();
@@ -319,12 +114,12 @@ export default function Environment() {
 
     useFrame(({ camera, scene }) => {
         if (!scene.fog) {
-            scene.fog = new THREE.Fog('#D0CFCB', 250, 700);
+            scene.fog = new THREE.Fog('#D0CFCB', 800, 4000);
         }
         const fog = scene.fog as THREE.Fog;
         const altitude = Math.max(0, camera.position.y);
-        const baseStart = 250;
-        const baseEnd = 750;
+        const baseStart = 800;
+        const baseEnd = 4000;
         fog.near = baseStart + (altitude * 1.5);
         fog.far = baseEnd + (altitude * 2.5);
     });
@@ -335,177 +130,13 @@ export default function Environment() {
             const positions = geometry.attributes.position;
             const count = positions.count;
             for (let i = 0; i < count; i++) {
-                const x = positions.getX(i);
-                const y = positions.getY(i);
-                const height = getTerrainHeight(x, -y);
-                positions.setZ(i, height);
+                positions.setZ(i, 0); // Flat architectural ground
             }
             positions.needsUpdate = true;
             geometry.computeVertexNormals();
         }
     }, []);
 
-    const { lightData, bgContainers, warehouses } = useMemo(() => {
-        const lights: { position: [number, number, number], rotation: number }[] = [];
-        const bgs: { position: [number, number, number], rotation: number, colorIndex: number }[] = [];
-        const whs: { position: [number, number, number], rotation: number, colorIndex: number }[] = [];
-
-        // Fencing Logic Adaptation for Lights
-        // We place lights INSIDE the fence line by a small offset
-        const LIGHT_SPACING = 45; // Meters between lights
-        const LIGHT_OFFSET = 2; // Meters inside the fence
-
-        const paddedPoints = yardBounds.paddedCornerPoints;
-
-        const addLightsAlongEdge = (p1: { x: number, z: number }, p2: { x: number, z: number }) => {
-            const dx = p2.x - p1.x;
-            const dz = p2.z - p1.z;
-            const len = Math.sqrt(dx * dx + dz * dz);
-            const count = Math.ceil(len / LIGHT_SPACING);
-
-            // Inward Normal Calculation
-            // Assuming polygon winding is such that 'average normal' in fence calculation pointed OUTWARD.
-            // Or we can just use the center of the yard relative to edge.
-            // Simplest: Calculate edge angle, then +/- 90 degrees.
-            // The yard center is roughly (0,0).
-            const midX = (p1.x + p2.x) / 2;
-            const midZ = (p1.z + p2.z) / 2;
-            const centerDx = 0 - midX;
-            const centerDz = 0 - midZ;
-
-            // Edge direction angle
-            const edgeAngle = Math.atan2(dz, dx);
-
-            // Normal angles candidates: edgeAngle + PI/2, edgeAngle - PI/2
-            const n1 = edgeAngle + Math.PI / 2;
-            const n2 = edgeAngle - Math.PI / 2;
-
-            // Check which normal points closer to center
-            const v1x = Math.cos(n1);
-            const v1z = Math.sin(n1);
-            const dot1 = v1x * centerDx + v1z * centerDz;
-
-            const inwardAngle = dot1 > 0 ? n1 : n2;
-
-            // Offset positions slightly inward
-            const inwardX = Math.cos(inwardAngle) * LIGHT_OFFSET;
-            const inwardZ = Math.sin(inwardAngle) * LIGHT_OFFSET;
-
-            for (let i = 0; i < count; i++) {
-                // Skip corners to avoid overlap/clipping?
-                if (i === 0 && len > LIGHT_SPACING) continue;
-
-                const t = i / count;
-                const lx = p1.x + dx * t + inwardX;
-                const lz = p1.z + dz * t + inwardZ;
-
-                // GAP LOGIC (West Fence primarily)
-                // Entry/Exit gaps are roughly at Z: [-43, -27] and [-13, 3] on the West side
-                // We check if this point falls into any gap.
-                // Since this function is generic, we should strictly check if this edge is the West edge 
-                // OR just check global coordinates if the layout is standard.
-                // Checks for standard layout West Edge (x is minX approx -380)
-                if (Math.abs(lx - yardBounds.paddedMinX) < 5 || Math.abs(lx - -380) < 30) {
-                    if ((lz > -43 && lz < -27) || (lz > -13 && lz < 3)) {
-                        continue;
-                    }
-                }
-
-
-                const terrainY = getTerrainHeight(lx, lz);
-                const ly = terrainY - 1;
-
-                lights.push({
-                    position: [lx, ly, lz],
-                    rotation: inwardAngle + Math.PI // Flip 180 degrees to face opposite
-                });
-            }
-        };
-
-        if (paddedPoints && paddedPoints.length > 2) {
-            // Polygon Mode
-            for (let i = 0; i < paddedPoints.length; i++) {
-                const p1 = paddedPoints[i];
-                const p2 = paddedPoints[(i + 1) % paddedPoints.length];
-                addLightsAlongEdge(p1, p2);
-            }
-        } else {
-            // Rectangle Mode (Default)
-            // Define 4 corners of the padded yard
-            const minX = yardBounds.paddedMinX;
-            const maxX = yardBounds.paddedMaxX;
-            const minZ = yardBounds.paddedMinZ;
-            const maxZ = yardBounds.paddedMaxZ;
-
-            // Top Edge (MinZ) - Points East
-            addLightsAlongEdge({ x: minX, z: minZ }, { x: maxX, z: minZ }); // North
-            // Right Edge (MaxX) - Points South
-            addLightsAlongEdge({ x: maxX, z: minZ }, { x: maxX, z: maxZ }); // East
-            // Bottom Edge (MaxZ) - Points West
-            addLightsAlongEdge({ x: maxX, z: maxZ }, { x: minX, z: maxZ }); // South
-            // Left Edge (MinX) - Points North
-            addLightsAlongEdge({ x: minX, z: maxZ }, { x: minX, z: minZ }); // West
-        }
-
-        // Simple Seeded RNG for static placement
-        const seed = 123456;
-        let s = seed;
-        const random = () => {
-            s = (s * 9301 + 49297) % 233280;
-            return s / 233280;
-        };
-
-        const yardMinX = yardBounds.minX;
-        const yardMaxX = yardBounds.maxX;
-        const yardMinZ = yardBounds.minZ;
-        const yardMaxZ = yardBounds.maxZ;
-
-        // FIXED: Increased padding to prevents objects from clipping into the yard
-        // Warehouses are large (~40m), so we need at least 60-80m buffer
-        const yardPadding = 80;
-
-        const isInsideYard = (x: number, z: number) => {
-            return x >= yardMinX - yardPadding && x <= yardMaxX + yardPadding &&
-                z >= yardMinZ - yardPadding && z <= yardMaxZ + yardPadding;
-        };
-
-        // ... (Keep existing bgContainer and Warehouse logic) ...
-        for (let i = 0; i < 60; i++) {
-            const angle = random() * Math.PI * 2;
-            // FIXED: Start radius further out (420m) to clear the yard width (380m)
-            const radius = 420 + random() * 250;
-            const x = Math.cos(angle) * radius;
-            const z = Math.sin(angle) * radius;
-            if (isInsideYard(x, z)) continue;
-
-            const seedVal = x * z; // Use position as seed for height/stacks
-            const height = (Math.floor(Math.abs(Math.sin(seedVal) * 3)) % 3) + 1;
-
-            for (let h = 0; h < height; h++) {
-                const y = (getTerrainHeight(x, z) - 1) + 1.3 + (h * 2.6);
-                const rotation = random() * Math.PI;
-                const colorIndex = Math.floor(Math.abs(Math.sin(seedVal + h)) * bgContainerMaterials.length);
-                bgs.push({ position: [x, y, z], rotation, colorIndex });
-            }
-        }
-
-        // Static Warehouse Placement
-        for (let i = 0; i < 15; i++) {
-            const angle = random() * Math.PI * 2;
-            const radius = 450 + random() * 150; // Warehouses further out
-            const x = Math.cos(angle) * radius;
-            const z = Math.sin(angle) * radius;
-            if (isInsideYard(x, z)) continue;
-
-            const y = getTerrainHeight(x, z) - 1;
-            whs.push({
-                position: [x, y, z],
-                rotation: random() * Math.PI,
-                colorIndex: Math.floor(random() * warehouseColors.length),
-            });
-        }
-        return { lightData: lights, bgContainers: bgs, warehouses: whs };
-    }, [yardBounds]);
 
     return (
         <group>
@@ -514,11 +145,11 @@ export default function Environment() {
 
             {/* Note: Environment lights are still active here, adding to App.tsx lights. 
                 Consider consolidating in future cleanup. */}
-            <ambientLight intensity={1.5} color="#FFFFFF" />
+            <ambientLight intensity={0.8} color="#FFFFFF" />
             <directionalLight
                 position={[120, 120, 60]}
-                intensity={3}
-                color="#FFFACD"
+                intensity={3.5}
+                color="#FFFFFF"
                 castShadow
                 shadow-mapSize={[2048, 2048]}
                 shadow-camera-left={-500}
@@ -529,8 +160,8 @@ export default function Environment() {
             />
             <directionalLight
                 position={[-60, 60, -60]}
-                intensity={0.8}
-                color="#C8E6FF"
+                intensity={1.0}
+                color="#FFFFFF"
             />
             <mesh
                 ref={terrainRef}
@@ -540,18 +171,14 @@ export default function Environment() {
             >
                 <planeGeometry args={[10000, 10000, 128, 128]} />
                 <meshStandardMaterial
-                    color="#4a4a48" // Darkened from #706E6B
-                    roughness={0.95}
+                    color="#8c7b6c" // Darker gravel/earth tone to be clearly visible
+                    roughness={0.9}
                     metalness={0.1}
                 />
             </mesh>
 
-            <InstancedLightPoles data={lightData} />
-            <InstancedBgContainers data={bgContainers} />
-
-            {warehouses.map((item, idx) => (
-                <Warehouse key={idx} position={item.position} rotation={item.rotation} colorIndex={item.colorIndex} />
-            ))}
+            {/* Surroundings Overhaul - City Model */}
+            <CityModel />
 
             {/* Specialty Buildings (Dynamic) */}
             {layout?.entities.map((entity) => {
@@ -594,8 +221,8 @@ export default function Environment() {
                     <planeGeometry args={[yardBounds.paddedWidth, yardBounds.paddedHeight]} />
                 )}
                 <meshStandardMaterial
-                    color="#1e2730" // Darkened from #3A4A5A to Deep Slate for contrast
-                    roughness={0.85}
+                    color="#1e2730" // Reverted to Deep Slate for contrast
+                    roughness={0.8}
                     metalness={0.05}
                 />
             </mesh>
@@ -628,6 +255,6 @@ export default function Environment() {
                     </>
                 )}
             </group>
-        </group>
+        </group >
     );
 }

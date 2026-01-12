@@ -6,10 +6,11 @@ export interface LoginCredentials {
 }
 
 export interface User {
-    id: string;
+    user_id: string | number;
     email: string;
     name: string;
-    role: 'admin' | 'user' | 'viewer';
+    role: string;
+    roles: string[]; // List of all assigned roles
     avatar?: string;
 }
 

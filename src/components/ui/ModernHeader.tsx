@@ -3,6 +3,7 @@ import { ChevronDown, MapPin, Bell, User, Settings, LogOut, X, Package, Search, 
 import { useIcdsQuery } from '../../api';
 import { useStore } from '../../store/store';
 import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../store/authStore';
 
 interface ModernHeaderProps {
     activeNav: string;
@@ -15,6 +16,7 @@ interface ModernHeaderProps {
 }
 
 export default function ModernHeader({ activeNav, onNavChange, isSearchVisible = true, isUIVisible = true, selectedIcdId, onIcdChange, onLogout }: ModernHeaderProps) {
+    const user = useAuthStore(state => state.user);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     // Removed local selectedIcdId state in favor of parent state
     const [notificationCount] = useState(3); // Mock notification count
@@ -42,6 +44,8 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
     const ids = useStore((state) => state.ids);
     const setSelectId = useStore((state) => state.setSelectId);
     const setSelectedCustomer = useStore((state) => state.setSelectedCustomer);
+    const selectId = useStore((state) => state.selectId);
+    const selectedCustomer = useStore((state) => state.selectedCustomer);
     const setSearchFocused = useUIStore((state) => state.setSearchFocused);
 
     // Search Mode State
@@ -94,6 +98,11 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
 
             // Close search if clicking outside
             if (searchContainerRef.current && !searchContainerRef.current.contains(target)) {
+                // If in Customer mode and a customer is selected, don't close on outside clicks
+                // This allows interaction with the 3D scene while keeping the filter active
+                if (searchMode === 'Customer' && selectedCustomer) {
+                    return;
+                }
                 handleSearchClose();
             }
         };
@@ -107,7 +116,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [isDropdownOpen, isProfileMenuOpen, isNotificationPanelOpen, isSearchOpen]);
+    }, [isDropdownOpen, isProfileMenuOpen, isNotificationPanelOpen, isSearchOpen, searchMode, selectedCustomer]);
 
     // Auto-focus search input when opened
     useEffect(() => {
@@ -205,9 +214,13 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
 
         if (searchMode === 'Customer') {
             setSelectedCustomer(result);
-            // Don't close immediately, let user see the highlighting? 
-            // Or close to show the view. Closing is standard.
-            handleSearchClose();
+
+            // Updates for better UX:
+            setSearchQuery(result); // Populate bar with name
+            setSearchResults([]);   // Close the dropdown list manually
+
+            // Don't close the search bar itself to allow deselection/clearing
+            // handleSearchClose();
         } else {
             // Container or Position mode -> result is a Container ID
             setSelectId(result);
@@ -280,7 +293,10 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 width: 'calc(100% - 30px)', // Full width minus margins
                 height: '64px',
                 borderRadius: '50px',
-                background: 'var(--glass-bg)',
+                // Darker premium background when settings open to match sidebar
+                background: isSettings
+                    ? 'linear-gradient(135deg, rgba(56, 78, 81, 0.95) 0%, rgba(35, 54, 66, 0.95) 100%)'
+                    : 'var(--glass-bg)',
                 backdropFilter: 'blur(20px)',
                 border: '1px solid var(--glass-border)',
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
@@ -300,7 +316,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 display: 'flex',
                 alignItems: 'center',
                 // Fade out individual glass properties when merged (Unified layer takes over)
-                background: isSettings ? 'transparent' : 'var(--glass-bg)',
+                background: isSettings ? 'transparent' : 'rgba(55, 75, 78, 0.8)',
                 backdropFilter: isSettings ? 'none' : 'blur(20px)',
                 padding: '0 20px',
                 height: '64px',
@@ -497,7 +513,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     justifyContent: 'center',
                     gap: '4px',
                     // Fade out background/border using opacity or color
-                    background: isSettings ? 'transparent' : 'var(--glass-bg)',
+                    background: isSettings ? 'transparent' : 'rgba(55, 75, 78, 0.8)',
                     backdropFilter: isSettings ? 'none' : 'blur(20px)',
                     padding: '6px',
                     borderRadius: '50px',
@@ -587,7 +603,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 justifyContent: 'flex-end', // Ensure items stay right
                 gap: '12px',
                 // Fade out individual glass properties when merged
-                background: isSettings ? 'transparent' : 'var(--glass-bg)',
+                background: isSettings ? 'transparent' : 'rgba(55, 75, 78, 0.8)',
                 backdropFilter: isSettings ? 'none' : 'blur(20px)',
                 padding: '0 16px', // Remove vertical padding
                 height: '64px', // Fixed height
@@ -663,9 +679,11 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                 borderRadius: '50px',
                                 padding: '6px 12px',
                                 width: '320px', // Wider to accommodate selector
+                                height: '40px', // Match button height exactly
+                                boxSizing: 'border-box', // Include padding/border in height
                                 animation: isSearchClosing
                                     ? 'collapseSearch 0.25s cubic-bezier(0.4, 0, 1, 1) forwards'
-                                    : 'expandSearch 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                    : 'expandSearch 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
                                 boxShadow: '0 8px 24px rgba(247, 207, 155, 0.2)',
                             }}>
                                 {/* Search Icon (Prefix) */}
@@ -771,11 +789,13 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                     {/* Clear Button */}
                                     {searchQuery && (
                                         <div
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                                e.stopPropagation(); // Prevent causing any close logic
                                                 setSearchQuery('');
                                                 setSearchResults([]);
                                                 setSelectId(null);
                                                 setSelectedCustomer(null);
+                                                searchInputRef.current?.focus(); // Keep focus for typing
                                             }}
                                             style={{
                                                 display: 'flex',
@@ -901,81 +921,43 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
 
 
                                 {/* Search Results Dropdown */}
-                                {(searchResults.length > 0 || (searchQuery.length > (searchMode === 'Customer' ? 1 : 2))) && (
-                                    <div style={{
-                                        position: 'absolute',
-                                        top: 'calc(100% + 15px)',
-                                        left: 0,
-                                        right: 0,
-                                        maxHeight: '400px',
-                                        overflowY: 'auto',
-                                        background: 'rgba(75, 104, 108, 0.98)',
-                                        backdropFilter: 'blur(20px)',
-                                        border: '1px solid rgba(247, 207, 155, 0.3)',
-                                        borderRadius: '16px',
-                                        boxShadow: '0 8px 32px rgba(247, 207, 155, 0.15)',
-                                        animation: 'fadeIn 0.2s ease-out',
-                                        zIndex: 1000,
-                                    }}>
-                                        {searchResults.length === 0 ? (
-                                            <div style={{
-                                                padding: '24px',
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                color: 'rgba(255, 255, 255, 0.5)',
-                                                gap: '8px'
-                                            }}>
-                                                <AlertCircle size={24} />
-                                                <span style={{ fontSize: '13px' }}>No matches found</span>
-                                            </div>
-                                        ) : (
-                                            searchMode === 'Customer' ? (
-                                                // Customer Mode Results
-                                                searchResults.map((customerName) => (
-                                                    <div
-                                                        key={customerName}
-                                                        onClick={() => handleResultClick(customerName)}
-                                                        style={{
-                                                            padding: '12px 16px',
-                                                            cursor: 'pointer',
-                                                            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                                                            transition: 'all 0.2s',
-                                                        }}
-                                                        onMouseEnter={e => {
-                                                            e.currentTarget.style.background = 'rgba(247, 207, 155, 0.1)';
-                                                        }}
-                                                        onMouseLeave={e => {
-                                                            e.currentTarget.style.background = 'transparent';
-                                                        }}
-                                                    >
-                                                        <div style={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '12px',
-                                                        }}>
-                                                            <User size={16} color="var(--secondary-color)" />
-                                                            <div style={{
-                                                                fontSize: '14px',
-                                                                fontWeight: 600,
-                                                                color: 'white',
-                                                            }}>
-                                                                {customerName}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))
+                                {(searchResults.length > 0 || (searchQuery.length > (searchMode === 'Customer' ? 1 : 2))) &&
+                                    (!selectedCustomer && !selectId) && ( // Don't show dropdown if we have an active selection
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: 'calc(100% + 15px)',
+                                            left: 0,
+                                            right: 0,
+                                            maxHeight: '400px',
+                                            overflowY: 'auto',
+                                            background: 'rgba(75, 104, 108, 0.98)',
+                                            backdropFilter: 'blur(20px)',
+                                            border: '1px solid rgba(247, 207, 155, 0.3)',
+                                            borderRadius: '16px',
+                                            boxShadow: '0 8px 32px rgba(247, 207, 155, 0.15)',
+                                            animation: 'fadeIn 0.2s ease-out',
+                                            zIndex: 1000,
+                                        }}>
+                                            {searchResults.length === 0 ? (
+                                                <div style={{
+                                                    padding: '24px',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    color: 'rgba(255, 255, 255, 0.5)',
+                                                    gap: '8px'
+                                                }}>
+                                                    <AlertCircle size={24} />
+                                                    <span style={{ fontSize: '13px' }}>No matches found</span>
+                                                </div>
                                             ) : (
-                                                // Container / Position Mode Results
-                                                searchResults.map((id) => {
-                                                    const entity = entities[id];
-                                                    const rowLabel = entity ? rowIndexToLetter(entity.row, entity.blockId) : '?';
-
-                                                    return (
+                                                searchMode === 'Customer' ? (
+                                                    // Customer Mode Results
+                                                    searchResults.map((customerName) => (
                                                         <div
-                                                            key={id}
-                                                            onClick={() => handleResultClick(id)}
+                                                            key={customerName}
+                                                            onClick={() => handleResultClick(customerName)}
                                                             style={{
                                                                 padding: '12px 16px',
                                                                 cursor: 'pointer',
@@ -994,40 +976,79 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                                                 alignItems: 'center',
                                                                 gap: '12px',
                                                             }}>
-                                                                <Package size={16} color="var(--secondary-color)" />
-                                                                <div style={{ flex: 1 }}>
-                                                                    {/* Container Number & Customer Name */}
-                                                                    <div style={{
-                                                                        fontSize: '14px',
-                                                                        fontWeight: 600,
-                                                                        color: 'white',
-                                                                        marginBottom: '2px',
-                                                                        display: 'flex',
-                                                                        justifyContent: 'space-between'
-                                                                    }}>
-                                                                        <span>{id}</span>
-                                                                        {entity?.customerName && (
-                                                                            <span style={{ fontSize: '11px', color: 'var(--secondary-color)', fontWeight: 400 }}>
-                                                                                {entity.customerName}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                    {/* Detailed Position Info */}
-                                                                    <div style={{
-                                                                        fontSize: '13px',
-                                                                        color: 'rgba(255, 255, 255, 0.6)',
-                                                                        marginTop: '2px'
-                                                                    }}>
-                                                                        {entity.terminal}-{entity.block}-{entity.lot}-{rowLabel}-{entity.level}
-                                                                    </div>
+                                                                <User size={16} color="var(--secondary-color)" />
+                                                                <div style={{
+                                                                    fontSize: '14px',
+                                                                    fontWeight: 600,
+                                                                    color: 'white',
+                                                                }}>
+                                                                    {customerName}
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    );
-                                                }))
-                                        )}
-                                    </div>
-                                )}
+                                                    ))
+                                                ) : (
+                                                    // Container / Position Mode Results
+                                                    searchResults.map((id) => {
+                                                        const entity = entities[id];
+                                                        const rowLabel = entity ? rowIndexToLetter(entity.row, entity.blockId) : '?';
+
+                                                        return (
+                                                            <div
+                                                                key={id}
+                                                                onClick={() => handleResultClick(id)}
+                                                                style={{
+                                                                    padding: '12px 16px',
+                                                                    cursor: 'pointer',
+                                                                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                                                                    transition: 'all 0.2s',
+                                                                }}
+                                                                onMouseEnter={e => {
+                                                                    e.currentTarget.style.background = 'rgba(247, 207, 155, 0.1)';
+                                                                }}
+                                                                onMouseLeave={e => {
+                                                                    e.currentTarget.style.background = 'transparent';
+                                                                }}
+                                                            >
+                                                                <div style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '12px',
+                                                                }}>
+                                                                    <Package size={16} color="var(--secondary-color)" />
+                                                                    <div style={{ flex: 1 }}>
+                                                                        {/* Container Number & Customer Name */}
+                                                                        <div style={{
+                                                                            fontSize: '14px',
+                                                                            fontWeight: 600,
+                                                                            color: 'white',
+                                                                            marginBottom: '2px',
+                                                                            display: 'flex',
+                                                                            justifyContent: 'space-between'
+                                                                        }}>
+                                                                            <span>{id}</span>
+                                                                            {entity?.customerName && (
+                                                                                <span style={{ fontSize: '11px', color: 'var(--secondary-color)', fontWeight: 400 }}>
+                                                                                    {entity.customerName}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        {/* Detailed Position Info */}
+                                                                        <div style={{
+                                                                            fontSize: '13px',
+                                                                            color: 'rgba(255, 255, 255, 0.6)',
+                                                                            marginTop: '2px'
+                                                                        }}>
+                                                                            {entity.terminal}-{entity.block}-{entity.lot}-{rowLabel}-{entity.level}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }))
+                                            )}
+                                        </div>
+                                    )}
                             </div>
                         )}
                     </div>
@@ -1148,7 +1169,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                             e.currentTarget.style.boxShadow = '0 4px 12px rgba(247, 207, 155, 0.3)';
                         }}
                     >
-                        A
+                        {user?.name?.charAt(0).toUpperCase() || 'U'}
                     </div>
 
                     {/* Close Button - Animate In */}
@@ -1234,13 +1255,13 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                         color: 'white',
                                         marginBottom: '2px',
                                     }}>
-                                        Admin User
+                                        {user?.name || 'User'}
                                     </div>
                                     <div style={{
                                         fontSize: '12px',
                                         color: 'rgba(255, 255, 255, 0.6)',
                                     }}>
-                                        admin@nalsoft.net
+                                        {user?.email || ''}
                                     </div>
                                 </div>
                             </div>
@@ -1345,7 +1366,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 @keyframes slideFromEye {
                     from {
                         opacity: 0;
-                        transform: translateX(-40px) scale(0.9);
+                        transform: translateX(-40px) scale(0.8);
                     }
                     to {
                         opacity: 1;
@@ -1369,13 +1390,13 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     }
                     to {
                         opacity: 1;
-                        width: 300px;
+                        width: 320px;
                     }
                 }
                 @keyframes collapseSearch {
                     from {
                         opacity: 1;
-                        width: 300px;
+                        width: 320px;
                         transform: scale(1);
                     }
                     to {

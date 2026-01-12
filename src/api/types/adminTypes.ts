@@ -1,6 +1,6 @@
 export interface AdminUser {
     USER_ID: number;
-    USERNAME: string;
+    NAME: string;
     EMAIL: string;
     // Roles will be fetched separately or joined, but for now let's keep it simple
     ROLES?: string[];
@@ -56,16 +56,29 @@ export interface UpdateRolePermissionRequest {
     isActive: boolean; // true to add/enable, false to remove/disable
 }
 
+export interface CreateUserRequest {
+    name: string;
+    email: string;
+    role: string;
+}
+
+export interface UpdateUserRequest {
+    email: string;
+    new_name?: string;
+    is_active?: boolean;
+    primary_role?: string;
+    assigned_roles?: string[];
+}
+
 export interface AssignRoleRequest {
     userId: number;
     roleCode: string; // XX_USER_ROLE_ASSIGNMENT uses ROLE_CODE
     action: 'assign' | 'remove';
 }
 
-export interface ApiResponse<T> {
+export interface ApiResponse<T = any> {
     response_code: number;
     response_message: string;
-    // Dynamic keys depending on the procedure, usually 'data' or specific key like 'users', 'roles'.
-    // We will handle specific keys in the service.
-    [key: string]: any;
+    // Dynamic keys depending on the procedure
+    [key: string]: T | any;
 }

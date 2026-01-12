@@ -6,7 +6,9 @@ import type {
     CreateRoleRequest,
     UpdateRolePermissionRequest,
     AssignRoleRequest,
-    ApiResponse
+    ApiResponse,
+    CreateUserRequest,
+    UpdateUserRequest
 } from '../types/adminTypes';
 
 class AdminService {
@@ -18,8 +20,23 @@ class AdminService {
         return response.data.users || [];
     }
 
-    async assignRoleToUser(request: AssignRoleRequest): Promise<void> {
-        await webApiClient.post(API_CONFIG.ENDPOINTS.ADMIN_ASSIGN_ROLE, request);
+    async createUser(payload: CreateUserRequest): Promise<void> {
+        await webApiClient.post(API_CONFIG.ENDPOINTS.USERS_CREATE, payload);
+    }
+
+    async updateUser(payload: UpdateUserRequest): Promise<void> {
+        await webApiClient.post(API_CONFIG.ENDPOINTS.USERS_UPDATE, payload);
+    }
+
+    async assignRoleToUser(payload: AssignRoleRequest): Promise<void> {
+        await webApiClient.post(API_CONFIG.ENDPOINTS.ADMIN_ASSIGN_ROLE, payload);
+    }
+
+    async deleteUser(email: string): Promise<void> {
+        // Using DELETE on user/update endpoint with query param as configured in ORDS handler (:email)
+        await webApiClient.delete(API_CONFIG.ENDPOINTS.USERS_UPDATE, {
+            params: { email }
+        });
     }
 
     // --- Roles & Permissions ---

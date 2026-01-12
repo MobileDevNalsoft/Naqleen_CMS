@@ -115,8 +115,8 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
             // Fallback
             set({
                 users: [
-                    { USER_ID: 1, USERNAME: 'admin', EMAIL: 'admin@nalsoft.net', ROLES: ['ADMIN'], IS_ACTIVE: 'Y' },
-                    { USER_ID: 2, USERNAME: 'gateop', EMAIL: 'gate@nalsoft.net', ROLES: ['GATE_OPERATOR'], IS_ACTIVE: 'Y' }
+                    { USER_ID: 1, NAME: 'admin', EMAIL: 'admin@nalsoft.net', ROLES: ['ADMIN'], IS_ACTIVE: 'Y' },
+                    { USER_ID: 2, NAME: 'gateop', EMAIL: 'gate@nalsoft.net', ROLES: ['GATE_OPERATOR'], IS_ACTIVE: 'Y' }
                 ],
                 availableRoles: ['ADMIN', 'GATE_OPERATOR'],
                 usersLastFetched: Date.now()

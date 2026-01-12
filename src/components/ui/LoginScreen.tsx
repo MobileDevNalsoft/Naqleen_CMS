@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
-import { loginUser } from '../../api/handlers/authApi';
+
+import { useAuthStore } from '../../store/authStore';
 import ToastContainer, { showToast } from './custom-components/Toast';
 
-interface LoginScreenProps {
-    onLoginSuccess: () => void;
-}
+
 
 // Truck with High Cab and Grounded Wheel - Wheel moved backward
 const TruckCab = ({ headlightsOn, errorMode, isLoading }: { headlightsOn: boolean; errorMode: boolean; isLoading: boolean }) => {
@@ -195,12 +194,16 @@ const TruckCab = ({ headlightsOn, errorMode, isLoading }: { headlightsOn: boolea
     );
 };
 
-export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
+export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    // State for visual error feedback (red blink)
+
+    // Access store
+    const login = useAuthStore(state => state.login);
+    const isLoading = useAuthStore(state => state.isLoading);
+
+    // Local state for visual error feedback (red blink)
     const [errorMode, setErrorMode] = useState(false);
 
     const triggerErrorFeedback = () => {
@@ -218,22 +221,15 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
             return;
         }
 
-        setIsLoading(true);
+        const success = await login({ email, password });
 
-        try {
-            const response = await loginUser({ email, password });
-            if (response.success) {
-                showToast('success', 'Welcome back! Logging you in...', 2000);
-                onLoginSuccess();
-            } else {
-                showToast('error', response.message || 'Login failed');
-                triggerErrorFeedback();
-            }
-        } catch {
-            showToast('error', 'An error occurred. Please try again.');
+        if (success) {
+            showToast('success', 'Welcome back! Logging you in...', 2000);
+
+        } else {
+            const errorMsg = useAuthStore.getState().error; // Get error from store
+            showToast('error', errorMsg || 'Login failed');
             triggerErrorFeedback();
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -377,17 +373,19 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                         <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)' }}>Please enter your details to sign in.</p>
                     </div>
 
-                    <form onSubmit={handleSubmit}>
+                    <form onSubmit={handleSubmit} autoComplete="off">
                         <div style={{ marginBottom: '20px' }}>
                             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#ffffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email Address</label>
                             <div style={{ position: 'relative' }}>
                                 <Mail size={18} color="#F7CF9B" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', zIndex: 1 }} />
                                 <input
                                     type="email"
+                                    name="email_off" // Random name to confuse simple autofillers
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     // Using a class for autofill overrides (defined below)
                                     className="glass-input"
+                                    autoComplete="off"
                                     style={{
                                         width: '100%',
                                         padding: '16px 16px 16px 48px',
@@ -415,9 +413,11 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                                 <Lock size={18} color="#F7CF9B" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', zIndex: 1 }} />
                                 <input
                                     type={showPassword ? 'text' : 'password'}
+                                    name="password_off" // Random name
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     className="glass-input"
+                                    autoComplete="new-password"
                                     style={{
                                         width: '100%',
                                         padding: '16px 48px 16px 48px',
