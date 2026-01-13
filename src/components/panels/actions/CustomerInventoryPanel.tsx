@@ -464,7 +464,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
 
     const handleAddItem = () => {
         if (!newItem.hsCode || !newItem.qty) {
-            showNotification("Please enter HS Code and Quantity.", 'warning');
+            showNotification("Please enter Item Code and Quantity.", 'warning');
             return;
         }
 
@@ -683,7 +683,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                             <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Customer</div>
                                             <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Container</div>
                                             <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Shipment</div>
-                                            <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>HS Code</div>
+                                            <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Item Code</div>
                                             <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Description</div>
                                             <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Qty</div>
                                             <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Weight</div>
@@ -965,7 +965,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                                                         : <ChevronRight size={14} color="#94a3b8" />
                                                                     }
                                                                     <div>
-                                                                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-color)' }}>HS: {item.hsCode}</div>
+                                                                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-color)' }}>Item: {item.hsCode}</div>
                                                                         <div style={{ fontSize: '12px', color: '#64748b' }}>Qty: {item.qty} {item.uom}</div>
                                                                     </div>
                                                                 </div>
@@ -1171,7 +1171,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                                                             <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                                                                 <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
-                                                                    <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--primary-color)', fontSize: '11px', textTransform: 'uppercase' }}>HS Code</th>
+                                                                    <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--primary-color)', fontSize: '11px', textTransform: 'uppercase' }}>Item Code</th>
                                                                     <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--primary-color)', fontSize: '11px', textTransform: 'uppercase' }}>Description</th>
                                                                     <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--primary-color)', fontSize: '11px', textTransform: 'uppercase' }}>Qty</th>
                                                                     <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--primary-color)', fontSize: '11px', textTransform: 'uppercase' }}>Weight</th>
@@ -1217,7 +1217,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                     {/* Classification */}
                                     <div style={{ gridColumn: '1 / -1', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Classification</div>
                                     <div>
-                                        <label style={labelStyle}>HS Code <span style={{ color: 'red' }}>*</span></label>
+                                        <label style={labelStyle}>Item Code <span style={{ color: 'red' }}>*</span></label>
                                         <input type="text" style={inputStyle} value={newItem.hsCode || ''} onChange={e => setNewItem({ ...newItem, hsCode: e.target.value })} placeholder="8421.99.00" />
                                     </div>
                                     <div>
@@ -1355,7 +1355,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                                 <span style={{ fontFamily: 'monospace' }}>{c.shipment_nbr}</span>
                                             </div>
                                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                <span style={{ fontWeight: 600 }}>HS Code:</span>
+                                                <span style={{ fontWeight: 600 }}>Item Code:</span>
                                                 <span style={{ fontFamily: 'monospace' }}>{c.hs_code}</span>
                                             </div>
                                         </li>

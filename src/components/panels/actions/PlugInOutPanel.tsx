@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Power } from 'lucide-react';
+import { Save, Power, FileDown } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import PanelLayout from '../PanelLayout';
 import { useUIStore } from '../../../store/uiStore';
@@ -149,14 +149,8 @@ export default function PlugInOutPanel({ isOpen, onClose }: PlugInOutPanelProps)
         // Format timestamp to match Flutter's DateTime.now().toIso8601String()
         // Flutter: "2025-12-22T18:28:55.123456" (local time, no Z suffix)
         // JS toISOString: "2025-12-22T12:58:55.123Z" (UTC time, with Z)
-        const now = new Date();
-        const timestamp = now.getFullYear() + '-' +
-            String(now.getMonth() + 1).padStart(2, '0') + '-' +
-            String(now.getDate()).padStart(2, '0') + 'T' +
-            String(now.getHours()).padStart(2, '0') + ':' +
-            String(now.getMinutes()).padStart(2, '0') + ':' +
-            String(now.getSeconds()).padStart(2, '0') + '.' +
-            String(now.getMilliseconds()).padStart(3, '0') + 'Z';
+        // Use standard ISO string for timestamp (UTC)
+        const timestamp = new Date().toISOString();
 
         saveReeferStatus({
             containerNbr: containerId,
@@ -166,6 +160,228 @@ export default function PlugInOutPanel({ isOpen, onClose }: PlugInOutPanelProps)
             remarks: remarks,
             timestamp: timestamp
         });
+    };
+
+    const handleExport = () => {
+        if (!detailsData?.data?.history) return;
+
+        // Sort chronologically for the report
+        const history = detailsData.data.history.slice().sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        const firstPlugin = history.find(item => item.type === 'Plugged');
+        // Find last unplugged record. If the container is currently plugged, this might be a previous session's unplug.
+        // Requirement says "Plug out date time (last plug out time)".
+        // We'll search for the last 'Unplugged' event in the entire history.
+        const lastPlugout = history.slice().reverse().find(item => item.type === 'Unplugged');
+
+        // Formatting helpers
+        const formatDate = (dateStr: string) => {
+            if (!dateStr) return '--';
+            return new Date(dateStr).toLocaleString(undefined, {
+                year: 'numeric', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        };
+
+        const printContent = `
+            <html>
+            <head>
+                <title>Reefer Monitoring Report - ${containerId}</title>
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+                    
+                    body { 
+                        font-family: 'Inter', sans-serif; 
+                        color: #1e293b; 
+                        padding: 40px; 
+                        max-width: 1000px;
+                        margin: 0 auto;
+                    }
+                    
+                    .report-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                        margin-bottom: 40px;
+                        border-bottom: 2px solid #4B686C;
+                        padding-bottom: 20px;
+                    }
+
+                    h1 { 
+                        color: #4B686C; 
+                        margin: 0;
+                        font-size: 24px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    }
+
+                    .subtitle {
+                        color: #64748b;
+                        font-size: 14px;
+                        margin-top: 6px;
+                    }
+                    
+                    .info-grid { 
+                        display: grid; 
+                        grid-template-columns: 1fr 1fr; 
+                        gap: 24px; 
+                        margin-bottom: 40px; 
+                        background: #f8fafc; 
+                        padding: 24px; 
+                        border-radius: 12px; 
+                        border: 1px solid #e2e8f0;
+                    }
+                    
+                    .field { margin-bottom: 0; }
+                    .label { font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+                    .value { font-size: 16px; font-weight: 600; color: #0f172a; }
+                    
+                    .section-title {
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: #1e293b;
+                        margin-bottom: 16px;
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                    }
+
+                    table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        border-radius: 8px;
+                        overflow: hidden;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                    }
+                    
+                    th { 
+                        text-align: left; 
+                        padding: 16px; 
+                        background: #f1f5f9; 
+                        color: #475569; 
+                        font-weight: 700; 
+                        font-size: 12px; 
+                        text-transform: uppercase; 
+                        letter-spacing: 0.5px;
+                        border-bottom: 2px solid #e2e8f0; 
+                    }
+                    
+                    td { 
+                        padding: 14px 16px; 
+                        border-bottom: 1px solid #e2e8f0; 
+                        font-size: 14px; 
+                        color: #334155;
+                    }
+                    
+                    tr:last-child td { border-bottom: none; }
+                    tr:nth-child(even) { background-color: #fcfcfc; }
+
+                    .status-badge {
+                        display: inline-block;
+                        padding: 4px 8px;
+                        border-radius: 12px;
+                        font-size: 11px;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                    }
+
+                    .status-plugged { background: #dcfce7; color: #166534; }
+                    .status-unplugged { background: #fee2e2; color: #991b1b; }
+                    
+                    .footer { 
+                        margin-top: 60px; 
+                        font-size: 12px; 
+                        color: #94a3b8; 
+                        text-align: center; 
+                        border-top: 1px solid #e2e8f0; 
+                        padding-top: 24px; 
+                        display: flex;
+                        justify-content: space-between;
+                    }
+                    
+                    @media print {
+                        body { padding: 0; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="report-header">
+                    <div>
+                        <h1>Reefer Monitoring Report</h1>
+                        <div class="subtitle">Generated Report for Container Maintenance</div>
+                    </div>
+                    <div style="text-align: right">
+                         <div class="value">${new Date().toLocaleDateString()}</div>
+                         <div class="label" style="margin-top: 4px">Date Generated</div>
+                    </div>
+                </div>
+                
+                <div class="info-grid">
+                    <div class="column">
+                        <div class="field" style="margin-bottom: 16px"><div class="label">Container Number</div><div class="value">${containerId}</div></div>
+                        <div class="field"><div class="label">Supply Temp (at First Plugin)</div><div class="value">${firstPlugin?.currentTemp !== undefined && firstPlugin?.currentTemp !== null ? firstPlugin.currentTemp + '°C' : '--'}</div></div>
+                    </div>
+                    <div class="column">
+                        <div class="field" style="margin-bottom: 16px"><div class="label">Set Point Temp</div><div class="value">${firstPlugin?.setPointTemp !== undefined && firstPlugin?.setPointTemp !== null ? firstPlugin.setPointTemp + '°C' : '--'}</div></div>
+                        <div class="field" style="margin-bottom: 16px"><div class="label">First Plugin Date/Time</div><div class="value">${formatDate(firstPlugin?.timestamp || '')}</div></div>
+                        <div class="field"><div class="label">Last Plugout Date/Time</div><div class="value">${formatDate(lastPlugout?.timestamp || '')}</div></div>
+                    </div>
+                </div>
+
+                <div class="section-title">
+                    Periodic Checks & History
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th width="20%">Date & Time</th>
+                            <th width="12%">Event</th>
+                            <th width="10%">Set Point</th>
+                            <th width="10%">Supply Temp</th>
+                            <th width="30%">Remarks</th>
+                            <th width="18%">Signature</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${history.map(item => `
+                            <tr>
+                                <td style="font-family: monospace; font-size: 13px;">${formatDate(item.timestamp)}</td>
+                                <td>
+                                    <span class="status-badge ${item.type === 'Plugged' ? 'status-plugged' : item.type === 'Unplugged' ? 'status-unplugged' : ''}">
+                                        ${item.type}
+                                    </span>
+                                </td>
+                                <td>${item.setPointTemp !== undefined && item.setPointTemp !== null ? '<b>' + item.setPointTemp + '°C</b>' : '--'}</td>
+                                <td>${item.currentTemp !== undefined && item.currentTemp !== null ? item.currentTemp + '°C' : '--'}</td>
+                                <td style="font-style: ${item.remarks ? 'normal' : 'italic'}; color: ${item.remarks ? '#334155' : '#94a3b8'}">
+                                    ${item.remarks || 'No remarks'}
+                                </td>
+                                <td style="border-bottom: 1px solid #e2e8f0;"></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                
+                <div class="footer">
+                    <span>NAQLEEN YARD MANAGEMENT SYSTEM</span>
+                    <span>Page 1 of 1</span>
+                </div>
+
+                <script>
+                    setTimeout(() => {
+                        window.print();
+                    }, 500);
+                </script>
+            </body>
+            </html>
+        `;
+
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+        }
     };
 
     const renderFooter = () => {
@@ -280,7 +496,9 @@ export default function PlugInOutPanel({ isOpen, onClose }: PlugInOutPanelProps)
     const renderTabs = () => (
         <div style={{
             display: 'flex',
-            gap: '24px'
+            gap: '24px',
+            alignItems: 'center',
+            width: '100%'
         }}>
             {[
                 { key: 'control', label: 'Control Center' },
@@ -318,6 +536,42 @@ export default function PlugInOutPanel({ isOpen, onClose }: PlugInOutPanelProps)
                     )}
                 </button>
             ))}
+
+            {/* Export Button */}
+            <button
+                onClick={handleExport}
+                style={{
+                    marginLeft: 'auto',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'rgba(255, 255, 255, 0.5)',
+                    border: '1px solid rgba(0, 0, 0, 0.1)',
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    color: '#475569',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    marginTop: '-2px' // Visual alignment
+                }}
+                onMouseEnter={e => {
+                    e.currentTarget.style.background = 'white';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                    e.currentTarget.style.color = '#1e293b';
+                }}
+                onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.5)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.color = '#475569';
+                }}
+            >
+                <FileDown size={14} />
+                Export
+            </button>
         </div>
     );
 

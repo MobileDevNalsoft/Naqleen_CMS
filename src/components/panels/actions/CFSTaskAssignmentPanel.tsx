@@ -10,6 +10,7 @@ interface CFSTaskAssignmentPanelProps {
     onClose: () => void;
 }
 
+
 export default function CFSTaskAssignmentPanel({ isOpen, onClose }: CFSTaskAssignmentPanelProps) {
     const [activeTab, setActiveTab] = useState<'new' | 'assigned'>('new');
     const [loading, setLoading] = useState(false);

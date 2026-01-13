@@ -61,7 +61,7 @@ const mapApiResponseToInventoryRecords = (apiData: CustomerInventoryData[]): Inv
         customerData.containers.forEach(container => {
             const items: InventoryItem[] = container.items.map((item, index) => ({
                 id: `${container.container_nbr}-${index}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, // Robust ID
-                hsCode: item.hs_code || '',
+                hsCode: item.item_code || '',
                 qty: item.quantity?.toString() || '0',
                 description: item.item_description || item.cargo_description || '', // Fallback to cargo desc
                 uom: item.quantity_uom || '',
