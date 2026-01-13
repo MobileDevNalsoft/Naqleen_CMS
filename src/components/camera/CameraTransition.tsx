@@ -27,7 +27,7 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
     const lastSelectionChangeTime = useRef<number>(0);
 
     // Target positions
-    const standardPos = new THREE.Vector3(0, 250, 430);
+    const standardPos = new THREE.Vector3(0, 250, 600);
     const topViewPos = new THREE.Vector3(0, 465, 1);
     const center = new THREE.Vector3(0, 0, 0);
     const startPos = new THREE.Vector3(0, 500, 10);

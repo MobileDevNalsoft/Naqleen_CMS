@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminService } from '../../../api/handlers/adminApi';
 import type { RoleConfig } from '../../../api/types/adminTypes';
-import { Plus, Check, X, Loader2, Shield, Trash2, AlertTriangle } from 'lucide-react';
+import { Check, X, Loader2, Shield, Trash2, AlertTriangle } from 'lucide-react';
 
 import { useAdminStore } from '../../../store/adminStore';
 
@@ -144,7 +144,7 @@ export default function RoleManagement() {
                 {/* Roles List */}
                 <div style={{ width: '250px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-                    <button
+                    {/* <button
                         onClick={() => {
                             setNewRoleName('');
                             setIsAddRoleModalOpen(true);
@@ -176,7 +176,7 @@ export default function RoleManagement() {
                     >
                         <Plus size={16} />
                         Add New Role
-                    </button>
+                    </button> */}
 
                     {isLoadingRoles ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -432,7 +432,8 @@ export default function RoleManagement() {
                         top: '50%',
                         left: '50%',
                         transform: 'translate(-50%, -50%)',
-                        background: '#1e293b',
+                        background: 'linear-gradient(135deg, rgba(75, 104, 108, 0.95) 0%, rgba(58, 82, 85, 0.95) 100%)',
+                        backdropFilter: 'blur(12px)',
                         border: '1px solid rgba(239, 68, 68, 0.3)', // Red border
                         borderRadius: '16px',
                         padding: '24px',

@@ -2,38 +2,54 @@
 
 import type { LoginCredentials, LoginResponse } from '../types/authTypes';
 
-// Demo credentials
-const DEMO_EMAIL = 'admin@nalsoft.net';
-const DEMO_PASSWORD = 'Admin@123';
+
+import { webApiClient } from '../apiClient';
+import { API_CONFIG } from '../apiConfig';
 
 /**
- * Simulated login API
- * Validates against demo credentials with realistic delay
+ * Login API
+ * Authenticates user against OTM Backend
  */
 export async function loginUser(credentials: LoginCredentials): Promise<LoginResponse> {
-    // Simulate network delay (1.5 seconds)
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+        const response = await webApiClient.post<any>(API_CONFIG.ENDPOINTS.AUTH_LOGIN, credentials);
 
-    const { email, password } = credentials;
+        // ORDS might return different structures depending on setup, but typically wrapper
+        // Our procedure returns { response_code, response_message, data: { ... } }
+        // webApiClient unwraps 'data' usually? No, axios returns { data: ... }. 
+        // Let's assume webApiClient returns AxiosResponse or the data directly?
+        // Checking existing patterns... adminApi uses webApiClient.get<ApiResponse<...>>
 
-    // Validate against demo credentials
-    if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
+        const data = response.data; // content of response
+
+        if (data.response_code === 200) {
+            const user = data.data;
+
+            // Strict Role Check - Only ADMIN allowed
+            if (user.role !== 'ADMIN') {
+                return {
+                    success: false,
+                    message: 'Access Denied: You must be an ADMIN to login.'
+                };
+            }
+
+            return {
+                success: true,
+                user: user,
+                token: 'session_active',
+                message: data.response_message
+            };
+        } else {
+            return {
+                success: false,
+                message: data.response_message || 'Login failed'
+            };
+        }
+    } catch (error: any) {
+        console.error("Login Error", error);
         return {
-            success: true,
-            user: {
-                id: 'usr_001',
-                email: DEMO_EMAIL,
-                name: 'Admin User',
-                role: 'admin',
-            },
-            token: 'demo_jwt_token_' + Date.now(),
-            message: 'Login successful',
+            success: false,
+            message: error.response?.data?.response_message || 'Network error occurred'
         };
     }
-
-    // Invalid credentials
-    return {
-        success: false,
-        message: 'Invalid email or password',
-    };
 }

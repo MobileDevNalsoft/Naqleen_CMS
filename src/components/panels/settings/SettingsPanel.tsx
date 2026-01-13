@@ -114,33 +114,45 @@ export default function SettingsPanel() {
                     overflow: 'hidden' // Critical for the box-shadow cutout trick
                 }}>
 
-                    {/* Active Cutout Indicator (The Inverse Sidebar) */}
+                    {/* Sidebar Background with SVG Mask for Smooth Fillets */}
                     <div style={{
                         position: 'absolute',
-                        top: '24px', // Matches padding
-                        right: 0,
-                        width: '95%', // Connects to right side
-                        height: '64px',
-                        transform: `translateY(${(settingsTab === 'profile' ? 0 : 1) * 64}px)`,
-                        transition: 'transform 0.4s cubic-bezier(0.2, 0, 0, 1)',
+                        inset: 0,
                         zIndex: 0,
+                        pointerEvents: 'none'
+                    }}>
+                        <svg width="100%" height="100%" style={{ display: 'block' }}>
+                            <defs>
+                                <mask id="sidebar-mask">
+                                    <rect width="100%" height="100%" fill="white" />
+                                    <g style={{
+                                        transform: `translateY(${(settingsTab === 'profile' ? 0 : 1) * 64 + 24}px)`,
+                                        transition: 'transform 0.5s cubic-bezier(0.23, 1, 0.32, 1)',
+                                        willChange: 'transform'
+                                    }}>
+                                        {/* 
+                                            The "Hole" Shape (Black = Transparent)
+                                            Tab Width: ~95% of 280px = ~266px.
+                                            We'll fix it to 280 (Right) -> 14 (Left) for consistency.
+                                        */}
 
-                        // DESIGN MAGIC: 
-                        // 1. Background is transparent to show the "Content" gradient underneath
-                        background: 'transparent',
+                                        {/* Main Body: Rounded Left Side */}
+                                        <path d="M 281,0 H 46 A 32,32 0 0 0 46,64 H 281 V 0 Z" fill="black" />
 
-                        // 2. Shape
-                        borderTopLeftRadius: '32px',
-                        borderBottomLeftRadius: '32px',
+                                        {/* Top Fillet (Smooth curve outward) */}
+                                        <path d="M 281,0 V -24 A 24,24 0 0 1 257,0 H 281 Z" fill="black" />
 
-                        // 3. The Sidebar "Background" is actually the shadow of this element!
-                        // This creates the perfect "cutout" effect where the active item is light (transparent)
-                        // and everything else is dark.
-                        boxShadow: '0 0 0 4000px rgba(0, 0, 0, 0.25)',
+                                        {/* Bottom Fillet (Smooth curve outward) */}
+                                        <path d="M 281,64 V 88 A 24,24 0 0 0 257,64 H 281 Z" fill="black" />
+                                    </g>
+                                </mask>
+                            </defs>
+                            {/* The Dark Overlay applying the mask */}
+                            <rect width="100%" height="100%" fill="rgba(0, 0, 0, 0.25)" mask="url(#sidebar-mask)" />
 
-                        // 4. Accent
-                        borderLeft: '4px solid var(--secondary-color)'
-                    }} />
+
+                        </svg>
+                    </div>
 
                     {/* Navigation Items */}
                     <div style={{
@@ -180,38 +192,8 @@ export default function SettingsPanel() {
                         padding: '16px 24px', // Added horizontal padding back
                         zIndex: 1 // Ensure above background
                     }}>
-                        <div style={{
-                            padding: '16px',
-                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                            borderRadius: '16px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '12px'
-                        }}>
-                            <div>
-                                <div style={{ fontSize: '14px', fontWeight: 600 }}>Admin User</div>
-                                <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)' }}>admin@nalsoft.net</div>
-                            </div>
-
-                            <button style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                width: '100%',
-                                padding: '8px',
-                                borderRadius: '8px',
-                                border: 'none',
-                                background: 'rgba(255, 255, 255, 0.1)',
-                                color: 'white',
-                                fontSize: '13px',
-                                cursor: 'pointer',
-                                transition: 'background 0.2s'
-                            }}>
-                                <LogOut size={14} />
-                                Log out
-                            </button>
-                        </div>
+                        {/* We need to get user from store here too, or just access it since we are in same file */}
+                        <UserFooter />
                     </div>
                 </div>
 
@@ -227,7 +209,7 @@ export default function SettingsPanel() {
                             // Dynamic Animation based on Direction
                             // 'slideInVertical' moves translateY(20px -> 0) [Upward movement] for Downward Navigation
                             // 'slideInDown' moves translateY(-20px -> 0) [Downward movement] for Upward Navigation
-                            animation: `${animationName} 0.5s cubic-bezier(0.2, 0, 0, 1) forwards`
+                            animation: `${animationName} 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards`
                         }}
                     >
                         {settingsTab === 'profile' && <ProfileSection />}
@@ -265,6 +247,18 @@ export default function SettingsPanel() {
                         transform: translateY(150px) scale(0.98);
                     }
                 }
+                @keyframes slideInVertical {
+                    from { transform: translateY(20px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+                @keyframes slideInDown {
+                    from { transform: translateY(-20px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+                @keyframes tabContentEnter {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
             `}</style>
         </div>
     );
@@ -291,7 +285,8 @@ function NavButton({ active, icon, label, onClick }: { active: boolean, icon: Re
                 cursor: 'pointer',
                 textAlign: 'left',
                 transition: 'color 0.3s ease',
-                position: 'relative'
+                position: 'relative',
+                boxShadow: 'none'
             }}
         >
             <span style={{ opacity: active ? 1 : 0.8, transition: 'all 0.3s' }}>{icon}</span>
@@ -300,65 +295,129 @@ function NavButton({ active, icon, label, onClick }: { active: boolean, icon: Re
     );
 }
 
+import { useAuthStore } from '../../../store/authStore';
+
 function ProfileSection() {
+    const user = useAuthStore(state => state.user);
+
+
+    const getInitials = (name: string) => {
+        return name ? name.charAt(0).toUpperCase() : 'U';
+    };
+
+    if (!user) return <div style={{ padding: '40px', color: 'white' }}>Loading profile...</div>;
+
+    // Filter out primary role from the roles array to avoid duplication if it's there
+    const secondaryRoles = user.roles ? user.roles.filter(r => r !== user.role) : [];
+
     return (
-        <div style={{ padding: '40px', height: '100%', overflowY: 'auto' }}>
-
-            <div style={{ display: 'flex', gap: '40px', alignItems: 'center' }}>
-                {/* Avatar Column */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                    <div style={{
-                        width: '120px',
-                        height: '120px',
-                        borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '4px solid rgba(255, 255, 255, 0.1)',
-                        position: 'relative',
-                        overflow: 'hidden',
-                        fontSize: '48px',
-                        fontWeight: 700,
-                        color: 'rgba(255, 255, 255, 0.8)'
-                    }}>
-                        {/* First Letter of Name (A for Admin) */}
-                        A
-                    </div>
-                </div>
-
-                {/* Info Column */}
-                <div style={{ flex: 1, maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {/* Name */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Name</span>
-                        <span style={{ fontSize: '24px', fontWeight: 600, color: 'white' }}>Admin User</span>
-                    </div>
-
-                    {/* Email */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</span>
-                        <span style={{ fontSize: '16px', color: 'rgba(255,255,255,0.8)' }}>admin@nalsoft.net</span>
-                    </div>
-
-                    {/* Roles */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-                        <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Roles Assigned</span>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            <span style={{
-                                background: 'rgba(247, 207, 155, 0.15)',
-                                color: 'var(--secondary-color, #F7CF9B)',
-                                padding: '6px 16px',
-                                borderRadius: '20px',
-                                fontSize: '14px',
-                                fontWeight: 500,
+        <div style={{ flex: 1, padding: '12px 16px 16px 16px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div style={{
+                flex: 1,
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 0,
+                background: 'rgba(0, 0, 0, 0.2)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                position: 'relative'
+            }}>
+                <div style={{ padding: '24px', height: '100%', overflowY: 'auto' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        {/* Profile Header: Avatar + Info */}
+                        <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                            {/* Avatar */}
+                            <div style={{
+                                width: '80px',
+                                height: '80px',
+                                borderRadius: '50%',
+                                background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '6px'
+                                justifyContent: 'center',
+                                border: '3px solid rgba(255, 255, 255, 0.1)',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                fontSize: '28px',
+                                fontWeight: 700,
+                                color: 'rgba(255, 255, 255, 0.8)',
+                                boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
                             }}>
-                                <Shield size={14} />
-                                Super Administrator
-                            </span>
+                                {getInitials(user.name)}
+                            </div>
+
+                            {/* Header Info */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <h2 style={{ fontSize: '28px', fontWeight: 700, color: 'white', margin: 0, lineHeight: 1.1 }}>{user.name}</h2>
+                                <div style={{ fontSize: '15px', color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{
+                                        display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%',
+                                        background: '#10b981', boxShadow: '0 0 8px #10b981'
+                                    }}></span>
+                                    {user.email}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+
+                        {/* Profile Details Column */}
+                        <div style={{ flex: 1, maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Primary Role</span>
+                            <div style={{ display: 'flex' }}>
+                                <span style={{
+                                    background: 'linear-gradient(90deg, rgba(247, 207, 155, 0.15), rgba(247, 207, 155, 0.05))',
+                                    border: '1px solid rgba(247, 207, 155, 0.2)',
+                                    color: 'var(--secondary-color, #F7CF9B)',
+                                    padding: '8px 20px',
+                                    borderRadius: '20px',
+                                    fontSize: '15px',
+                                    fontWeight: 600,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                                }}>
+                                    <Shield size={16} />
+                                    {user.role}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Assigned Roles / Permissions */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Assigned Roles</span>
+
+                            {user.roles && user.roles.length > 0 ? (
+                                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                    {secondaryRoles.length === 0 ? (
+                                        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', fontStyle: 'italic' }}>No additional roles assigned.</span>
+                                    ) : (
+                                        secondaryRoles.map((role, idx) => (
+                                            <span key={idx} style={{
+                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                color: 'rgba(255, 255, 255, 0.8)',
+                                                padding: '6px 16px',
+                                                borderRadius: '16px',
+                                                fontSize: '13px',
+                                                fontWeight: 500,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px',
+                                                transition: 'all 0.2s',
+                                                cursor: 'default'
+                                            }}>
+                                                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(255,255,255,0.5)' }}></div>
+                                                {role}
+                                            </span>
+                                        ))
+                                    )}
+                                </div>
+                            ) : (
+                                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px' }}>No roles data available.</span>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -371,14 +430,15 @@ function AccessControlSection() {
     const [tab, setTab] = useState<AccessControlTab>('roles');
 
     return (
-        <div style={{ flex: 1, padding: '20px 40px 40px 40px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div style={{ flex: 1, padding: '12px 16px 16px 16px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
             {/* Tabs */}
             <div style={{
                 display: 'flex',
                 gap: '24px',
                 marginBottom: '0', // Removed gap to connect with content
-                paddingTop: '12px'
+                paddingTop: '12px',
+                marginLeft: '0.39px'
             }}>
                 <div className="folder-tabs-container">
                     <button
@@ -423,6 +483,50 @@ function AccessControlSection() {
                     {tab === 'roles' ? <RoleManagement /> : <UserManagement />}
                 </div>
             </div>
+        </div>
+    );
+}
+
+function UserFooter() {
+    const user = useAuthStore(state => state.user);
+    const logout = useAuthStore(state => state.logout);
+
+    if (!user) return null;
+
+    return (
+        <div style={{
+            padding: '16px',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            borderRadius: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+        }}>
+            <div>
+                <div style={{ fontSize: '14px', fontWeight: 600 }}>{user.name}</div>
+                <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)' }}>{user.email}</div>
+            </div>
+
+            <button
+                onClick={logout}
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    color: 'white',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s'
+                }}>
+                <LogOut size={14} />
+                Log out
+            </button>
         </div>
     );
 }

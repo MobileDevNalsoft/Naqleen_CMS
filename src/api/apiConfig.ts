@@ -56,10 +56,14 @@ export const API_CONFIG = {
         PLUG_IN_OUT_CONTAINER_DETAILS: '/plugInOutContainerDetails',
         VALIDATE_CFS_CONTAINER: '/validateCfsContainer',
         // Admin endpoints
+        AUTH_LOGIN: '/auth',
         ADMIN_USERS: '/users',
+        USERS_CREATE: '/users',
         ADMIN_ASSIGN_ROLE: '/users/assignRole',
         ADMIN_ROLES: '/roles',
         ADMIN_SCREENS: '/screens',
         ADMIN_ROLE_PERMISSIONS: '/roles/permissions',
+        USERS_UPDATE: '/user/update',
+        USERS_DELETE: '/user/delete',
     }
 } as const;
