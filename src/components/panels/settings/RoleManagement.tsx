@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { adminService } from '../../../api/handlers/adminApi';
 import type { RoleConfig } from '../../../api/types/adminTypes';
-import { Check, X, Loader2, Shield, Trash2, AlertTriangle } from 'lucide-react';
+
+
+import { Check, X, Loader2, Shield, Trash2, AlertTriangle, Plus } from 'lucide-react';
 
 import { useAdminStore } from '../../../store/adminStore';
+import { useAuthStore } from '../../../store/authStore';
 
 export default function RoleManagement() {
     const {
@@ -13,9 +16,12 @@ export default function RoleManagement() {
         fetchRolesAndScreens,
         fetchRoleConfig,
         updateRoleConfigCache,
+
         createRole,
         deleteRole // ACTION
     } = useAdminStore();
+
+    const { user } = useAuthStore();
 
     const [selectedRole, setSelectedRole] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState<string | null>(null); // screenPath being saved
@@ -144,39 +150,41 @@ export default function RoleManagement() {
                 {/* Roles List */}
                 <div style={{ width: '250px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-                    {/* <button
-                        onClick={() => {
-                            setNewRoleName('');
-                            setIsAddRoleModalOpen(true);
-                        }}
-                        style={{
-                            width: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            background: 'rgba(255,255,255,0.05)',
-                            border: '1px dashed rgba(255,255,255,0.2)',
-                            borderRadius: '8px',
-                            padding: '12px',
-                            cursor: 'pointer',
-                            color: 'var(--secondary-color)',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                            e.currentTarget.style.borderColor = 'var(--secondary-color)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-                        }}
-                    >
-                        <Plus size={16} />
-                        Add New Role
-                    </button> */}
+                    {user?.role === 'DEVELOPER' && (
+                        <button
+                            onClick={() => {
+                                setNewRoleName('');
+                                setIsAddRoleModalOpen(true);
+                            }}
+                            style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                background: 'rgba(255,255,255,0.05)',
+                                border: '1px dashed rgba(255,255,255,0.2)',
+                                borderRadius: '8px',
+                                padding: '12px',
+                                cursor: 'pointer',
+                                color: 'var(--secondary-color)',
+                                fontSize: '14px',
+                                fontWeight: 600,
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                                e.currentTarget.style.borderColor = 'var(--secondary-color)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                            }}
+                        >
+                            <Plus size={16} />
+                            Add New Role
+                        </button>
+                    )}
 
                     {isLoadingRoles ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -216,7 +224,7 @@ export default function RoleManagement() {
                                     </div>
 
                                     {/* Delete Button (Only on Active) */}
-                                    {selectedRole === role && (
+                                    {selectedRole === role && user?.role === 'DEVELOPER' && (
                                         <div
                                             onClick={(e) => {
                                                 e.stopPropagation(); // Prevent selection trigger

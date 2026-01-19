@@ -189,11 +189,12 @@ const App = () => {
             style={{ width: '100%', height: '100%', display: 'block' }}
             camera={{ position: [0, 150, 300], fov: 45, near: 0.1, far: 5000 }} // Increased far clip
             shadows
-            dpr={[1, 1.5]}
+            dpr={[1, 1.25]} // Reduced max DPR to save render buffer memory
             gl={{
               toneMapping: THREE.ACESFilmicToneMapping,
               toneMappingExposure: 1.6,
-              antialias: true
+              antialias: true,
+              powerPreference: 'high-performance'
             }}
           >
             <color attach="background" args={['#BCE6FF']} />
@@ -211,7 +212,7 @@ const App = () => {
               position={[100, 150, 50]} // Higher sun position for softer shadows
               intensity={0.8} // Reduced for softer contrast
               castShadow
-              shadow-mapSize={[2048, 2048]}
+              shadow-mapSize={[1024, 1024]} // Optimized Shadow Map (1024)
               shadow-camera-near={0.5}
               shadow-camera-far={500}
               shadow-camera-left={-200}
@@ -230,7 +231,7 @@ const App = () => {
               scale={2000}
               blur={2.0}
               far={10}
-              resolution={1024}
+              resolution={512} // Optimized Contact Shadow Resolution
               color="#000000"
             />
 

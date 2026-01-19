@@ -1241,7 +1241,7 @@ export default function ReserveContainersPanel({ isOpen, onClose }: ReserveConta
 
         if (containerSearchTerm) {
             const lower = containerSearchTerm.toLowerCase();
-            filtered = filtered.filter(c => c.id.toLowerCase().includes(lower));
+            filtered = filtered.filter(c => c.id?.toLowerCase().includes(lower));
         }
         return filtered;
     }, [processedManifest, activeTab, containerSearchTerm, bookingRequirements, discardedByType]);

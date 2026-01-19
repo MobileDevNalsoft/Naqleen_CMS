@@ -19,7 +19,7 @@ export function KeyboardNavigation({ controlsRef, speed = 3 }: KeyboardNavigatio
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             // Skip if search is focused or settings is open
-            if (isSearchFocused || activePanel === 'settings') return;
+            if (isSearchFocused || activePanel) return;
             keysPressed.current[e.key.toLowerCase()] = true;
             if (e.key.startsWith('Arrow')) {
                 // Map arrows to wasd for easier logic or just track them

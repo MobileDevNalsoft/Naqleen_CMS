@@ -26,7 +26,7 @@ export async function loginUser(credentials: LoginCredentials): Promise<LoginRes
             const user = data.data;
 
             // Strict Role Check - Only ADMIN allowed
-            if (user.role !== 'ADMIN') {
+            if (user.role !== 'ADMIN' && user.role !== 'DEVELOPER') {
                 return {
                     success: false,
                     message: 'Access Denied: You must be an ADMIN to login.'
