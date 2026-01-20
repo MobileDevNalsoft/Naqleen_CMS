@@ -300,7 +300,6 @@ export default function CFSDetailsPanel() {
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
 
     // Global panel control
-    const openPanel = useUIStore(state => state.openPanel);
     const activePanel = useUIStore(state => state.activePanel);
 
     // Identify if the selected block is a CFS Area
