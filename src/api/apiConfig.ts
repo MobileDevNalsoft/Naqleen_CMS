@@ -40,7 +40,13 @@ export const API_CONFIG = {
         RELEASE_CONTAINER_TRUCKS: '/getReleaseContainerTrucks',
         RELEASE_CONTAINER_TRUCK_DETAILS: '/releaseContainerTruckDetails',
         SUBMIT_RELEASE_CONTAINER: '/submitReleaseContainer',
-        // Yard endpoints
+
+        // Task Assignment
+        NEW_TASK_ASSIGNMENT_SHIPMENTS: '/getTaskAssignmentShipments',
+        ASSIGNED_TASK_ASSIGNMENT_SHIPMENTS: '/getAssignedTasks',
+        GET_TASK_ASSIGNMENT_SHIPMENT_DETAILS: '/getTaskAssignmentShipmentDetails',
+        GET_TASK_ASSIGNMENT_OPERATORS: '/getTaskAssignmentOperators',
+        ASSIGN_TASK_TO_OPERATOR: '/assignTaskToOperator',
         POSITION_TRUCKS: '/positionTrucks',
         POSITION_TRUCK_DETAILS: '/positionTruckDetails',
         GET_AVAILABLE_POSITION_LOV: '/getAvailablePositionLov',

@@ -53,7 +53,7 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
         { id: 'position', label: 'Position Container', icon: MapPin },
         // { id: 'stuffing', label: 'Assign Stuffing', icon: PackageOpen },
         // { id: 'destuffing', label: 'Assign Destuffing', icon: PackageOpen },
-        // { id: 'cfsTask', label: 'CFS Task Assignment', icon: ClipboardList },
+        { id: 'cfsTask', label: 'CFS Task Assignment', icon: ClipboardList },
         { id: 'customerInventory', label: 'Customer Inventory', icon: ClipboardList },
         { id: 'reserveContainers', label: 'Reserve Containers', icon: ShieldCheck },
         { id: 'releaseContainer', label: 'Release Container', icon: Container },

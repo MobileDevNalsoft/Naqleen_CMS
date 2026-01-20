@@ -4,7 +4,7 @@ import type { ApiResponse } from './commonTypes';
 export interface ItemData {
     item_description?: string;
     cargo_description?: string;
-    hs_code?: string;
+    item_code?: string;
     gross_weight?: number;
     net_weight?: number;
     weight_uom?: string;

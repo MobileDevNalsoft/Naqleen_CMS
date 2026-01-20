@@ -8,7 +8,7 @@ export interface ExcelImportRow {
     Customer?: string;
     'Container Number'?: string;
     'Shipment Number'?: string;
-    'HS Code'?: string;
+    'Item Code'?: string;
     'Description'?: string;
     'Quantity'?: number;
     'UOM'?: string;
@@ -108,10 +108,10 @@ export const parseInventoryExcel = async (file: File): Promise<InventoryPayloadI
         };
 
         const description = getRowValue('Description');
-        const hsCode = getRowValue('HS Code');
+        const itemCode = getRowValue('Item Code');
 
-        // Skip rows without HS Code or Description
-        if (!hsCode && !description) continue;
+        // Skip rows without Item Code or Description
+        if (!itemCode && !description) continue;
 
         payloadItems.push({
             customer: customer,
@@ -120,7 +120,7 @@ export const parseInventoryExcel = async (file: File): Promise<InventoryPayloadI
             shipment_nbr: shipmentNbr,
             item_description: description,
             cargo_description: description, // Fallback
-            hs_code: hsCode,
+            hs_code: itemCode,
             gross_weight: parseFloat(getRowValue('Weight')) || 0,
             net_weight: 0, // Not in Excel
             weight_uom: getRowValue('Weight UOM') || 'KGM',

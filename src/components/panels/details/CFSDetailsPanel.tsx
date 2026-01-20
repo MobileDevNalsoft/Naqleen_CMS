@@ -76,6 +76,218 @@ const ActionButton = ({ icon, label, primary, danger, onClick, disabled }: { ico
     );
 };
 
+// Sub-component for Detail View
+const CFSDetailView = ({
+    containerId,
+    onBack
+}: {
+    containerId: string,
+    onBack: () => void
+}) => {
+    // Fetch details on demand
+    const { data: containerDetails, isLoading } = useQuery({
+        queryKey: ['container-details', containerId],
+        queryFn: async () => {
+            return getContainerDetails(containerId);
+        },
+        enabled: !!containerId,
+        staleTime: 60000 // Cache for 1 min
+    });
+
+    // Release CFS Container mutation
+    const removeCfsContainer = useStore(state => state.removeCfsContainer);
+
+    const { mutate: releaseContainer, isPending: isReleasing } = useMutation({
+        mutationFn: submitReleaseContainer,
+        onSuccess: (result) => {
+            if (result.success) {
+                showToast('success', 'Container released successfully');
+                // Remove from CFS list in store
+                removeCfsContainer(containerId);
+                // Return to list view
+                onBack();
+            } else {
+                showToast('error', result.message || 'Failed to release container');
+            }
+        },
+        onError: (error: any) => {
+            showToast('error', error?.message || 'An error occurred while releasing container');
+        }
+    });
+
+    const handleRelease = () => {
+        if (!containerDetails) return;
+
+        const request = {
+            truckNbr: '',
+            bookingNbr: containerDetails.booking_id || '',
+            orderType: 'RELEASE_CFS',
+            releaseType: 'CFS_CONTAINER',
+            customerNbr: '',
+            customerName: containerDetails.customer_name || '',
+            orderNbr: containerDetails.inbound_order_nbr || '',
+            containers: [{
+                containerNbr: containerId,
+                containerType: containerDetails.container_type || '',
+                shipmentNbr: containerDetails.inbound_shipment_nbr || '',
+                position: ''
+            }]
+        };
+
+        console.log('[CFS Release] Submitting:', request);
+        releaseContainer(request);
+    };
+
+    // Global openPanel
+    const openPanel = useUIStore(state => state.openPanel);
+
+    if (isLoading) return <ContainerLoader />;
+    if (!containerDetails) {
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100px', color: '#64748b' }}>
+                Details not found.
+            </div>
+        );
+    }
+
+    // New logic: Check if Cross Stuffing for Button Label
+    const isCrossStuffing = containerDetails.shipment_name === 'CROSS_STUFFING';
+
+    return (
+        <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto', padding: '24px' }} className="custom-scrollbar">
+
+                {/* Customer Information */}
+                <DetailSection title="Customer Information" icon={<FileText size={16} />}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <InfoItem label="Customer Name" value={containerDetails.customer_name || 'N/A'} fullWidth />
+                        <InfoItem label="Booking Number" value={containerDetails.booking_id || 'N/A'} />
+                    </div>
+                </DetailSection>
+
+                {/* Divider */}
+                <div style={{ height: '2px', background: 'linear-gradient(90deg, rgba(75, 104, 108, 0.2) 0%, rgba(75, 104, 108, 0.05) 50%, transparent 100%)', margin: '4px 0' }} />
+
+                {/* Shipment Details */}
+                <DetailSection title="Shipment Details" icon={<Ship size={16} />}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <InfoItem label="Shipment No" value={containerDetails.inbound_shipment_nbr || 'N/A'} />
+                        <InfoItem label="Order Number" value={containerDetails.inbound_order_nbr || 'N/A'} />
+                        <InfoItem label="Request Type" value={containerDetails.shipment_name || 'N/A'} />
+                    </div>
+                </DetailSection>
+
+            </div>
+
+            {/* Footer (Only in Detail View) */}
+            <div style={{
+                padding: '20px 24px',
+                borderTop: '1px solid rgba(0, 0, 0, 0.08)',
+                display: 'flex',
+                gap: '12px',
+                background: 'linear-gradient(135deg, rgba(247, 207, 155, 0.25) 0%, rgba(247, 207, 155, 0.15) 100%)',
+                backdropFilter: 'blur(16px)',
+            }}>
+                <ActionButton
+                    icon={<MapPin size={16} />}
+                    label={isCrossStuffing ? "Restack" : "Position"}
+                    primary
+                    onClick={() => {
+                        // Close CFS panel and open Position panel via global state
+                        openPanel('cfsPosition', {
+                            containerNbr: containerId || '',
+                            containerType: containerDetails.container_type || '20GP',
+                            shipmentNbr: containerDetails.inbound_shipment_nbr || ''
+                        });
+                    }}
+                />
+                {!isCrossStuffing && (
+                    <ActionButton
+                        icon={isReleasing ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} />}
+                        label={isReleasing ? "Releasing..." : "Release"}
+                        danger
+                        onClick={handleRelease}
+                        disabled={isReleasing}
+                    />
+                )}
+            </div>
+        </>
+    );
+};
+
+// Sub-component for List View
+const CFSListView = ({
+    cfsContainers,
+    onSelect
+}: {
+    cfsContainers: any[],
+    onSelect: (id: string) => void
+}) => {
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '24px', overflowY: 'auto', flex: 1 }} className="custom-scrollbar">
+            {cfsContainers.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>
+                    No containers found in CFS Area.
+                </div>
+            ) : (
+                cfsContainers.map((container) => {
+                    // Format type code (e.g. 40ft Standard -> 40GP)
+                    const typeCode = container.type
+                        .replace('ft Standard', 'GP')
+                        .replace('ft High Cube', 'HC')
+                        .replace('ft Reefer', 'RT');
+
+                    // Basic color logic based on type/status logic
+                    const containerColor = container.type.includes('40') ? '#00695C' : '#1A237E';
+
+                    return (
+                        <div
+                            key={container.id}
+                            onClick={() => onSelect(container.id)}
+                            style={{
+                                padding: '12px 16px',
+                                background: 'white',
+                                borderRadius: '12px',
+                                border: '1px solid rgba(0, 0, 0, 0.05)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                                transition: 'all 0.2s',
+                                cursor: 'pointer'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
+                            }}
+                        >
+                            {/* Color Indicator */}
+                            <div style={{ width: '4px', height: '32px', borderRadius: '4px', background: containerColor }} />
+
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>{container.id}</div>
+                                <div style={{ fontSize: '11px', color: '#64748b' }}>{container.customerName}</div>
+                            </div>
+
+                            {/* Type Code on Right */}
+                            <div style={{
+                                fontSize: '13px', fontWeight: 700,
+                                color: '#64748b'
+                            }}>
+                                {typeCode}
+                            </div>
+                        </div>
+                    );
+                })
+            )}
+        </div>
+    );
+};
+
 export default function CFSDetailsPanel() {
     const selectedBlock = useStore(state => state.selectedBlock);
     const setSelectedBlock = useStore(state => state.setSelectedBlock);
@@ -118,63 +330,6 @@ export default function CFSDetailsPanel() {
             setSelectedBlock(null);
             setSelectedContainerId(null);
         }, 300);
-    };
-
-    // Fetch details on demand
-    const { data: containerDetails, isLoading } = useQuery({
-        queryKey: ['container-details', selectedContainerId],
-        queryFn: async () => {
-            if (!selectedContainerId) return null;
-            return getContainerDetails(selectedContainerId);
-        },
-        enabled: !!selectedContainerId,
-        staleTime: 60000 // Cache for 1 min
-    });
-
-    // Release CFS Container mutation
-    const removeCfsContainer = useStore(state => state.removeCfsContainer);
-
-    const { mutate: releaseContainer, isPending: isReleasing } = useMutation({
-        mutationFn: submitReleaseContainer,
-        onSuccess: (result) => {
-            if (result.success) {
-                showToast('success', 'Container released successfully');
-                // Remove from CFS list in store
-                if (selectedContainerId) {
-                    removeCfsContainer(selectedContainerId);
-                }
-                // Return to list view
-                setSelectedContainerId(null);
-            } else {
-                showToast('error', result.message || 'Failed to release container');
-            }
-        },
-        onError: (error: any) => {
-            showToast('error', error?.message || 'An error occurred while releasing container');
-        }
-    });
-
-    const handleRelease = () => {
-        if (!selectedContainerId || !containerDetails) return;
-
-        const request = {
-            truckNbr: '',
-            bookingNbr: containerDetails.booking_id || '',
-            orderType: 'RELEASE_CFS',
-            releaseType: 'CFS_CONTAINER',
-            customerNbr: '',
-            customerName: containerDetails.customer_name || '',
-            orderNbr: containerDetails.inbound_order_nbr || '',
-            containers: [{
-                containerNbr: selectedContainerId,
-                containerType: containerDetails.container_type || '',
-                shipmentNbr: containerDetails.inbound_shipment_nbr || '',
-                position: ''
-            }]
-        };
-
-        console.log('[CFS Release] Submitting:', request);
-        releaseContainer(request);
     };
 
     if (!isCFSArea && !isVisible) return null;
@@ -271,139 +426,16 @@ export default function CFSDetailsPanel() {
                 </div>
             </div>
 
-            {/* Content Switcher */}
-            <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }} className="custom-scrollbar">
-
-                {selectedContainerId ? (
-                    // --- DETAIL VIEW ---
-                    isLoading ? (
-                        <ContainerLoader />
-                    ) : !containerDetails ? (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100px', color: '#64748b' }}>
-                            Details not found.
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-
-                            {/* Customer Information */}
-                            <DetailSection title="Customer Information" icon={<FileText size={16} />}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                    <InfoItem label="Customer Name" value={containerDetails.customer_name || 'N/A'} fullWidth />
-                                    <InfoItem label="Booking Number" value={containerDetails.booking_id || 'N/A'} />
-                                </div>
-                            </DetailSection>
-
-                            {/* Divider */}
-                            <div style={{ height: '2px', background: 'linear-gradient(90deg, rgba(75, 104, 108, 0.2) 0%, rgba(75, 104, 108, 0.05) 50%, transparent 100%)', margin: '4px 0' }} />
-
-                            {/* Shipment Details */}
-                            <DetailSection title="Shipment Details" icon={<Ship size={16} />}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                    <InfoItem label="Shipment No" value={containerDetails.inbound_shipment_nbr || 'N/A'} />
-                                    <InfoItem label="Order Number" value={containerDetails.inbound_order_nbr || 'N/A'} />
-                                    <InfoItem label="Request Type" value={containerDetails.shipment_name || 'N/A'} />
-                                </div>
-                            </DetailSection>
-
-                        </div>
-                    )
-                ) : (
-                    // --- LIST VIEW ---
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {cfsContainers.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>
-                                No containers found in CFS Area.
-                            </div>
-                        ) : (
-                            cfsContainers.map((container) => {
-                                // Format type code (e.g. 40ft Standard -> 40GP)
-                                const typeCode = container.type
-                                    .replace('ft Standard', 'GP')
-                                    .replace('ft High Cube', 'HC')
-                                    .replace('ft Reefer', 'RT');
-
-                                // Basic color logic based on type/status logic
-                                const containerColor = container.type.includes('40') ? '#00695C' : '#1A237E';
-
-                                return (
-                                    <div
-                                        key={container.id}
-                                        onClick={() => setSelectedContainerId(container.id)}
-                                        style={{
-                                            padding: '12px 16px',
-                                            background: 'white',
-                                            borderRadius: '12px',
-                                            border: '1px solid rgba(0, 0, 0, 0.05)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '12px',
-                                            boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                                            transition: 'all 0.2s',
-                                            cursor: 'pointer'
-                                        }}
-                                        onMouseEnter={e => {
-                                            e.currentTarget.style.transform = 'translateY(-2px)';
-                                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
-                                        }}
-                                        onMouseLeave={e => {
-                                            e.currentTarget.style.transform = 'translateY(0)';
-                                            e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
-                                        }}
-                                    >
-                                        {/* Color Indicator */}
-                                        <div style={{ width: '4px', height: '32px', borderRadius: '4px', background: containerColor }} />
-
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>{container.id}</div>
-                                            <div style={{ fontSize: '11px', color: '#64748b' }}>{container.customerName}</div>
-                                        </div>
-
-                                        {/* Type Code on Right */}
-                                        <div style={{
-                                            fontSize: '13px', fontWeight: 700,
-                                            color: '#64748b'
-                                        }}>
-                                            {typeCode}
-                                        </div>
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-                )}
-            </div>
-
-            {/* Footer (Only in Detail View) */}
-            {selectedContainerId && !isLoading && containerDetails && (
-                <div style={{
-                    padding: '20px 24px',
-                    borderTop: '1px solid rgba(0, 0, 0, 0.08)',
-                    display: 'flex',
-                    gap: '12px',
-                    background: 'linear-gradient(135deg, rgba(247, 207, 155, 0.25) 0%, rgba(247, 207, 155, 0.15) 100%)',
-                    backdropFilter: 'blur(16px)',
-                }}>
-                    <ActionButton
-                        icon={<MapPin size={16} />}
-                        label="Position"
-                        primary
-                        onClick={() => {
-                            // Close CFS panel and open Position panel via global state
-                            openPanel('cfsPosition', {
-                                containerNbr: selectedContainerId || '',
-                                containerType: containerDetails.container_type || '20GP',
-                                shipmentNbr: containerDetails.inbound_shipment_nbr || ''
-                            });
-                        }}
-                    />
-                    <ActionButton
-                        icon={isReleasing ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} />}
-                        label={isReleasing ? "Releasing..." : "Release"}
-                        danger
-                        onClick={handleRelease}
-                        disabled={isReleasing}
-                    />
-                </div>
+            {selectedContainerId ? (
+                <CFSDetailView
+                    containerId={selectedContainerId}
+                    onBack={() => setSelectedContainerId(null)}
+                />
+            ) : (
+                <CFSListView
+                    cfsContainers={cfsContainers}
+                    onSelect={setSelectedContainerId}
+                />
             )}
         </div>
     );
