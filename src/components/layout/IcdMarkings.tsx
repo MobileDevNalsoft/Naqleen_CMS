@@ -441,11 +441,13 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
                         count++;
 
                         // Build unique position key: Terminal-Block-Lot-Row
-                        // Extract terminal and block letter from block.id (e.g., 'trs_block_a' -> 'TRS', 'A')
-                        const blockIdMatch = block.id.match(/^(trs|trm|trl)_block_([a-d])/i);
-                        if (blockIdMatch) {
-                            const terminal = blockIdMatch[1].toUpperCase();
-                            const blockLetter = blockIdMatch[2].toUpperCase();
+                        // Robust parsing: split by '_block_' to handle terminals like 'trl_1' and blocks like 'e'
+                        console.log('[useEffect] Block ID: ' + block.id);
+                        const parts = block.id.split('_block_');
+                        if (parts.length === 2) {
+                            const terminal = parts[0].toUpperCase();
+                            const blockLetter = parts[1].toUpperCase();
+                            console.log('[useEffect] Terminal: ' + terminal + ', Block: ' + blockLetter + ', Lot: ' + currentLotNumber + ', Row: ' + currentRowLabel);
                             // currentLotNumber is the actual lot number (e.g., 1, 3, 5)
                             // currentRowLabel is the row letter (e.g., 'A', 'B', 'K')
                             const posKey = `${terminal}-${blockLetter}-${currentLotNumber}-${currentRowLabel}`;
