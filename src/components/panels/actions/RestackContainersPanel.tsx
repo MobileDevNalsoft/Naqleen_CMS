@@ -370,6 +370,7 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
                     containerType={containerType}
                     onPositionChange={setNewPosition}
                     currentPosition={currentPosition}
+                    containerId={containerId}
                 />
             )}
 
@@ -393,7 +394,7 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
 }
 
 // Position Selectors Component (same as PositionContainerPanel)
-const PositionSelectors = ({ containerType, onPositionChange, currentPosition }: { containerType: string, onPositionChange: (pos: string) => void, currentPosition: string }) => {
+const PositionSelectors = ({ containerType, onPositionChange, currentPosition, containerId }: { containerType: string, onPositionChange: (pos: string) => void, currentPosition: string, containerId: string }) => {
     const [terminal, setTerminal] = useState('');
     const [block, setBlock] = useState('');
     const [lot, setLot] = useState('');
@@ -416,27 +417,27 @@ const PositionSelectors = ({ containerType, onPositionChange, currentPosition }:
     // Query Available Options
     const { data: termData, isLoading: isLoadingTerminals } = useQuery({
         queryKey: ['posInit', containerType],
-        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'I', containerType }),
+        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'I', containerType, containerNbr: containerId }),
         select: res => res.data
     });
 
     const { data: blockData, isLoading: isLoadingBlocks } = useQuery({
         queryKey: ['posBlock', terminal],
-        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'T', containerType, terminal }),
+        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'T', containerType, terminal, containerNbr: containerId }),
         enabled: !!terminal,
         select: res => res.data
     });
 
     const { data: lotData, isLoading: isLoadingLots } = useQuery({
         queryKey: ['posLot', block],
-        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'B', containerType, terminal, block }),
+        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'B', containerType, terminal, block, containerNbr: containerId }),
         enabled: !!block,
         select: res => res.data
     });
 
     const { data: rowData, isLoading: isLoadingRows } = useQuery({
         queryKey: ['posRow', lot],
-        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'L', containerType, terminal, block, lot }),
+        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'L', containerType, terminal, block, lot, containerNbr: containerId }),
         enabled: !!lot,
         select: (res) => {
             // Debug filtering usage
@@ -460,7 +461,7 @@ const PositionSelectors = ({ containerType, onPositionChange, currentPosition }:
 
     const { data: levelData, isLoading: isLoadingLevels } = useQuery({
         queryKey: ['posLevel', row],
-        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'R', containerType, terminal, block, lot, row }),
+        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'R', containerType, terminal, block, lot, row, containerNbr: containerId }),
         enabled: !!row,
         select: res => res.data
     });
