@@ -440,7 +440,7 @@ function SwapWorkspace({ toSwap, bookingRequirements, onConfirm, onCancel, recom
                                         disabled={!selectedTerminal}
                                         style={{ width: '100%', height: '100%', border: 'none', outline: 'none', padding: '0 8px', fontSize: '12px', cursor: 'pointer', appearance: 'none', background: 'transparent', fontWeight: 600, color: '#334155', textAlign: 'center' }}
                                     >
-                                        <option value="" disabled hidden>BK</option>
+                                        <option value="">BK</option>
                                         {availableBlocks.map(b => <option key={b} value={b}>{b}</option>)}
                                     </select>
                                     <ChevronDown size={10} style={{ position: 'absolute', right: 4, top: 12, pointerEvents: 'none', color: '#94a3b8' }} />
@@ -456,7 +456,7 @@ function SwapWorkspace({ toSwap, bookingRequirements, onConfirm, onCancel, recom
                                         disabled={!selectedBlock}
                                         style={{ width: '100%', height: '100%', border: 'none', outline: 'none', padding: '0 8px', fontSize: '12px', cursor: 'pointer', appearance: 'none', background: 'transparent', fontWeight: 600, color: '#334155', textAlign: 'center' }}
                                     >
-                                        <option value="" disabled hidden>LT</option>
+                                        <option value="">LT</option>
                                         {availableLots.map(l => <option key={l} value={l}>{l}</option>)}
                                     </select>
                                     <ChevronDown size={10} style={{ position: 'absolute', right: 4, top: 12, pointerEvents: 'none', color: '#94a3b8' }} />
@@ -472,7 +472,7 @@ function SwapWorkspace({ toSwap, bookingRequirements, onConfirm, onCancel, recom
                                         disabled={!selectedLot}
                                         style={{ width: '100%', height: '100%', border: 'none', outline: 'none', padding: '0 8px', fontSize: '12px', cursor: 'pointer', appearance: 'none', background: 'transparent', fontWeight: 600, color: '#334155', textAlign: 'center' }}
                                     >
-                                        <option value="" disabled hidden>RW</option>
+                                        <option value="">RW</option>
                                         {availableRows.map(r => <option key={r} value={r}>{r}</option>)}
                                     </select>
                                     <ChevronDown size={10} style={{ position: 'absolute', right: 4, top: 12, pointerEvents: 'none', color: '#94a3b8' }} />
@@ -485,7 +485,7 @@ function SwapWorkspace({ toSwap, bookingRequirements, onConfirm, onCancel, recom
                                         disabled={!selectedRow}
                                         style={{ width: '100%', height: '100%', border: 'none', outline: 'none', padding: '0 8px', fontSize: '12px', cursor: 'pointer', appearance: 'none', background: 'transparent', fontWeight: 600, color: '#334155', textAlign: 'center' }}
                                     >
-                                        <option value="" disabled hidden>LV</option>
+                                        <option value="">LV</option>
                                         {availableLevels.map(l => <option key={l} value={l}>{l}</option>)}
                                     </select>
                                     <ChevronDown size={10} style={{ position: 'absolute', right: 4, top: 12, pointerEvents: 'none', color: '#94a3b8' }} />
