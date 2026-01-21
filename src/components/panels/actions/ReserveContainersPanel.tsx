@@ -755,6 +755,7 @@ export default function ReserveContainersPanel({ isOpen, onClose }: ReserveConta
     const [expandedCustomer, setExpandedCustomer] = useState<string | null>(null);
     const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
     const [selectedCustomerName, setSelectedCustomerName] = useState<string | null>(null);
+    const [selectedCustomerNbr, setSelectedCustomerNbr] = useState<string | null>(null);
     const [bookingRequirements, setBookingRequirements] = useState<ContainerType[] | null>(null);
 
     // -- View State --
@@ -823,6 +824,8 @@ export default function ReserveContainersPanel({ isOpen, onClose }: ReserveConta
                 const booking = cust.bookings?.find((b: any) => b.booking_id === selectedBookingId);
                 if (booking) {
                     setBookingRequirements(booking.container_types);
+                    setSelectedCustomerNbr(cust.cust_nbr);
+                    setSelectedCustomerName(cust.cust_name);
                     break;
                 }
             }
@@ -840,7 +843,7 @@ export default function ReserveContainersPanel({ isOpen, onClose }: ReserveConta
         })).filter(req => req.container_count > 0);
     }, [bookingRequirements]);
 
-    const { data: recommendedContainers = [], isLoading: isLoadingRecommendations, isFetching: isFetchingRecommendations } = useRecommendedContainersQuery(selectedBookingId, effectiveRequirements);
+    const { data: recommendedContainers = [], isLoading: isLoadingRecommendations, isFetching: isFetchingRecommendations } = useRecommendedContainersQuery(selectedBookingId, selectedCustomerNbr, effectiveRequirements);
 
     // -- Reservation Mutation --
     const reservationMutation = useReservationMutation();

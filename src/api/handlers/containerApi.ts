@@ -150,10 +150,14 @@ export async function getContainerDetails(containerNbr: string): Promise<Contain
 }
 
 export const getRecommendedContainers = async (
+    custNbr: string,
     requirements: { container_type: string; container_count: number }[]
 ): Promise<RecommendedContainersResponse[]> => {
     try {
-        const payload = { container_types: requirements };
+        const payload = {
+            cust_nbr: custNbr,
+            container_types: requirements
+        };
         const response = await apiClient.post<ApiResponse<RecommendedContainersResponse[]>>(
             API_CONFIG.ENDPOINTS.GET_RECOMMENDED_CONTAINERS,
             payload
@@ -254,11 +258,15 @@ export const useContainersQuery = (layout: DynamicIcdLayout | null) => {
     };
 };
 
-export const useRecommendedContainersQuery = (bookingId: string | null, requirements: { container_type: string, container_count: number }[] | null) => {
+export const useRecommendedContainersQuery = (
+    bookingId: string | null,
+    custNbr: string | null,
+    requirements: { container_type: string, container_count: number }[] | null
+) => {
     return useQuery({
-        queryKey: ['recommendedContainers', bookingId, requirements],
-        queryFn: () => getRecommendedContainers(requirements!),
-        enabled: !!bookingId && !!requirements,
+        queryKey: ['recommendedContainers', bookingId, custNbr, requirements],
+        queryFn: () => getRecommendedContainers(custNbr!, requirements!),
+        enabled: !!bookingId && !!custNbr && !!requirements,
         staleTime: 1000 * 60 * 5,
     });
 };

@@ -2,6 +2,7 @@ import type { ContainerType } from './containerTypes';
 
 export interface CustomerBookingResponse {
     cust_name: string;
+    cust_nbr: string;
     bookings: {
         booking_id: string;
         container_types: ContainerType[];
