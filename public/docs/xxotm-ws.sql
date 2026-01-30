@@ -319,14 +319,14 @@ end;
 begin
    ords.define_template(
       p_module_name => 'otm_web',
-      p_pattern     => 'getDashboardDrilldown'
+      p_pattern     => 'getInvalidContainers'
    );
    ords.define_handler(
       p_module_name   => 'otm_web',
-      p_pattern       => 'getDashboardDrilldown',
-      p_method        => 'POST',
+      p_pattern       => 'getInvalidContainers',
+      p_method        => 'GET',
       p_source_type   => ords.source_type_plsql,
-      p_source        => 'BEGIN XXOTM_GET_DASHBOARD_DRILLDOWN_P(p_body => :body); END;',
+      p_source        => 'BEGIN XXOTM_GET_INVALID_CONTAINERS_P(p_offset => NVL(:offset, 0)); END;',
       p_mimes_allowed => 'application/json'
    );
 
@@ -334,3 +334,10 @@ begin
 end;
 
 select event_date, vehicle_xid, driver_xid, truck_daily_status, equipment from xxotm_vehicle_history_t where truck_daily_status is not null and event_date = '2026-01-29T00:00:00Z';
+
+
+select container_nbr, position from xxotm_container_inventory_t where container_nbr is not null and container_stored_time is not null and container_released_time is null;
+
+SELECT DISTINCT TERMINAL FROM XXOTM_POSITION_MASTER_T; 
+select listagg(distinct lot_no, ',') within group (order by lot_no) from xxotm_position_master_t where terminal = 'TRM' and block = 'B' ORDER BY lot_no;
+

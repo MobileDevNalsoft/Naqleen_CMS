@@ -101,3 +101,19 @@ export interface ContainersResponse {
     };
 }
 
+// Invalid container from API (containers with position = 'NA')
+export interface InvalidContainer {
+    container_nbr: string;
+    container_type: string | null;
+    stored_time: string | null;
+    customer_name: string | null;
+}
+
+// Response from getInvalidContainers API with pagination
+export interface InvalidContainersResponse {
+    data: InvalidContainer[];
+    total_count: number;
+    offset: number;
+    limit: number;
+}
+

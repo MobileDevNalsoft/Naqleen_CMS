@@ -69,5 +69,7 @@ export const API_CONFIG = {
         GET_DASHBOARD_METRICS: '/getDashboardMetrics',
         GET_OPERATIONAL_METRICS: '/getDashboards',
         GET_DASHBOARD_DRILLDOWN: '/getDashboardDrilldown',
+        // Invalid Containers endpoint
+        GET_INVALID_CONTAINERS: '/getInvalidContainers',
     }
 } as const;

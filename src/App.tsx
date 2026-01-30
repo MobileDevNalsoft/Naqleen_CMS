@@ -8,6 +8,7 @@ import LoginScreen from './components/ui/LoginScreen';
 import ContainerDetailsPanel from './components/panels/details/ContainerDetailsPanel';
 import BlockDetailsPanel from './components/panels/details/BlockDetailsPanel';
 import CFSDetailsPanel from './components/panels/details/CFSDetailsPanel';
+import InvalidContainersPanel from './components/panels/details/InvalidContainersPanel';
 import ModernHeader from './components/ui/ModernHeader';
 import HoverInfoPanel from './components/ui/HoverInfoPanel';
 import { CameraTransition } from './components/camera/CameraTransition';
@@ -276,6 +277,7 @@ const App = () => {
           <ContainerDetailsPanel />
           <BlockDetailsPanel />
           <CFSDetailsPanel />
+          <InvalidContainersPanel />
           <PositionContainerPanel isOpen={activePanel === 'position'} onClose={closePanel} />
           <PositionContainerPanel
             isOpen={activePanel === 'cfsPosition'}

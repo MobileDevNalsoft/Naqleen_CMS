@@ -302,8 +302,8 @@ export default function CFSDetailsPanel() {
     // Global panel control
     const activePanel = useUIStore(state => state.activePanel);
 
-    // Identify if the selected block is a CFS Area
-    const isCFSArea = selectedBlock?.startsWith('cfs_area');
+    // Identify if the selected block is CFS Area 1 (invalid_containers is handled by InvalidContainersPanel)
+    const isCFSArea = selectedBlock === 'cfs_area_1';
 
     // Find CFS Area details from layout
     const cfsArea = React.useMemo(() => {

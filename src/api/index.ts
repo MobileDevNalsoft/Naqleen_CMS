@@ -10,4 +10,5 @@ export * from './handlers/bookingApi';
 export * from './handlers/inventoryApi';
 export * from './handlers/yardApi';
 export * from './handlers/gateApi';
+export * from './handlers/invalidContainersApi';
 

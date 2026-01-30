@@ -435,9 +435,9 @@
           "rotation": 0
         },
         {
-          "id": "cfs_area_2",
+          "id": "invalid_containers",
           "type": "cfs_area",
-          "name": "CFS Area - 2",
+          "name": "Invalid Containers",
           "position": { "x": -185, "y": 0.3, "z": 17 },
           "dimensions": { "width": 44, "height": 25 },
           "rotation": 0

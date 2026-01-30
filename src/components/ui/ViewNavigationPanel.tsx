@@ -172,7 +172,7 @@ const ViewNavigationPanel: React.FC = () => {
 
             // 2. CFS AREAS
             layout.entities
-                .filter(e => e.type === 'cfs_area' && e.id !== 'cfs_area_2')
+                .filter(e => e.type === 'cfs_area' && e.id !== 'invalid_containers')
                 .forEach(cfs => {
                     items.push({
                         id: cfs.id,

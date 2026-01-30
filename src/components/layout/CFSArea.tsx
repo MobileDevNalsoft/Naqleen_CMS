@@ -256,6 +256,17 @@ const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rot
                 <boxGeometry args={[width, 0.2, depth]} />
             </mesh>
 
+            {/* Static Containers for CFS Area 1 */}
+            {id === 'cfs_area_1' && (
+                <CFSContainerGrid width={width} depth={depth} containerCount={45} />
+            )}
+
+            {/* Static Containers for Invalid Area (invalid_containers) */}
+            {id === 'invalid_containers' && (
+                <CFSContainerGrid width={width} depth={depth} containerCount={20} />
+            )}
+
+            {/* Subtle Border Lines (perimeter marking) */}
             {/* Subtle Border Lines (perimeter marking) */}
             {/* Front border */}
             <mesh position={[0, 0.25, depth / 2 - borderWidth / 2]} material={borderMaterial}>
@@ -274,19 +285,18 @@ const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rot
                 <boxGeometry args={[borderWidth, borderHeight, depth]} />
             </mesh>
 
-            {/* Interactive Marker */}
+            {/* Floating Marker */}
             <CFSMarker
-                position={[0, 8, 0]}
-                areaName={name}
+                position={[0, 2, 0]}
+                areaName={id === 'invalid_containers' ? 'Invalid Containers' : name}
                 areaId={id}
                 onClick={handleClick}
                 onPointerOver={() => setHoveredMarker(id)}
                 onPointerOut={() => setHoveredMarker(null)}
                 isOtherMarkerHovered={hoveredMarker !== null && hoveredMarker !== id}
-                disabled={isDimmed || id === 'cfs_area_2'}
+                // Enable marker for invalid_containers and cfs_area_1
+                disabled={id !== 'cfs_area_1' && id !== 'invalid_containers'}
             />
-
-            {/* Child Trucks or Container Grid based on ID */}
             {id === 'cfs_area_1' ? (
                 <CFSContainerGrid width={width} depth={depth} containerCount={cfsContainerCount} />
             ) : (
