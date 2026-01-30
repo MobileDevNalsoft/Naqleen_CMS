@@ -71,5 +71,7 @@ export const API_CONFIG = {
         GET_DASHBOARD_DRILLDOWN: '/getDashboardDrilldown',
         // Invalid Containers endpoint
         GET_INVALID_CONTAINERS: '/getInvalidContainers',
+        // Subscription Validation
+        VALIDATE_SUBSCRIPTION: '/unisub/validateSubscription',
     }
 } as const;

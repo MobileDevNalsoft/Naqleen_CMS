@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User, LoginCredentials } from '../api/types/authTypes';
 import { loginUser } from '../api/handlers/authApi';
+import { API_CONFIG } from '../api/apiConfig';
 
 interface AuthState {
     user: User | null;
@@ -13,11 +14,12 @@ interface AuthState {
     login: (credentials: LoginCredentials) => Promise<boolean>;
     logout: () => void;
     updateUser: (user: User) => void;
+    validateSubscription: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
     persist(
-        (set) => ({
+        (set, get) => ({
             user: null,
             isAuthenticated: false,
             isLoading: false,
@@ -63,6 +65,38 @@ export const useAuthStore = create<AuthState>()(
 
             updateUser: (user) => {
                 set({ user });
+            },
+            validateSubscription: async () => {
+                const user = get().user;
+                if (!user) return;
+
+                try {
+                    // We need a direct fetch here because this URL is different from the main axios client base
+                    const response = await fetch(API_CONFIG.ENDPOINTS.VALIDATE_SUBSCRIPTION, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // Use hardcoded basic auth for this specific endpoint if needed, 
+                            // matching the mobile app logic which likely sends these headers
+                            'Authorization': 'Basic ' + btoa('NAQLEEN.INTEGRATION:NaqleenInt@123')
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        // API returns { response_code: 200, data: { is_valid: "Y" | "N" } }
+                        // Check nested data structure
+                        const isValid = data?.data?.is_valid === 'Y';
+
+                        set(state => ({
+                            user: state.user ? { ...state.user, isSubscriptionValid: isValid } : null
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Subscription validation failed:', error);
+                    // Decide: Fail open or closed? Mobile fails open on network error generally, 
+                    // unless we want strict enforcement. For now, keep existing state.
+                }
             }
         }),
         {

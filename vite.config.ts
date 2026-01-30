@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/ords': {
-        target: 'https://paas.nalsoft.net:4443',
+        target: 'https://g74232442e68f6c-prodatpdb.adb.me-jeddah-1.oraclecloudapps.com',
         changeOrigin: true,
         secure: false,
         configure: (proxy, _options) => {
@@ -19,6 +19,17 @@ export default defineConfig({
           });
           proxy.on('error', (err, req, _res) => {
             console.error('[Proxy] Error:', err.message, req.url);
+          });
+        },
+      },
+      '/unisub': {
+        target: 'https://paas.nalsoft.net:4443/ords/xxma/unisub',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/unisub/, ''),
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, req, _res) => {
+            console.error('[Proxy /unisub] Error:', err.message, req.url);
           });
         },
       },

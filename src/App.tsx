@@ -5,6 +5,7 @@ import { useRef, useState, useEffect } from 'react';
 import LayoutEnvironment from './components/layout/Environment';
 import LoadingScreen from './components/ui/animations/LoadingScreen';
 import LoginScreen from './components/ui/LoginScreen';
+import SubscriptionExpiredScreen from './components/ui/SubscriptionExpiredScreen';
 import ContainerDetailsPanel from './components/panels/details/ContainerDetailsPanel';
 import BlockDetailsPanel from './components/panels/details/BlockDetailsPanel';
 import CFSDetailsPanel from './components/panels/details/CFSDetailsPanel';
@@ -66,6 +67,14 @@ const App = () => {
       setActiveNav('Dashboard');
     }
   }, [hasOnlyDashboard]);
+
+  // [NEW] Validate subscription on mount/app resume
+  const validateSubscription = useAuthStore(state => state.validateSubscription);
+  useEffect(() => {
+    if (isAuthenticated) {
+      validateSubscription();
+    }
+  }, [isAuthenticated, validateSubscription]);
 
   const canvasSectionRef = useRef<HTMLElement>(null);
   const dashboardSectionRef = useRef<HTMLElement>(null);
@@ -134,6 +143,12 @@ const App = () => {
   if (!isAuthenticated) {
     // Authentication state is handled solely by the store
     return <LoginScreen />;
+  }
+
+  // [NEW] Subscription Freeze Logic
+  // Check explicit false (undefined should pass until validated)
+  if (useAuthStore(state => state.user?.isSubscriptionValid) === false) {
+    return <SubscriptionExpiredScreen />;
   }
 
   return (
@@ -338,10 +353,7 @@ const App = () => {
       {activeNav === '3D View' && !showLoadingScreen && activePanel !== 'accessControl' && <QuickActionsButton />}
 
       {/* Global Drilldown Modal - Portal powered */}
-      {(() => {
-        console.error('[App] Rendering DashboardDrilldownModal line. Store isOpen:', useUIStore.getState().drillDown.isOpen);
-        return <DashboardDrilldownModal />;
-      })()}
+      <DashboardDrilldownModal />
     </div>
   );
 }

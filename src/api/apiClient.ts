@@ -19,6 +19,28 @@ const createApiClient = (baseURL: string): AxiosInstance => {
     // Request interceptor
     client.interceptors.request.use(
         (config) => {
+            // [NEW] Subscription Check
+            // Circular import: safely import store dynamically or access via window if absolutely needed,
+            // but standard pattern is importing the store directly.
+            // Note: We need to handle potential circular dependency if authStore imports apiClient.
+            // Ideally, authStore imports handlers, not the client instance directly for logic, 
+            // but handlers import client. This is standard and usually fine in Zustand.
+
+            // However, to be safe and avoid "cannot access before initialization":
+            const user = localStorage.getItem('auth-storage')
+                ? JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.user
+                : null;
+
+            if (user && user.isSubscriptionValid === false) {
+                // Block request
+                const controller = new AbortController();
+                config.signal = controller.signal;
+                controller.abort('Subscription Expired');
+
+                // Alternatively throw error immediately
+                throw new axios.Cancel('Subscription Expired');
+            }
+
             console.log(`[API Request] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
             return config;
         },

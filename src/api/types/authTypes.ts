@@ -20,6 +20,7 @@ export interface User {
     roles: string[]; // List of all assigned roles
     screens: UserScreen[]; // Screen-based permissions
     avatar?: string;
+    isSubscriptionValid?: boolean;
 }
 
 export interface LoginResponse {
