@@ -269,17 +269,20 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
     const settingsTab = useUIStore(state => state.settingsTab);
     const isSettings = activePanel === 'settings';
 
+    const isDashboard = activeNav === 'Dashboard';
+    const isUnified = isSettings || isDashboard;
+
     // Premium Easing - Slower for visibility
     // Open: Start immediately. Close: Start IMMEDIATELY (0s) to avoid "line" artifact, and slightly faster (0.9s).
-    const transitionStyle = isSettings
+    const transitionStyle = isUnified
         ? 'all 1.2s cubic-bezier(0.25, 1, 0.3, 1)'
         : 'all 0.9s cubic-bezier(0.25, 1, 0.3, 1) 0s';
 
     // Delayed background transition for "Fuse" effect
-    // When opening (isSettings): Wait 0.8s for expansion, then fade background
-    // When closing (!isSettings): Fade background INSTANTLY (0s) to avoid double-glass ghosting. 
+    // When opening (isUnified): Wait 0.8s for expansion, then fade background
+    // When closing (!isUnified): Fade background INSTANTLY (0s) to avoid double-glass ghosting. 
     // BUT Delay Border/Shadow (0.2s) so we don't see the "seam line" before separation.
-    const backgroundTransition = isSettings
+    const backgroundTransition = isUnified
         ? 'background 0.5s ease-in-out 0.8s, backdrop-filter 0.5s ease-in-out 0.8s, border-color 0.5s ease-in-out 0.8s, box-shadow 0.5s ease-in-out 0.8s'
         : 'background 0s linear 0s, backdrop-filter 0s linear 0s, border-color 0.2s linear 0.1s, box-shadow 0.2s linear 0.1s';
 
@@ -294,16 +297,16 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 height: '64px',
                 borderRadius: '50px',
                 // Darker premium background when settings open to match sidebar
-                background: isSettings
+                background: isUnified
                     ? 'linear-gradient(135deg, rgba(56, 78, 81, 0.95) 0%, rgba(35, 54, 66, 0.95) 100%)'
                     : 'var(--glass-bg)',
                 backdropFilter: 'blur(20px)',
                 border: '1px solid var(--glass-border)',
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
                 zIndex: 990, // Behind content (1000)
-                opacity: isSettings ? 1 : 0,
+                opacity: isUnified ? 1 : 0,
                 // Delay appearance until expansion is done, hide immediately on close (0s)
-                transition: isSettings ? 'opacity 0.5s ease-in-out 0.8s' : 'opacity 0s linear 0s',
+                transition: isUnified ? 'opacity 0.5s ease-in-out 0.8s' : 'opacity 0s linear 0s',
                 pointerEvents: 'none', // Purely visual
             }} />
 
@@ -316,22 +319,22 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 display: 'flex',
                 alignItems: 'center',
                 // Fade out individual glass properties when merged (Unified layer takes over)
-                background: isSettings ? 'transparent' : 'rgba(55, 75, 78, 0.8)',
-                backdropFilter: isSettings ? 'none' : 'blur(20px)',
+                background: isUnified ? 'transparent' : 'rgba(55, 75, 78, 0.8)',
+                backdropFilter: isUnified ? 'none' : 'blur(20px)',
                 padding: '0 20px',
                 height: '64px',
                 boxSizing: 'border-box',
                 // Use min-width to animate from auto content width to 50% + overlap
                 width: 'auto',
                 // Add 2px overlap to ensure motion connects, but transparency hides seam
-                minWidth: isSettings ? 'calc(50% - 13px)' : '0px',
+                minWidth: isUnified ? 'calc(50% - 13px)' : '0px',
                 // Remove right border radius when merged
-                borderRadius: isSettings ? '50px 0 0 50px' : '50px',
+                borderRadius: isUnified ? '50px 0 0 50px' : '50px',
                 border: '1px solid var(--glass-border)',
                 // Hide border completely when merged
-                borderColor: isSettings ? 'transparent' : 'var(--glass-border)',
+                borderColor: isUnified ? 'transparent' : 'var(--glass-border)',
                 // Hide shadow when merged
-                boxShadow: isSettings ? 'none' : '0 8px 32px rgba(0, 0, 0, 0.1)',
+                boxShadow: isUnified ? 'none' : '0 8px 32px rgba(0, 0, 0, 0.1)',
                 // Combine motion transition with delayed background transition
                 transition: `${transitionStyle}, ${backgroundTransition}`,
             }}>
@@ -365,10 +368,10 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                             <div
                                 ref={icdDropdownRef}
                                 style={{
-                                    opacity: isSettings ? 0 : 1,
-                                    transform: isSettings ? 'translateY(20px)' : 'translateY(0)',
+                                    opacity: isUnified ? 0 : 1,
+                                    transform: isUnified ? 'translateY(20px)' : 'translateY(0)',
                                     transition: 'all 0.6s cubic-bezier(0.25, 1, 0.3, 1)',
-                                    pointerEvents: isSettings ? 'none' : 'auto',
+                                    pointerEvents: isUnified ? 'none' : 'auto',
                                 }}
                             >
                                 <div
@@ -495,6 +498,38 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                     Settings
                                 </span>
                             </div>
+
+                            {/* Dashboard Title - Animate In */}
+                            <div style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                bottom: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                paddingLeft: '8px',
+                                opacity: isDashboard ? 1 : 0,
+                                transform: isDashboard ? 'translateY(0)' : 'translateY(-20px)',
+                                transition: 'all 0.6s cubic-bezier(0.25, 1, 0.3, 1)',
+                                pointerEvents: isDashboard ? 'auto' : 'none',
+                            }}>
+                                <div style={{ // Dashboard Icon Circle
+                                    width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                }}>
+                                    {/* Simple Icon placeholder since we don't import LayoutDashboard */}
+                                    <div style={{ width: '12px', height: '12px', border: '1.5px solid var(--secondary-color)', borderRadius: '2px' }} />
+                                </div>
+                                <span style={{
+                                    fontSize: '16px',
+                                    fontWeight: 600,
+                                    color: 'white',
+                                    letterSpacing: '0.01em'
+                                }}>
+                                    Dashboards
+                                </span>
+                            </div>
                         </div>
                     </>
                 )}
@@ -513,17 +548,17 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     justifyContent: 'center',
                     gap: '4px',
                     // Fade out background/border using opacity or color
-                    background: isSettings ? 'transparent' : 'rgba(55, 75, 78, 0.8)',
-                    backdropFilter: isSettings ? 'none' : 'blur(20px)',
+                    background: isUnified ? 'transparent' : 'rgba(55, 75, 78, 0.8)',
+                    backdropFilter: isUnified ? 'none' : 'blur(20px)',
                     padding: '6px',
                     borderRadius: '50px',
-                    border: isSettings ? '1px solid transparent' : '1px solid var(--glass-border)',
-                    boxShadow: isSettings ? 'none' : '0 8px 32px rgba(0, 0, 0, 0.1)',
+                    border: isUnified ? '1px solid transparent' : '1px solid var(--glass-border)',
+                    boxShadow: isUnified ? 'none' : '0 8px 32px rgba(0, 0, 0, 0.1)',
                     // Open: Instant hide (0s). Close: Smooth fade in AFTER contraction starts (0.4s delay)
-                    transition: isSettings
+                    transition: isUnified
                         ? 'background 0s, border 0s, box-shadow 0s, backdrop-filter 0s'
                         : 'all 0.8s cubic-bezier(0.25, 1, 0.3, 1) 0.4s',
-                    pointerEvents: isSettings ? 'none' : 'auto', // Disable interaction when merged/hidden
+                    pointerEvents: isUnified ? 'none' : 'auto', // Disable interaction when merged/hidden
                     // opacity: isSettings ? 0 : 1, // REMOVED: Element needs to stay visible for My Profile text
                 }}>
                     {/* Navigation Items - Fade Out */}
@@ -531,9 +566,9 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                         display: 'flex',
                         alignItems: 'center',
                         gap: '4px',
-                        opacity: isSettings ? 0 : 1,
+                        opacity: isUnified ? 0 : 1,
                         // Open: Instant opacity 0. Close: Smooth fade in matched with container
-                        transition: isSettings ? 'opacity 0s' : 'opacity 0.8s ease 0.4s',
+                        transition: isUnified ? 'opacity 0s' : 'opacity 0.8s ease 0.4s',
                     }}>
                         {['3D View', 'Dashboard'].map((item) => (
                             <div
@@ -573,7 +608,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                         ))}
                     </div>
 
-                    {/* Dynamic Settings Title - Fade In Delayed on open, Instant hide on close */}
+                    {/* Dynamic Settings/Dashboard Title - Fade In Delayed on open, Instant hide on close */}
                     <div style={{
                         position: 'absolute',
                         top: '32px', // Center vertically within 64px header
@@ -583,11 +618,11 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                         color: 'white',
                         fontSize: '15px',
                         fontWeight: 600,
-                        opacity: isSettings ? 1 : 0,
+                        opacity: isUnified ? 1 : 0,
                         // On open: wait 1.2s for merge, then fade in. On close: instant hide
-                        transition: isSettings ? 'opacity 0.6s ease-in-out 1.2s' : 'opacity 0.1s ease-out 0s',
+                        transition: isUnified ? 'opacity 0.6s ease-in-out 1.2s' : 'opacity 0.1s ease-out 0s',
                     }}>
-                        {settingsTab === 'profile' ? 'My Profile' : 'Access Control'}
+                        {isSettings ? (settingsTab === 'profile' ? 'My Profile' : 'Access Control') : (isDashboard ? 'Dashboards' : '')}
                     </div>
                 </div>
             )}
@@ -603,22 +638,22 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 justifyContent: 'flex-end', // Ensure items stay right
                 gap: '12px',
                 // Fade out individual glass properties when merged
-                background: isSettings ? 'transparent' : 'rgba(55, 75, 78, 0.8)',
-                backdropFilter: isSettings ? 'none' : 'blur(20px)',
+                background: isUnified ? 'transparent' : 'rgba(55, 75, 78, 0.8)',
+                backdropFilter: isUnified ? 'none' : 'blur(20px)',
                 padding: '0 16px', // Remove vertical padding
                 height: '64px', // Fixed height
                 boxSizing: 'border-box',
                 // Use min-width animation for right side too
                 width: 'auto',
                 // Add 2px overlap: 50% - 15px + 2px
-                minWidth: isSettings ? 'calc(50% - 13px)' : '0px',
+                minWidth: isUnified ? 'calc(50% - 13px)' : '0px',
                 // Remove left border radius when merged
-                borderRadius: isSettings ? '0 50px 50px 0' : '50px',
+                borderRadius: isUnified ? '0 50px 50px 0' : '50px',
                 border: '1px solid var(--glass-border)',
                 // Hide border completely when merged
-                borderColor: isSettings ? 'transparent' : 'var(--glass-border)',
+                borderColor: isUnified ? 'transparent' : 'var(--glass-border)',
                 // Hide shadow when merged
-                boxShadow: isSettings ? 'none' : '0 8px 32px rgba(0, 0, 0, 0.1)',
+                boxShadow: isUnified ? 'none' : '0 8px 32px rgba(0, 0, 0, 0.1)',
                 // Combine motion transition with delayed background transition
                 transition: `${transitionStyle}, ${backgroundTransition}`,
             }}>
@@ -629,9 +664,9 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                         display: 'flex',
                         alignItems: 'center',
                         // Animate container to hide seamlessley
-                        opacity: isSettings ? 0 : 1,
-                        transform: isSettings ? 'scale(0.8) translateY(10px)' : 'scale(1) translateY(0)',
-                        pointerEvents: isSettings ? 'none' : 'auto',
+                        opacity: isUnified ? 0 : 1,
+                        transform: isUnified ? 'scale(0.8) translateY(10px)' : 'scale(1) translateY(0)',
+                        pointerEvents: isUnified ? 'none' : 'auto',
                         transition: 'all 0.5s cubic-bezier(0.25, 1, 0.3, 1)',
                     }} ref={searchContainerRef}>
                         {/* Search Icon Button */}
@@ -1085,9 +1120,9 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                         padding: '0px',
                         color: 'var(--secondary-color)',
                         outline: 'none',
-                        opacity: isSettings ? 0 : 1,
-                        transform: isSettings ? 'scale(0.8) translateY(10px)' : 'scale(1) translateY(0)',
-                        pointerEvents: isSettings ? 'none' : 'auto',
+                        opacity: isUnified ? 0 : 1,
+                        transform: isUnified ? 'scale(0.8) translateY(10px)' : 'scale(1) translateY(0)',
+                        pointerEvents: isUnified ? 'none' : 'auto',
                     }}
                     onMouseEnter={e => {
                         e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
@@ -1127,7 +1162,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     width: '1px',
                     height: '28px',
                     background: 'rgba(255, 255, 255, 0.2)',
-                    opacity: isSettings ? 0 : 1,
+                    opacity: isUnified ? 0 : 1,
                     transition: 'opacity 0.2s',
                 }} />
 
@@ -1155,17 +1190,17 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                             fontWeight: 700,
                             color: 'var(--primary-color)',
                             fontFamily: 'system-ui, -apple-system, sans-serif',
-                            opacity: isSettings ? 0 : 1,
-                            transform: isSettings ? 'scale(0.5) rotate(90deg)' : 'scale(1) rotate(0)',
+                            opacity: isUnified ? 0 : 1,
+                            transform: isUnified ? 'scale(0.5) rotate(90deg)' : 'scale(1) rotate(0)',
                             transition: 'all 0.6s cubic-bezier(0.25, 1, 0.3, 1)',
-                            pointerEvents: isSettings ? 'none' : 'auto',
+                            pointerEvents: isUnified ? 'none' : 'auto',
                         }}
                         onMouseEnter={e => {
-                            e.currentTarget.style.transform = isSettings ? 'scale(0.5) rotate(90deg)' : 'scale(1.08)';
+                            e.currentTarget.style.transform = isUnified ? 'scale(0.5) rotate(90deg)' : 'scale(1.08)';
                             e.currentTarget.style.boxShadow = '0 6px 20px rgba(247, 207, 155, 0.5)';
                         }}
                         onMouseLeave={e => {
-                            e.currentTarget.style.transform = isSettings ? 'scale(0.5) rotate(90deg)' : 'scale(1)';
+                            e.currentTarget.style.transform = isUnified ? 'scale(0.5) rotate(90deg)' : 'scale(1)';
                             e.currentTarget.style.boxShadow = '0 4px 12px rgba(247, 207, 155, 0.3)';
                         }}
                     >
@@ -1174,7 +1209,10 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
 
                     {/* Close Button - Animate In */}
                     <div
-                        onClick={() => useUIStore.getState().closePanel()}
+                        onClick={() => {
+                            if (isSettings) useUIStore.getState().closePanel();
+                            if (isDashboard) onNavChange('3D View');
+                        }}
                         style={{
                             position: 'absolute',
                             top: 0,
@@ -1184,11 +1222,11 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            opacity: isSettings ? 1 : 0,
-                            transform: isSettings ? 'scale(1) rotate(0)' : 'scale(0.5) rotate(-90deg)',
+                            opacity: isUnified ? 1 : 0,
+                            transform: isUnified ? 'scale(1) rotate(0)' : 'scale(0.5) rotate(-90deg)',
                             transition: 'all 0.6s cubic-bezier(0.25, 1, 0.3, 1)',
                             cursor: 'pointer',
-                            pointerEvents: isSettings ? 'auto' : 'none',
+                            pointerEvents: isUnified ? 'auto' : 'none',
                             zIndex: 10,
                         }}
                     >

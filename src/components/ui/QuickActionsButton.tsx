@@ -17,8 +17,9 @@ export default function QuickActionsButton({ }: QuickActionsButtonProps) {
             setIsActionSelectorOpen(false);
             setIsOpen(false);
         } else {
-            // If closed, open quick actions
+            // If closed, open quick actions AND actions panel immediately
             setIsOpen(true);
+            setIsActionSelectorOpen(true);
         }
     };
 

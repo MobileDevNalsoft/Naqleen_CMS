@@ -509,7 +509,7 @@ export default function UserManagement() {
                                         <input
                                             value={newUser.email}
                                             onChange={e => setNewUser({ ...newUser, email: e.target.value })}
-                                            placeholder="user@nalsoft.net"
+                                            placeholder="user@gmail.com"
                                             style={{
                                                 width: '100%',
                                                 padding: '12px',

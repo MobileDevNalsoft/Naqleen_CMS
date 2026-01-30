@@ -65,5 +65,9 @@ export const API_CONFIG = {
         ADMIN_ROLE_PERMISSIONS: '/roles/permissions',
         USERS_UPDATE: '/user/update',
         USERS_DELETE: '/user/delete',
+        // Dashboard endpoints
+        GET_DASHBOARD_METRICS: '/getDashboardMetrics',
+        GET_OPERATIONAL_METRICS: '/getDashboards',
+        GET_DASHBOARD_DRILLDOWN: '/getDashboardDrilldown',
     }
 } as const;

@@ -29,6 +29,7 @@ import CFSTaskAssignmentPanel from './components/panels/actions/CFSTaskAssignmen
 import PositionContainerPanel from './components/panels/actions/PositionContainerPanel';
 import RestackContainersPanel from './components/panels/actions/RestackContainersPanel';
 import Dashboard from './components/ui/Dashboard';
+import { DashboardDrilldownModal } from './components/ui/DashboardDrilldownModal';
 import Containers from './components/layout/Containers';
 import CustomerInventoryPanel from './components/panels/actions/CustomerInventoryPanel';
 import ReserveContainersPanel from './components/panels/actions/ReserveContainersPanel';
@@ -320,6 +321,12 @@ const App = () => {
 
       {/* Quick Actions Button */}
       {activeNav === '3D View' && !showLoadingScreen && activePanel !== 'accessControl' && <QuickActionsButton />}
+
+      {/* Global Drilldown Modal - Portal powered */}
+      {(() => {
+        console.error('[App] Rendering DashboardDrilldownModal line. Store isOpen:', useUIStore.getState().drillDown.isOpen);
+        return <DashboardDrilldownModal />;
+      })()}
     </div>
   );
 }
