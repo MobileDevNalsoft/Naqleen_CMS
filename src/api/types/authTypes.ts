@@ -5,12 +5,20 @@ export interface LoginCredentials {
     password: string;
 }
 
+export interface UserScreen {
+    screen_name: string;
+    screen_path: string;
+    is_active: boolean;
+    role: string;
+}
+
 export interface User {
     user_id: string | number;
     email: string;
     name: string;
     role: string;
     roles: string[]; // List of all assigned roles
+    screens: UserScreen[]; // Screen-based permissions
     avatar?: string;
 }
 

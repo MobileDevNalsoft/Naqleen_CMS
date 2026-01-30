@@ -341,3 +341,11 @@ select container_nbr, position from xxotm_container_inventory_t where container_
 SELECT DISTINCT TERMINAL FROM XXOTM_POSITION_MASTER_T; 
 select listagg(distinct lot_no, ',') within group (order by lot_no) from xxotm_position_master_t where terminal = 'TRM' and block = 'B' ORDER BY lot_no;
 
+delete from XX_ROLE_CONFIG where role = 'ADMIN' AND screen_name <> 'Active Shipments';
+
+select rc.role, rc.screen_name, rc.screen_path, rc.is_active
+                    from xx_role_config rc
+                    join xx_user_role_assignment ura on rc.role = ura.role_code
+                    where ura.user_id = 5
+                    and rc.is_active = 'Y' and ura.is_active = 'Y'
+            order by role, screen_name;

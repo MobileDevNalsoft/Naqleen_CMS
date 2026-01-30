@@ -1,6 +1,6 @@
 // Auth API Handler - Simulated Login
 
-import type { LoginCredentials, LoginResponse } from '../types/authTypes';
+import type { LoginCredentials, LoginResponse, UserScreen } from '../types/authTypes';
 
 
 import { webApiClient } from '../apiClient';
@@ -25,17 +25,28 @@ export async function loginUser(credentials: LoginCredentials): Promise<LoginRes
         if (data.response_code === 200) {
             const user = data.data;
 
-            // Strict Role Check - Only ADMIN allowed
-            if (user.role !== 'ADMIN' && user.role !== 'DEVELOPER') {
+            // Ensure screens array exists (default to empty if missing)
+            const screens: UserScreen[] = user.screens || [];
+
+            // Path-Based Access Check - Must have /3d-view OR /dashboards
+            const hasViewAccess = screens.some(
+                (s: UserScreen) =>
+                    s.is_active && (s.screen_path === '/3d-view' || s.screen_path === '/dashboards')
+            );
+
+            if (!hasViewAccess) {
                 return {
                     success: false,
-                    message: 'Access Denied: You must be an ADMIN to login.'
+                    message: 'Access Denied: You do not have access to any views. Please contact support.'
                 };
             }
 
             return {
                 success: true,
-                user: user,
+                user: {
+                    ...user,
+                    screens: screens // Ensure screens is always included
+                },
                 token: 'session_active',
                 message: data.response_message
             };
@@ -53,3 +64,4 @@ export async function loginUser(credentials: LoginCredentials): Promise<LoginRes
         };
     }
 }
+

@@ -4,6 +4,7 @@ import { useIcdsQuery } from '../../api';
 import { useStore } from '../../store/store';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
+import { useScreenAccess } from '../../hooks/useScreenAccess';
 
 interface ModernHeaderProps {
     activeNav: string;
@@ -17,6 +18,7 @@ interface ModernHeaderProps {
 
 export default function ModernHeader({ activeNav, onNavChange, isSearchVisible = true, isUIVisible = true, selectedIcdId, onIcdChange, onLogout }: ModernHeaderProps) {
     const user = useAuthStore(state => state.user);
+    const { has3DView, hasDashboard, hasBothViews, hasOnlyDashboard } = useScreenAccess();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     // Removed local selectedIcdId state in favor of parent state
     const [notificationCount] = useState(3); // Mock notification count
@@ -286,6 +288,10 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
         ? 'background 0.5s ease-in-out 0.8s, backdrop-filter 0.5s ease-in-out 0.8s, border-color 0.5s ease-in-out 0.8s, box-shadow 0.5s ease-in-out 0.8s'
         : 'background 0s linear 0s, backdrop-filter 0s linear 0s, border-color 0.2s linear 0.1s, box-shadow 0.2s linear 0.1s';
 
+    // Unified logic override: If dashboard-only user, we want profile shown, close hidden
+    const showCloseButton = isUnified && !(isDashboard && hasOnlyDashboard);
+    const showProfileAvatar = !isUnified || (isDashboard && hasOnlyDashboard);
+
     return (
         <>
             {/* Unified Background Layer (Visible only when merged to prevent seam) */}
@@ -535,8 +541,8 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                 )}
             </div>
 
-            {/* Center Navigation */}
-            {isUIVisible && (
+            {/* Center Navigation - Only show if user has both views OR when in unified mode (shows title) */}
+            {isUIVisible && (hasBothViews || isUnified) && (
                 <div style={{
                     position: 'absolute',
                     top: '15px',
@@ -561,52 +567,67 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     pointerEvents: isUnified ? 'none' : 'auto', // Disable interaction when merged/hidden
                     // opacity: isSettings ? 0 : 1, // REMOVED: Element needs to stay visible for My Profile text
                 }}>
-                    {/* Navigation Items - Fade Out */}
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        opacity: isUnified ? 0 : 1,
-                        // Open: Instant opacity 0. Close: Smooth fade in matched with container
-                        transition: isUnified ? 'opacity 0s' : 'opacity 0.8s ease 0.4s',
-                    }}>
-                        {['3D View', 'Dashboard'].map((item) => (
-                            <div
-                                key={item}
-                                onClick={() => {
-                                    onNavChange(item);
-                                    // Close search when switching navigation
-                                    if (isSearchOpen) {
-                                        handleSearchClose();
-                                    }
-                                }}
-                                style={{
-                                    padding: '10px 20px',
-                                    borderRadius: '50px',
-                                    background: activeNav === item ? 'rgba(197, 147, 90, 0.3)' : 'transparent',
-                                    color: activeNav === item ? 'var(--secondary-color)' : 'white',
-                                    fontSize: '14px',
-                                    fontWeight: 500,
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s',
-                                    whiteSpace: 'nowrap',
-                                    outline: 'none',
-                                }}
-                                onMouseEnter={e => {
-                                    if (activeNav !== item) {
-                                        e.currentTarget.style.background = 'rgba(247, 207, 155, 0.1)';
-                                    }
-                                }}
-                                onMouseLeave={e => {
-                                    if (activeNav !== item) {
-                                        e.currentTarget.style.background = 'transparent';
-                                    }
-                                }}
-                            >
-                                {item}
-                            </div>
-                        ))}
-                    </div>
+                    {/* Navigation Items - Fade Out (Only show if user has both views) */}
+                    {hasBothViews && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            opacity: isUnified ? 0 : 1,
+                            // Open: Instant opacity 0. Close: Smooth fade in matched with container
+                            transition: isUnified ? 'opacity 0s' : 'opacity 0.8s ease 0.4s',
+                        }}>
+                            {/* Dynamically show nav items based on screen access */}
+                            {has3DView && (
+                                <div
+                                    onClick={() => {
+                                        onNavChange('3D View');
+                                        if (isSearchOpen) handleSearchClose();
+                                    }}
+                                    style={{
+                                        padding: '10px 20px',
+                                        borderRadius: '50px',
+                                        background: activeNav === '3D View' ? 'rgba(197, 147, 90, 0.3)' : 'transparent',
+                                        color: activeNav === '3D View' ? 'var(--secondary-color)' : 'white',
+                                        fontSize: '14px',
+                                        fontWeight: 500,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        whiteSpace: 'nowrap',
+                                        outline: 'none',
+                                    }}
+                                    onMouseEnter={e => { if (activeNav !== '3D View') e.currentTarget.style.background = 'rgba(247, 207, 155, 0.1)'; }}
+                                    onMouseLeave={e => { if (activeNav !== '3D View') e.currentTarget.style.background = 'transparent'; }}
+                                >
+                                    3D View
+                                </div>
+                            )}
+                            {hasDashboard && (
+                                <div
+                                    onClick={() => {
+                                        onNavChange('Dashboard');
+                                        if (isSearchOpen) handleSearchClose();
+                                    }}
+                                    style={{
+                                        padding: '10px 20px',
+                                        borderRadius: '50px',
+                                        background: activeNav === 'Dashboard' ? 'rgba(197, 147, 90, 0.3)' : 'transparent',
+                                        color: activeNav === 'Dashboard' ? 'var(--secondary-color)' : 'white',
+                                        fontSize: '14px',
+                                        fontWeight: 500,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        whiteSpace: 'nowrap',
+                                        outline: 'none',
+                                    }}
+                                    onMouseEnter={e => { if (activeNav !== 'Dashboard') e.currentTarget.style.background = 'rgba(247, 207, 155, 0.1)'; }}
+                                    onMouseLeave={e => { if (activeNav !== 'Dashboard') e.currentTarget.style.background = 'transparent'; }}
+                                >
+                                    Dashboard
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Dynamic Settings/Dashboard Title - Fade In Delayed on open, Instant hide on close */}
                     <div style={{
@@ -1190,18 +1211,22 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                             fontWeight: 700,
                             color: 'var(--primary-color)',
                             fontFamily: 'system-ui, -apple-system, sans-serif',
-                            opacity: isUnified ? 0 : 1,
-                            transform: isUnified ? 'scale(0.5) rotate(90deg)' : 'scale(1) rotate(0)',
+                            opacity: showProfileAvatar ? 1 : 0,
+                            transform: showProfileAvatar ? 'scale(1) rotate(0)' : 'scale(0.5) rotate(90deg)',
                             transition: 'all 0.6s cubic-bezier(0.25, 1, 0.3, 1)',
-                            pointerEvents: isUnified ? 'none' : 'auto',
+                            pointerEvents: showProfileAvatar ? 'auto' : 'none',
                         }}
                         onMouseEnter={e => {
-                            e.currentTarget.style.transform = isUnified ? 'scale(0.5) rotate(90deg)' : 'scale(1.08)';
-                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(247, 207, 155, 0.5)';
+                            if (showProfileAvatar) {
+                                e.currentTarget.style.transform = 'scale(1.08)';
+                                e.currentTarget.style.boxShadow = '0 6px 20px rgba(247, 207, 155, 0.5)';
+                            }
                         }}
                         onMouseLeave={e => {
-                            e.currentTarget.style.transform = isUnified ? 'scale(0.5) rotate(90deg)' : 'scale(1)';
-                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(247, 207, 155, 0.3)';
+                            if (showProfileAvatar) {
+                                e.currentTarget.style.transform = 'scale(1) rotate(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(247, 207, 155, 0.3)';
+                            }
                         }}
                     >
                         {user?.name?.charAt(0).toUpperCase() || 'U'}
@@ -1222,11 +1247,11 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            opacity: isUnified ? 1 : 0,
-                            transform: isUnified ? 'scale(1) rotate(0)' : 'scale(0.5) rotate(-90deg)',
+                            opacity: showCloseButton ? 1 : 0,
+                            transform: showCloseButton ? 'scale(1) rotate(0)' : 'scale(0.5) rotate(-90deg)',
                             transition: 'all 0.6s cubic-bezier(0.25, 1, 0.3, 1)',
                             cursor: 'pointer',
-                            pointerEvents: isUnified ? 'auto' : 'none',
+                            pointerEvents: showCloseButton ? 'auto' : 'none',
                             zIndex: 10,
                         }}
                     >
@@ -1304,39 +1329,43 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                 </div>
                             </div>
 
-                            {/* Menu Items */}
-                            <div style={{ padding: '8px 0' }}>
-                                <div
-                                    onClick={() => {
-                                        closeProfileMenu();
-                                        useUIStore.getState().openPanel('settings');
-                                    }}
-                                    style={{
-                                        width: '100%',
-                                        padding: '12px 16px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '12px',
-                                        color: 'white',
-                                        fontSize: '14px',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s',
-                                        outline: 'none',
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                >
-                                    <Settings size={18} />
-                                    <span>Settings</span>
-                                </div>
-                            </div>
+                            {/* Menu Items - Hide for Dashboard-only users */}
+                            {!hasOnlyDashboard && (
+                                <>
+                                    <div style={{ padding: '8px 0' }}>
+                                        <div
+                                            onClick={() => {
+                                                closeProfileMenu();
+                                                useUIStore.getState().openPanel('settings');
+                                            }}
+                                            style={{
+                                                width: '100%',
+                                                padding: '12px 16px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '12px',
+                                                color: 'white',
+                                                fontSize: '14px',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s',
+                                                outline: 'none',
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                            <Settings size={18} />
+                                            <span>Settings</span>
+                                        </div>
+                                    </div>
 
-                            {/* Divider */}
-                            <div style={{
-                                height: '1px',
-                                background: 'rgba(255, 255, 255, 0.1)',
-                                margin: '4px 0',
-                            }} />
+                                    {/* Divider */}
+                                    <div style={{
+                                        height: '1px',
+                                        background: 'rgba(255, 255, 255, 0.1)',
+                                        margin: '4px 0',
+                                    }} />
+                                </>
+                            )}
 
                             {/* Logout */}
                             <div style={{ padding: '8px 0' }}>

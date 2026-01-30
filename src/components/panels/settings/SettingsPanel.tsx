@@ -8,11 +8,13 @@ import {
 
 import RoleManagement from './RoleManagement';
 import UserManagement from './UserManagement';
+import { useScreenAccess } from '../../../hooks/useScreenAccess';
 
 type AccessControlTab = 'roles' | 'users';
 
 export default function SettingsPanel() {
     const { activePanel, settingsTab, setSettingsTab } = useUIStore();
+    const { hasAccessControl } = useScreenAccess();
     // const [activeTab, setActiveTab] = useState<SettingsTab>('profile'); // Removed in favor of global store
 
     // Directional Animation Logic (Render-time calculation to prevent glitches)
@@ -170,12 +172,14 @@ export default function SettingsPanel() {
                             label="My Profile" // "User Profile"
                             onClick={() => setSettingsTab('profile')}
                         />
-                        <NavButton
-                            active={settingsTab === 'accessControl'}
-                            icon={<Shield size={18} />}
-                            label="Access Control"
-                            onClick={() => setSettingsTab('accessControl')}
-                        />
+                        {hasAccessControl && (
+                            <NavButton
+                                active={settingsTab === 'accessControl'}
+                                icon={<Shield size={18} />}
+                                label="Access Control"
+                                onClick={() => setSettingsTab('accessControl')}
+                            />
+                        )}
                     </div>
 
                     {/* Sidebar Border - Needs to be pseudo to skip the active area? 

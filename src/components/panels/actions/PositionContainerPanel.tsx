@@ -25,9 +25,10 @@ interface PositionContainerPanelProps {
     onClose: () => void;
     mode?: 'truck_flow' | 'cfs_container';
     cfsContainer?: CfsContainerData;
+    categoryLabel?: string; // Optional override for the panel category header
 }
 
-export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_flow', cfsContainer }: PositionContainerPanelProps) {
+export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_flow', cfsContainer, categoryLabel }: PositionContainerPanelProps) {
     const isCfsMode = mode === 'cfs_container';
     const [step, setStep] = useState<'truck_list' | 'details' | 'success'>(isCfsMode ? 'details' : 'truck_list');
 
@@ -641,7 +642,7 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
     return (
         <PanelLayout
             title={panelTitle}
-            category={isCfsMode ? 'CFS POSITIONING' : 'POSITIONING'}
+            category={categoryLabel || (isCfsMode ? 'CFS POSITIONING' : 'POSITIONING')}
             isOpen={isOpen}
             onClose={onClose}
             headerActions={headerActions}

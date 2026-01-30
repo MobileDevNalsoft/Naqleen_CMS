@@ -6,7 +6,7 @@ import type { RoleConfig } from '../../../api/types/adminTypes';
 import { Check, X, Loader2, Shield, Trash2, AlertTriangle, Plus } from 'lucide-react';
 
 import { useAdminStore } from '../../../store/adminStore';
-import { useAuthStore } from '../../../store/authStore';
+import { useScreenAccess } from '../../../hooks/useScreenAccess';
 
 export default function RoleManagement() {
     const {
@@ -21,7 +21,7 @@ export default function RoleManagement() {
         deleteRole // ACTION
     } = useAdminStore();
 
-    const { user } = useAuthStore();
+    const { hasManageRole } = useScreenAccess();
 
     const [selectedRole, setSelectedRole] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState<string | null>(null); // screenPath being saved
@@ -150,7 +150,7 @@ export default function RoleManagement() {
                 {/* Roles List */}
                 <div style={{ width: '250px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-                    {user?.role === 'DEVELOPER' && (
+                    {hasManageRole && (
                         <button
                             onClick={() => {
                                 setNewRoleName('');
@@ -224,7 +224,7 @@ export default function RoleManagement() {
                                     </div>
 
                                     {/* Delete Button (Only on Active) */}
-                                    {selectedRole === role && user?.role === 'DEVELOPER' && (
+                                    {selectedRole === role && hasManageRole && (
                                         <div
                                             onClick={(e) => {
                                                 e.stopPropagation(); // Prevent selection trigger

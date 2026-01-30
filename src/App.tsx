@@ -44,16 +44,28 @@ import { EffectsWrapper } from './components/effects/EffectsWrapper';
 import ViewNavigationPanel from './components/ui/ViewNavigationPanel';
 
 import { useAuthStore } from './store/authStore';
+import { useScreenAccess } from './hooks/useScreenAccess';
 
 const App = () => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const logout = useAuthStore(state => state.logout);
+  const { hasOnlyDashboard } = useScreenAccess();
 
   const [selectedIcdId, setSelectedIcdId] = useState('naqleen-jeddah');
   const { data: layout, isLoading: layoutLoading } = useLayoutQuery(selectedIcdId);
   const { isLoading: containersLoading } = useContainersQuery(layout || null);
   const [sceneReady, setSceneReady] = useState(false);
-  const [activeNav, setActiveNav] = useState('3D View');
+
+  // Dynamic default view based on user's screen access
+  const defaultView = hasOnlyDashboard ? 'Dashboard' : '3D View';
+  const [activeNav, setActiveNav] = useState(defaultView);
+
+  // Force navigation to Dashboard if user is restricted (handles initial load delay)
+  useEffect(() => {
+    if (hasOnlyDashboard) {
+      setActiveNav('Dashboard');
+    }
+  }, [hasOnlyDashboard]);
 
   const canvasSectionRef = useRef<HTMLElement>(null);
   const dashboardSectionRef = useRef<HTMLElement>(null);
@@ -284,6 +296,7 @@ const App = () => {
             onClose={closePanel}
             mode="cfs_container"
             cfsContainer={panelData as any}
+            categoryLabel={(panelData as any)?.categoryLabel}
           />
           <RestackContainersPanel isOpen={activePanel === 'restack'} onClose={closePanel} />
           <GateInPanel isOpen={activePanel === 'gateIn'} onClose={closePanel} />

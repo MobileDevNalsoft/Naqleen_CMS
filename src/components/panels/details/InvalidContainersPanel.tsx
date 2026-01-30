@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { X, AlertTriangle, ArrowLeft, FileText, Ship, Loader2 } from 'lucide-react';
+import { X, AlertTriangle, ArrowLeft, FileText, Ship, Loader2, MapPin } from 'lucide-react';
 import { useStore } from '../../../store/store';
 import { useUIStore } from '../../../store/uiStore';
 import { getContainerDetails } from '../../../api';
@@ -25,7 +25,55 @@ const InfoItem = ({ label, value, fullWidth }: { label: string, value: string, f
     </div>
 );
 
-// Sub-component for Detail View (Read-only, no actions)
+// ActionButton Component (consistent with CFSDetailsPanel)
+const ActionButton = ({ icon, label, primary, onClick, disabled }: { icon: React.ReactNode, label: string, primary?: boolean, onClick?: () => void, disabled?: boolean }) => {
+    let bg = 'white';
+    let color = '#1e293b';
+    let border = '1px solid rgba(0, 0, 0, 0.1)';
+
+    if (primary) {
+        bg = 'linear-gradient(135deg, #4B686C 0%, #2C3E50 100%)';
+        border = 'none';
+        color = 'white';
+    }
+
+    return (
+        <button
+            onClick={disabled ? undefined : onClick}
+            disabled={disabled}
+            style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '12px',
+                borderRadius: '12px',
+                background: bg,
+                color: color,
+                border: border,
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: primary ? '0 4px 12px rgba(75, 104, 108, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)',
+            }}
+            onMouseEnter={e => {
+                if (disabled) return;
+                e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={e => {
+                if (disabled) return;
+                e.currentTarget.style.transform = 'translateY(0)';
+            }}
+        >
+            {icon}
+            {label}
+        </button>
+    );
+};
+
+// Sub-component for Detail View (with positioning action)
 const InvalidContainerDetailView = ({
     containerId
 }: {
@@ -41,6 +89,9 @@ const InvalidContainerDetailView = ({
         staleTime: 60000
     });
 
+    // Global openPanel for positioning
+    const openPanel = useUIStore(state => state.openPanel);
+
     if (isLoading) return <ContainerLoader />;
     if (!containerDetails) {
         return (
@@ -51,50 +102,77 @@ const InvalidContainerDetailView = ({
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto', padding: '24px' }} className="custom-scrollbar">
+        <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto', padding: '24px' }} className="custom-scrollbar">
 
-            {/* Customer Information */}
-            <DetailSection title="Customer Information" icon={<FileText size={16} />}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <InfoItem label="Customer Name" value={containerDetails.customer_name || 'N/A'} fullWidth />
-                    <InfoItem label="Booking Number" value={containerDetails.booking_id || 'N/A'} />
-                    <InfoItem label="Container Type" value={containerDetails.container_type || 'N/A'} />
-                </div>
-            </DetailSection>
+                {/* Customer Information */}
+                <DetailSection title="Customer Information" icon={<FileText size={16} />}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <InfoItem label="Customer Name" value={containerDetails.customer_name || 'N/A'} fullWidth />
+                        <InfoItem label="Booking Number" value={containerDetails.booking_id || 'N/A'} />
+                        <InfoItem label="Container Type" value={containerDetails.container_type || 'N/A'} />
+                    </div>
+                </DetailSection>
 
-            {/* Divider */}
-            <div style={{ height: '2px', background: 'linear-gradient(90deg, rgba(75, 104, 108, 0.2) 0%, rgba(75, 104, 108, 0.05) 50%, transparent 100%)', margin: '4px 0' }} />
+                {/* Divider */}
+                <div style={{ height: '2px', background: 'linear-gradient(90deg, rgba(75, 104, 108, 0.2) 0%, rgba(75, 104, 108, 0.05) 50%, transparent 100%)', margin: '4px 0' }} />
 
-            {/* Shipment Details */}
-            <DetailSection title="Shipment Details" icon={<Ship size={16} />}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <InfoItem label="Shipment No" value={containerDetails.inbound_shipment_nbr || 'N/A'} />
-                    <InfoItem label="Order Number" value={containerDetails.inbound_order_nbr || 'N/A'} />
-                    <InfoItem label="Request Type" value={containerDetails.shipment_name || 'N/A'} />
-                    <InfoItem label="Stored Time" value={containerDetails.container_stored_time || 'N/A'} />
-                </div>
-            </DetailSection>
+                {/* Shipment Details */}
+                <DetailSection title="Shipment Details" icon={<Ship size={16} />}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <InfoItem label="Shipment No" value={containerDetails.inbound_shipment_nbr || 'N/A'} />
+                        <InfoItem label="Order Number" value={containerDetails.inbound_order_nbr || 'N/A'} />
+                        <InfoItem label="Request Type" value={containerDetails.shipment_name || 'N/A'} />
+                        <InfoItem label="Stored Time" value={containerDetails.container_stored_time || 'N/A'} />
+                    </div>
+                </DetailSection>
 
-            {/* Warning Banner */}
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '16px',
-                borderRadius: '12px',
-                background: 'rgba(245, 158, 11, 0.1)',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
-                marginTop: '8px'
-            }}>
-                <AlertTriangle size={20} color="#F59E0B" />
-                <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#92400e' }}>Invalid Position</div>
-                    <div style={{ fontSize: '12px', color: '#78350f', opacity: 0.8 }}>
-                        This container has no assigned position in the yard.
+                {/* Warning Banner */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '16px',
+                    borderRadius: '12px',
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    marginTop: '8px'
+                }}>
+                    <AlertTriangle size={20} color="#F59E0B" />
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#92400e' }}>Invalid Position</div>
+                        <div style={{ fontSize: '12px', color: '#78350f', opacity: 0.8 }}>
+                            This container has no assigned position in the yard.
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+
+            {/* Footer with Assign Position Button */}
+            <div style={{
+                padding: '20px 24px',
+                borderTop: '1px solid rgba(0, 0, 0, 0.08)',
+                display: 'flex',
+                gap: '12px',
+                background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.5) 0%, rgba(254, 243, 199, 0.3) 100%)',
+                backdropFilter: 'blur(16px)',
+            }}>
+                <ActionButton
+                    icon={<MapPin size={16} />}
+                    label="Assign Position"
+                    primary
+                    onClick={() => {
+                        // Open Position panel via global state with custom category label
+                        openPanel('cfsPosition', {
+                            containerNbr: containerId || '',
+                            containerType: containerDetails.container_type || '20GP',
+                            shipmentNbr: containerDetails.inbound_shipment_nbr || '',
+                            categoryLabel: 'INVALID CONTAINER POSITIONING'
+                        });
+                    }}
+                />
+            </div>
+        </>
     );
 };
 
