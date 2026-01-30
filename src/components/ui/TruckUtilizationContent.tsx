@@ -123,10 +123,8 @@ export default function TruckUtilizationContent({
                                     strokeLinecap="round"
                                     style={{
                                         transition: 'stroke-dasharray 1s ease-out',
-                                        animation: `truckDrawStroke 1s ease-out backwards ${index * 0.2}s`,
-                                        cursor: 'pointer'
+                                        animation: `truckDrawStroke 1s ease-out backwards ${index * 0.2}s`
                                     }}
-                                    onClick={() => handleDrillDown(STATUS_MAP[item.label.replace(/ \(Avg\)$/, '')])}
                                 />
                             );
                         })}
