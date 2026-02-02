@@ -186,3 +186,30 @@ export const fetchShipmentLookup = async (customerNbr: string, searchText: strin
         return [];
     }
 };
+
+export interface CustomerStockItem {
+    cust_name: string;
+    cust_nbr: string;
+    item_code: string;
+    item_description: string;
+    available_qty: number;
+    qty_uom: string;
+    net_weight: number;
+    weight_uom: string;
+}
+
+export const fetchCustomerStock = async (customerName: string): Promise<CustomerStockItem[]> => {
+    try {
+        const response = await mobileApiClient.get<ApiResponse<CustomerStockItem[]>>('/getCustomerStock', {
+            params: { customerName: customerName }
+        });
+
+        if (response.data.response_code === 200 && response.data.data) {
+            return response.data.data;
+        }
+        return [];
+    } catch (error) {
+        console.error("Error fetching customer stock:", error);
+        return [];
+    }
+};

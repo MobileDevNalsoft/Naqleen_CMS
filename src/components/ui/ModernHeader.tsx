@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, MapPin, Bell, User, Settings, LogOut, X, Package, Search, Truck, AlertCircle, Check, Info } from 'lucide-react';
+import { ChevronDown, MapPin, Bell, User, Settings, LogOut, X, Package, Search, AlertCircle } from 'lucide-react';
 import { useIcdsQuery } from '../../api';
 import { useStore } from '../../store/store';
 import { useUIStore } from '../../store/uiStore';
@@ -21,7 +21,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
     const { has3DView, hasDashboard, hasBothViews, hasOnlyDashboard } = useScreenAccess();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     // Removed local selectedIcdId state in favor of parent state
-    const [notificationCount] = useState(3); // Mock notification count
+    // const [notificationCount] = useState(3); // Mock notification count removed
     // Local state removed in favor of props
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isProfileMenuClosing, setIsProfileMenuClosing] = useState(false);
@@ -1155,27 +1155,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     }}
                 >
                     <Bell size={20} strokeWidth={2} />
-                    {notificationCount > 0 && (
-                        <div style={{
-                            position: 'absolute',
-                            top: '-2px',
-                            right: '0px',
-                            width: '18px',
-                            height: '18px',
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                            border: '2px solid var(--glass-bg)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            color: 'white',
-                            boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)',
-                        }}>
-                            {notificationCount}
-                        </div>
-                    )}
+
                 </div>
 
                 {/* Divider - Hide in Settings */}
@@ -1606,291 +1586,28 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                             flexDirection: 'column',
                             gap: '12px',
                         }}>
-                            {/* Notification Item 1 - Container Arrival */}
+                            {/* Empty State */}
                             <div style={{
-                                background: 'rgba(247, 207, 155, 0.08)',
-                                border: '1px solid rgba(247, 207, 155, 0.15)',
-                                borderRadius: '12px',
-                                padding: '12px',
-                                animation: 'fadeIn 0.3s ease-out 0.1s both',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                            }}
-                                onMouseEnter={e => {
-                                    e.currentTarget.style.background = 'rgba(247, 207, 155, 0.12)';
-                                    e.currentTarget.style.borderColor = 'rgba(247, 207, 155, 0.25)';
-                                    e.currentTarget.style.transform = 'translateX(-2px)';
-                                }}
-                                onMouseLeave={e => {
-                                    e.currentTarget.style.background = 'rgba(247, 207, 155, 0.08)';
-                                    e.currentTarget.style.borderColor = 'rgba(247, 207, 155, 0.15)';
-                                    e.currentTarget.style.transform = 'translateX(0)';
-                                }}>
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'flex-start',
-                                    gap: '12px',
-                                }}>
-                                    <div style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        borderRadius: '8px',
-                                        background: 'var(--secondary-gradient)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        flexShrink: 0,
-                                        border: '1px solid rgba(247, 207, 155, 0.3)',
-                                    }}>
-                                        <Truck size={16} color="white" strokeWidth={2} />
-                                    </div>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{
-                                            fontSize: '14px',
-                                            fontWeight: 600,
-                                            color: 'white',
-                                            marginBottom: '4px',
-                                            lineHeight: 1.4,
-                                        }}>
-                                            Container Arrival
-                                        </div>
-                                        <div style={{
-                                            fontSize: '13px',
-                                            color: 'rgba(255, 255, 255, 0.7)',
-                                            marginBottom: '8px',
-                                            lineHeight: 1.4,
-                                        }}>
-                                            Container #CN-4521 has arrived at Lot A-12 and is ready for processing.
-                                        </div>
-                                        <div style={{
-                                            fontSize: '11px',
-                                            color: 'rgba(255, 255, 255, 0.5)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                        }}>
-                                            <span>2 minutes ago</span>
-                                            <span>•</span>
-                                            <span style={{ color: 'var(--secondary-color)' }}>High Priority</span>
-                                        </div>
-                                    </div>
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '40px 20px',
+                                color: 'rgba(255, 255, 255, 0.5)',
+                                textAlign: 'center',
+                                height: '100%',
+                            }}>
+                                <Bell size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
+                                <div style={{ fontSize: '15px', fontWeight: 500, marginBottom: '4px' }}>
+                                    No new notifications
                                 </div>
-                            </div>
-
-                            {/* Notification Item 2 - System Alert */}
-                            <div style={{
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                borderRadius: '12px',
-                                padding: '12px',
-                                animation: 'fadeIn 0.3s ease-out 0.2s both',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                            }}
-                                onMouseEnter={e => {
-                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-                                    e.currentTarget.style.transform = 'translateX(-2px)';
-                                }}
-                                onMouseLeave={e => {
-                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                                    e.currentTarget.style.transform = 'translateX(0)';
-                                }}>
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'flex-start',
-                                    gap: '12px',
-                                }}>
-                                    <div style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        borderRadius: '8px',
-                                        background: 'rgba(239, 68, 68, 0.2)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        flexShrink: 0,
-                                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                                    }}>
-                                        <AlertCircle size={16} color="#ef4444" strokeWidth={2} />
-                                    </div>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{
-                                            fontSize: '14px',
-                                            fontWeight: 600,
-                                            color: 'white',
-                                            marginBottom: '4px',
-                                            lineHeight: 1.4,
-                                        }}>
-                                            Storage Capacity Alert
-                                        </div>
-                                        <div style={{
-                                            fontSize: '13px',
-                                            color: 'rgba(255, 255, 255, 0.7)',
-                                            marginBottom: '8px',
-                                            lineHeight: 1.4,
-                                        }}>
-                                            Block C is at 95% capacity. Consider redistributing containers to avoid overflow.
-                                        </div>
-                                        <div style={{
-                                            fontSize: '11px',
-                                            color: 'rgba(255, 255, 255, 0.5)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                        }}>
-                                            <span>15 minutes ago</span>
-                                            <span>•</span>
-                                            <span style={{ color: '#ef4444' }}>Urgent</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Notification Item 3 - Success */}
-                            <div style={{
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                borderRadius: '12px',
-                                padding: '12px',
-                                animation: 'fadeIn 0.3s ease-out 0.3s both',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                            }}
-                                onMouseEnter={e => {
-                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-                                    e.currentTarget.style.transform = 'translateX(-2px)';
-                                }}
-                                onMouseLeave={e => {
-                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                                    e.currentTarget.style.transform = 'translateX(0)';
-                                }}>
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'flex-start',
-                                    gap: '12px',
-                                }}>
-                                    <div style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        borderRadius: '8px',
-                                        background: 'rgba(34, 197, 94, 0.2)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        flexShrink: 0,
-                                        border: '1px solid rgba(34, 197, 94, 0.3)',
-                                    }}>
-                                        <Check size={16} color="#22c55e" strokeWidth={2} />
-                                    </div>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{
-                                            fontSize: '14px',
-                                            fontWeight: 600,
-                                            color: 'white',
-                                            marginBottom: '4px',
-                                            lineHeight: 1.4,
-                                        }}>
-                                            Processing Complete
-                                        </div>
-                                        <div style={{
-                                            fontSize: '13px',
-                                            color: 'rgba(255, 255, 255, 0.7)',
-                                            marginBottom: '8px',
-                                            lineHeight: 1.4,
-                                        }}>
-                                            Container #CN-3892 has been successfully processed and moved to storage.
-                                        </div>
-                                        <div style={{
-                                            fontSize: '11px',
-                                            color: 'rgba(255, 255, 255, 0.5)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                        }}>
-                                            <span>1 hour ago</span>
-                                            <span>•</span>
-                                            <span style={{ color: '#22c55e' }}>Completed</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Notification Item 4 - Info */}
-                            <div style={{
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                borderRadius: '12px',
-                                padding: '12px',
-                                animation: 'fadeIn 0.3s ease-out 0.4s both',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                            }}
-                                onMouseEnter={e => {
-                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-                                    e.currentTarget.style.transform = 'translateX(-2px)';
-                                }}
-                                onMouseLeave={e => {
-                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                                    e.currentTarget.style.transform = 'translateX(0)';
-                                }}>
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'flex-start',
-                                    gap: '12px',
-                                }}>
-                                    <div style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        borderRadius: '8px',
-                                        background: 'rgba(59, 130, 246, 0.2)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        flexShrink: 0,
-                                        border: '1px solid rgba(59, 130, 246, 0.3)',
-                                    }}>
-                                        <Info size={16} color="#3b82f6" strokeWidth={2} />
-                                    </div>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{
-                                            fontSize: '14px',
-                                            fontWeight: 600,
-                                            color: 'white',
-                                            marginBottom: '4px',
-                                            lineHeight: 1.4,
-                                        }}>
-                                            System Update
-                                        </div>
-                                        <div style={{
-                                            fontSize: '13px',
-                                            color: 'rgba(255, 255, 255, 0.7)',
-                                            marginBottom: '8px',
-                                            lineHeight: 1.4,
-                                        }}>
-                                            Container management system has been updated to version 2.4.1 with performance improvements.
-                                        </div>
-                                        <div style={{
-                                            fontSize: '11px',
-                                            color: 'rgba(255, 255, 255, 0.5)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                        }}>
-                                            <span>2 hours ago</span>
-                                            <span>•</span>
-                                            <span style={{ color: '#3b82f6' }}>Information</span>
-                                        </div>
-                                    </div>
+                                <div style={{ fontSize: '13px', opacity: 0.7 }}>
+                                    We'll notify you when something important happens.
                                 </div>
                             </div>
                         </div>
                     </div>
+
                 )
             }
         </>

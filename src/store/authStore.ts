@@ -72,7 +72,10 @@ export const useAuthStore = create<AuthState>()(
 
                 try {
                     // We need a direct fetch here because this URL is different from the main axios client base
-                    const response = await fetch(API_CONFIG.ENDPOINTS.VALIDATE_SUBSCRIPTION, {
+                    const url = new URL(API_CONFIG.ENDPOINTS.VALIDATE_SUBSCRIPTION, window.location.origin);
+                    url.searchParams.append('productId', 'NAQ-1');
+
+                    const response = await fetch(url.toString(), {
                         method: 'GET',
                         headers: {
                             'Content-Type': 'application/json',

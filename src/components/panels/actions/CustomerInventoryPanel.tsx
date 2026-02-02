@@ -20,7 +20,7 @@ import {
     AlertTriangle
 } from 'lucide-react';
 import Dropdown from '../../ui/custom-components/Dropdown';
-import { fetchInventory, createInventory, createBulkInventory, fetchCustomerLookup, fetchShipmentLookup } from '../../../api/handlers/inventoryApi';
+import { createInventory, createBulkInventory, fetchCustomerLookup, fetchShipmentLookup, fetchCustomerStock, type CustomerStockItem } from '../../../api/handlers/inventoryApi';
 import { parseInventoryExcel } from '../../../services/excelImportService';
 import type { InventoryRecord, InventoryItem, InventoryPayloadItem } from '../../../api/types/inventoryTypes';
 
@@ -40,8 +40,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     const [items, setItems] = useState<InventoryItem[]>([]);
 
     // API Data State
-    const [inventoryRecords, setInventoryRecords] = useState<InventoryRecord[]>([]);
-    const [isLoadingInventory, setIsLoadingInventory] = useState(false);
+
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Import State
@@ -54,7 +53,6 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     const [conflictDetails, setConflictDetails] = useState<any>(null); // Store server response for conflicts
 
     // View Inventory State
-    const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
     const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
 
     // Form States
@@ -84,7 +82,6 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
             setShowAddItemModal(false);
             setShowBulkConflictModal(false);
             setConflictDetails(null);
-            setExpandedRowId(null);
             setExpandedItemId(null);
             setImportedItems([]);
             setIsImporting(false);
@@ -178,43 +175,48 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     };
 
     // View Inventory - Search State
-    const [searchTerm, setSearchTerm] = useState('');
-    const [searchFilter, setSearchFilter] = useState<'SHIPMENT' | 'CUSTOMER' | 'CONTAINER'>('CUSTOMER');
+
 
     // Load inventory on mount and tab change
+    // Effect to reset search when tab opens - triggers the debounce effect below because stockSearchTerm changes (or is set to empty)
     useEffect(() => {
         if (activeTab === 'view' && isOpen) {
-            loadInventory();
+            setStockSearchTerm('');
+            handleStockSearch('');
         }
     }, [activeTab, isOpen]);
 
-    const loadInventory = async (term: string = searchTerm, filter: string = searchFilter) => {
-        setIsLoadingInventory(true);
+
+
+
+    // New Stock Inventory State
+    const [customerStock, setCustomerStock] = useState<CustomerStockItem[]>([]);
+    const [stockSearchTerm, setStockSearchTerm] = useState('');
+    const [isLoadingStock, setIsLoadingStock] = useState(false);
+
+    // Debounced Search Effect
+    useEffect(() => {
+        if (activeTab === 'view' && isOpen) {
+            const delayDebounceFn = setTimeout(() => {
+                handleStockSearch(stockSearchTerm);
+            }, 500);
+
+            return () => clearTimeout(delayDebounceFn);
+        }
+    }, [stockSearchTerm]); // Trigger on term change
+
+    const handleStockSearch = async (custName: string) => {
+        setIsLoadingStock(true);
         try {
-            const params: { searchCust?: string; searchCont?: string; searchShip?: string } = {};
-
-            if (term) {
-                if (filter === 'CUSTOMER') {
-                    params.searchCust = term;
-                } else if (filter === 'CONTAINER') {
-                    params.searchCont = term;
-                } else if (filter === 'SHIPMENT') {
-                    params.searchShip = term;
-                }
-            }
-
-            const data = await fetchInventory(params);
-            console.log("CustomerInventoryPanel loaded:", data);
-            setInventoryRecords(data);
+            const data = await fetchCustomerStock(custName);
+            setCustomerStock(data);
         } catch (error) {
-            console.error("Failed to load inventory:", error);
-            showNotification("Failed to load inventory", 'error');
+            console.error("Failed to load customer stock:", error);
+            showNotification("Failed to load customer stock", 'error');
         } finally {
-            setIsLoadingInventory(false);
+            setIsLoadingStock(false);
         }
     };
-
-
 
     // Confirmation Modal State
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -357,7 +359,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
             }
             showNotification(`Successfully imported ${importedItems.length} items!`, 'success');
             handleCancelImport(); // Clear state
-            loadInventory();
+
             setTimeout(() => setActiveTab('view'), 500);
 
         } catch (error: any) {
@@ -390,7 +392,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
             await createBulkInventory(importedItems, 'INSERT');
             showNotification(`Successfully imported ${importedItems.length} items (Forced)!`, 'success');
             handleCancelImport();
-            loadInventory();
+
             setTimeout(() => setActiveTab('view'), 500);
         } catch (error: any) {
             console.error("Force Import Failed:", error);
@@ -499,9 +501,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
         setItems(items.filter(item => item.id !== id));
     };
 
-    const toggleRow = (id: string) => {
-        setExpandedRowId(expandedRowId === id ? null : id);
-    };
+
 
     return (
         <>
@@ -1044,22 +1044,21 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                 <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
                                 <input
                                     type="text"
-                                    placeholder={`Search by ${searchFilter.toLowerCase()}...`}
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="Search by Customer Name"
+                                    value={stockSearchTerm}
+                                    onChange={(e) => setStockSearchTerm(e.target.value)}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
-                                            loadInventory(searchTerm, searchFilter);
+                                            handleStockSearch(stockSearchTerm);
                                         }
                                     }}
                                     style={{ ...inputStyle, paddingLeft: '38px', paddingRight: '32px', background: 'white', borderColor: '#e2e8f0' }}
                                 />
-                                {searchTerm && (
+                                {stockSearchTerm && (
                                     <button
                                         onClick={() => {
-                                            setSearchTerm('');
-                                            setSearchFilter('CUSTOMER');
-                                            loadInventory('', 'CUSTOMER');
+                                            setStockSearchTerm('');
+                                            setCustomerStock([]);
                                         }}
                                         style={{
                                             position: 'absolute',
@@ -1080,121 +1079,68 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                     </button>
                                 )}
                             </div>
-                            <div style={{ width: '180px' }}>
-                                <Dropdown
-                                    label=""
-                                    options={[
-                                        { label: 'Customer', value: 'CUSTOMER' },
-                                        { label: 'Shipment', value: 'SHIPMENT' },
-                                        { label: 'Container', value: 'CONTAINER' }
-                                    ]}
-                                    value={searchFilter}
-                                    onChange={(val) => {
-                                        if (val) setSearchFilter(val as any);
-                                    }}
-                                    placeholder="Filter By"
-                                    required
-                                />
-                            </div>
+                            <button
+                                onClick={() => handleStockSearch(stockSearchTerm)}
+                                style={{
+                                    background: 'var(--primary-color)',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    padding: '0 24px',
+                                    height: '42px',
+                                    fontWeight: 600,
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}
+                            >
+                                <Search size={14} /> Search
+                            </button>
                         </div>
 
                         {/* Table */}
                         <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', background: 'white', flex: 1, display: 'flex', flexDirection: 'column' }}>
                             {/* Table Header */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '40px 1.5fr 1.5fr 1fr 1fr', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', padding: '16px' }}>
-                                <div></div>
-                                <div style={{ fontWeight: 600, color: '#475569', fontSize: '12px', textTransform: 'uppercase' }}>Customer</div>
-                                <div style={{ fontWeight: 600, color: '#475569', fontSize: '12px', textTransform: 'uppercase' }}>Container</div>
-                                <div style={{ fontWeight: 600, color: '#475569', fontSize: '12px', textTransform: 'uppercase' }}>Shipment Number</div>
-                                <div style={{ fontWeight: 600, color: '#475569', fontSize: '12px', textTransform: 'uppercase' }}>Items</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, 1fr) minmax(120px, 1fr) 2fr minmax(100px, 1fr) minmax(100px, 1fr)', gap: '8px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', padding: '16px', alignItems: 'center' }}>
+                                <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Customer</div>
+                                <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Item Code</div>
+                                <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Description</div>
+                                <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Avail Qty</div>
+                                <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Weight</div>
                             </div>
 
                             {/* Table Body */}
                             <div style={{ overflowY: 'auto', flex: 1 }}>
-                                {isLoadingInventory ? (
+                                {isLoadingStock ? (
                                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', color: '#94a3b8' }}>
                                         <Loader2 size={24} className="animate-spin" style={{ marginRight: '8px' }} />
-                                        Loading inventory...
+                                        Loading customer stock...
                                     </div>
-                                ) : inventoryRecords.length === 0 ? (
+                                ) : customerStock.length === 0 ? (
                                     <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                                        No inventory records found.
+                                        {stockSearchTerm ? 'No inventory found regarding to the search text.' : 'Search for a customer to view inventory.'}
                                     </div>
                                 ) : (
-                                    inventoryRecords.map((record) => (
-                                        <div key={record.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                            {/* Main Row */}
-                                            <div
-                                                onClick={() => toggleRow(record.id)}
-                                                style={{
-                                                    display: 'grid',
-                                                    gridTemplateColumns: '40px 1.5fr 1.5fr 1fr 1fr',
-                                                    padding: '16px',
-                                                    alignItems: 'center',
-                                                    cursor: 'pointer',
-                                                    background: expandedRowId === record.id ? '#f1f5f9' : 'white',
-                                                    transition: 'background 0.2s'
-                                                }}
-                                            >
-                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                    {expandedRowId === record.id ? <ChevronDown size={14} color="var(--primary-color)" /> : <ChevronRight size={14} color="#94a3b8" />}
-                                                </div>
-                                                <div style={{ fontWeight: 500, color: 'var(--text-color)' }}>{record.customer}</div>
-                                                <div style={{ color: '#334155', fontFamily: 'monospace', fontWeight: 500 }}>{record.containerNumber}</div>
-                                                <div style={{ color: '#64748b' }}>{record.otmShipmentNumber}</div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                    <div style={{
-                                                        background: 'var(--secondary-color)',
-                                                        color: '#7c2d12',
-                                                        fontSize: '11px',
-                                                        fontWeight: 700,
-                                                        padding: '2px 8px',
-                                                        borderRadius: '12px'
-                                                    }}>
-                                                        {record.items.length}
-                                                    </div>
-                                                    <span style={{ fontSize: '12px', color: '#64748b' }}>items</span>
-                                                </div>
-                                            </div>
-
-                                            {/* Expanded Row Details */}
-                                            {expandedRowId === record.id && (
-                                                <div style={{ background: '#f8fafc', padding: '16px 16px 16px 56px', borderTop: '1px solid #e2e8f0' }}>
-                                                    <div style={{
-                                                        background: 'white',
-                                                        borderRadius: '8px',
-                                                        border: '1px solid #e2e8f0',
-                                                        overflow: 'hidden',
-                                                        maxHeight: '400px',
-                                                        overflowY: 'auto'
-                                                    }}>
-                                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                                                            <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
-                                                                <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
-                                                                    <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--primary-color)', fontSize: '11px', textTransform: 'uppercase' }}>Item Code</th>
-                                                                    <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--primary-color)', fontSize: '11px', textTransform: 'uppercase' }}>Description</th>
-                                                                    <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--primary-color)', fontSize: '11px', textTransform: 'uppercase' }}>Qty</th>
-                                                                    <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--primary-color)', fontSize: '11px', textTransform: 'uppercase' }}>Weight</th>
-                                                                    <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--primary-color)', fontSize: '11px', textTransform: 'uppercase' }}>Volume</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {record.items.map(item => (
-                                                                    <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                                        <td style={{ padding: '10px 16px', color: '#64748b', fontFamily: 'monospace' }}>{item.hsCode}</td>
-                                                                        <td style={{ padding: '10px 16px', color: 'var(--text-color)', fontWeight: 500 }}>{item.description}</td>
-                                                                        <td style={{ padding: '10px 16px', color: '#64748b' }}>{item.qty} {item.uom}</td>
-                                                                        <td style={{ padding: '10px 16px', color: '#64748b' }}>{item.grossWeight} {item.weightUom || 'KGM'}</td>
-                                                                        <td style={{ padding: '10px 16px', color: '#64748b' }}>{item.volume} {item.volumeUom || 'M3'}</td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-                                            )}
+                                    customerStock.map((item, idx) => (
+                                        <div key={idx} style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: 'minmax(150px, 1fr) minmax(120px, 1fr) 2fr minmax(100px, 1fr) minmax(100px, 1fr)',
+                                            gap: '8px',
+                                            padding: '16px',
+                                            borderBottom: '1px solid #f1f5f9',
+                                            alignItems: 'center',
+                                            fontSize: '13px'
+                                        }}>
+                                            <div style={{ fontWeight: 500, color: 'var(--text-color)' }}>{item.cust_name}</div>
+                                            <div style={{ color: '#64748b', fontFamily: 'monospace' }}>{item.item_code}</div>
+                                            <div style={{ color: 'var(--text-color)', fontWeight: 500 }}>{item.item_description}</div>
+                                            <div style={{ color: '#64748b' }}>{item.available_qty} {item.qty_uom}</div>
+                                            <div style={{ color: '#64748b' }}>{item.net_weight ? `${item.net_weight} ${item.weight_uom}` : '-'}</div>
                                         </div>
-                                    )))}
+                                    ))
+                                )}
                             </div>
                         </div>
                     </div>

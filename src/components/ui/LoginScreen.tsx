@@ -221,7 +221,7 @@ export default function LoginScreen() {
             return;
         }
 
-        const success = await login({ email, password });
+        const success = await login({ email, password, platform: 'CMS' });
 
         if (success) {
             showToast('success', 'Welcome back! Logging you in...', 2000);

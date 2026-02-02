@@ -51,6 +51,7 @@ const App = () => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const logout = useAuthStore(state => state.logout);
   const { hasOnlyDashboard } = useScreenAccess();
+  const isSubscriptionValid = useAuthStore(state => state.user?.isSubscriptionValid);
 
   const [selectedIcdId, setSelectedIcdId] = useState('naqleen-jeddah');
   const { data: layout, isLoading: layoutLoading } = useLayoutQuery(selectedIcdId);
@@ -147,7 +148,8 @@ const App = () => {
 
   // [NEW] Subscription Freeze Logic
   // Check explicit false (undefined should pass until validated)
-  if (useAuthStore(state => state.user?.isSubscriptionValid) === false) {
+  // Check explicit false (undefined should pass until validated)
+  if (isSubscriptionValid === false) {
     return <SubscriptionExpiredScreen />;
   }
 
