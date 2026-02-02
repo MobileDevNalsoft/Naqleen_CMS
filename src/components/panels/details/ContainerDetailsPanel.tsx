@@ -22,20 +22,6 @@ const parseBlockId = (blockId?: string): { terminal: string; block: string } => 
     return { terminal: '--', block: '--' };
 };
 
-// Helper function to convert row index to letter (A-K)
-// Blocks B and D have reversed row labeling (row 0 = K, row 10 = A)
-const rowIndexToLetter = (rowIndex?: number, blockId?: string, totalRows: number = 11): string => {
-    if (rowIndex === undefined || rowIndex < 0 || rowIndex > 26) return '--';
-
-    // Extract block letter from block ID (e.g., 'trs_block_b' -> 'B')
-    const blockLetter = blockId?.match(/block_([a-d])/i)?.[1]?.toUpperCase() || '';
-    const shouldReverse = blockLetter === 'B' || blockLetter === 'D';
-
-    // Apply reversal: if row 0 and shouldReverse, use (totalRows - 1) index
-    const labelIndex = shouldReverse ? (totalRows - 1 - rowIndex) : rowIndex;
-
-    return String.fromCharCode(65 + labelIndex); // 65 = 'A' in ASCII
-};
 
 export default function ContainerDetailsPanel() {
     const selectId = useStore(state => state.selectId);
@@ -126,7 +112,7 @@ export default function ContainerDetailsPanel() {
             const terminal = selectedContainer.terminal || parseBlockId(selectedContainer.blockId).terminal;
             const block = selectedContainer.block || parseBlockId(selectedContainer.blockId).block;
             const lotVal = selectedContainer.lot !== undefined ? String(selectedContainer.lot) : '';
-            const rowVal = rowIndexToLetter(selectedContainer.row, selectedContainer.blockId);
+            const rowVal = selectedContainer.row || '--';
             const levelVal = selectedContainer.level !== undefined ? String(selectedContainer.level) : '';
             const currentPos = `${terminal}-${block}-${lotVal}-${rowVal}-${levelVal}`;
 
@@ -226,7 +212,7 @@ export default function ContainerDetailsPanel() {
                         </span>
                         <div style={{ width: '1px', height: '10px', background: 'rgba(255,255,255,0.3)' }} />
                         <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
-                            Row {rowIndexToLetter(selectedContainer?.row, selectedContainer?.blockId)}
+                            Row {selectedContainer?.row || '--'}
                         </span>
                         <div style={{ width: '1px', height: '10px', background: 'rgba(255,255,255,0.3)' }} />
                         <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>

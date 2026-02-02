@@ -117,7 +117,7 @@ export async function getContainers(): Promise<GetContainersResponse> {
             block,
             blockId,
             lot,
-            row: row.charCodeAt(0) - 'A'.charCodeAt(0), // Store as 0-based index
+            row,  // Store row label directly (e.g., 'A', 'D', 'K') - no index conversion
             level,
             type: container.type,
             customerName: container.customer_name
@@ -199,8 +199,8 @@ export const getContainersToSwap = async (
                 let positionStr = 'Yard';
                 if (ent) {
                     // Format: TERMINAL-BLOCK-LOT-ROW-LEVEL
-                    // Note: row is 0-indexed in store, so +1. Lot and Level are 1-indexed.
-                    positionStr = `${ent.terminal}-${ent.block}-${ent.lot}-${String.fromCharCode(64 + (ent.row + 1))}-${ent.level}`;
+                    // row is now stored as string label directly (e.g., 'D')
+                    positionStr = `${ent.terminal}-${ent.block}-${ent.lot}-${ent.row}-${ent.level}`;
                 }
                 return {
                     container_nbr: nbr,

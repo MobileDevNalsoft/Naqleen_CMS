@@ -8,7 +8,7 @@ export interface ContainerPosition {
     block: string;     // A, B, C, or D
     blockId: string;
     lot: number;       // 1-based (matches API/UI)
-    row: number;       // 0-based (for internal positioning)
+    row: string;       // Row label directly from API (e.g., 'A', 'D', 'K')
     level: number;     // 1-based (matches API/UI)
     type?: string;
     status: string;

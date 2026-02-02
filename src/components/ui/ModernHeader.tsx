@@ -127,14 +127,6 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
         }
     }, [isSearchOpen]);
 
-    // Helper: Convert row index to letter (A-K) with reversal logic for B & D blocks
-    const rowIndexToLetter = (rowIndex: number, blockId: string) => {
-        const totalRows = 11;
-        const blockLetter = blockId?.match(/block_([a-d])/i)?.[1]?.toUpperCase() || '';
-        const shouldReverse = blockLetter === 'B' || blockLetter === 'D';
-        const labelIndex = shouldReverse ? (totalRows - 1 - rowIndex) : rowIndex;
-        return String.fromCharCode(65 + labelIndex);
-    };
 
     // Helper: Get unique customers
     const getUniqueCustomers = (query: string) => {
@@ -190,10 +182,10 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                     const entity = entities[id];
                     if (!entity) return false;
 
-                    const rowLabel = rowIndexToLetter(entity.row, entity.blockId);
+                    // entity.row is now a string label directly (e.g., 'D')
+                    const rowLabel = entity.row;
 
                     // Format 1: TRM-BLOCK-LOT-ROW-LEVEL (Matches API/User Request)
-                    // Note: entity.lot and entity.level are 1-based integers
                     const strictFormat = `${entity.terminal}-${entity.block}-${entity.lot}-${rowLabel}-${entity.level}`;
 
                     // Format 2: Natural Language
@@ -1047,7 +1039,7 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                                     // Container / Position Mode Results
                                                     searchResults.map((id) => {
                                                         const entity = entities[id];
-                                                        const rowLabel = entity ? rowIndexToLetter(entity.row, entity.blockId) : '?';
+                                                        const rowLabel = entity ? entity.row : '?';
 
                                                         return (
                                                             <div

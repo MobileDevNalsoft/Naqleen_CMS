@@ -376,11 +376,15 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
                 const excludedSlots: { lot: number; row: string | number }[] = props.excluded_slots || [];
                 const rowLabels: string[] = props.row_labels || [];
 
+                // Same conditional reversal as BlockLabels
+                const blockLetter = block.id.match(/block_([a-z])/i)?.[1]?.toUpperCase() || '';
+                const shouldReverse = blockLetter === 'B' || blockLetter === 'D';
+
                 for (let b = 0; b < lots; b++) {
                     const currentLotNumber = lotNumbers[b];
                     for (let r = 0; r < rows; r++) {
-                        const visualRowIndex = rows - 1 - r;
-                        const currentRowLabel = rowLabels[visualRowIndex] || String.fromCharCode(65 + visualRowIndex);
+                        const labelIndex = shouldReverse ? rows - 1 - r : r;
+                        const currentRowLabel = rowLabels[labelIndex] || String.fromCharCode(65 + labelIndex);
                         const isExcluded = excludedSlots.some((es) => es.lot === currentLotNumber && es.row === currentRowLabel);
                         if (isExcluded) continue;
 
@@ -394,23 +398,23 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
                 // End invalid block handling
             } else {
 
-                // Debug logging for dynamic blocks
-                if (block.id.includes('trm_block') || block.id.includes('trs_block_a')) {
-                    console.log(`[SlotMarkings] ${block.id}: position=${JSON.stringify(block.position)}, placement=${JSON.stringify(block.placement)}`);
-                }
-
                 // Calculate cumulative X offset for each lot
                 let xOffset = 0;
                 const excludedSlots: { lot: number; row: string | number }[] = props.excluded_slots || [];
                 const rowLabels: string[] = props.row_labels || [];
 
+                // Extract block letter for conditional reversal (same logic as BlockLabels)
+                // Block A/C: no reversal (r=0 → 'A')
+                // Block B/D: reversed (r=0 → last label)
+                const blockLetter = block.id.match(/block_([a-z])/i)?.[1]?.toUpperCase() || '';
+                const shouldReverse = blockLetter === 'B' || blockLetter === 'D';
+
                 for (let b = 0; b < lots; b++) {
                     const currentLotNumber = lotNumbers[b];
                     for (let r = 0; r < rows; r++) {
-                        // Check if this slot is excluded
-                        // Row labels are visually inverted (J at top, A at bottom), so use reverse index
-                        const visualRowIndex = rows - 1 - r;
-                        const currentRowLabel = rowLabels[visualRowIndex] || String.fromCharCode(65 + visualRowIndex);
+                        // Apply same conditional reversal as BlockLabels for consistency
+                        const labelIndex = shouldReverse ? rows - 1 - r : r;
+                        const currentRowLabel = rowLabels[labelIndex] || String.fromCharCode(65 + labelIndex);
                         const isExcluded = excludedSlots.some(
                             (es) => es.lot === currentLotNumber && es.row === currentRowLabel
                         );
@@ -427,11 +431,6 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
                         pos.applyEuler(blockRot);
                         pos.add(blockPos);
 
-                        // Debug: log final world position of first slot for trm_block_a
-                        if (block.id === 'trm_block_a' && b === 0 && r === 0) {
-                            console.log(`[useEffect] trm_block_a slot[0,0]: local=(${x.toFixed(2)}, ${z.toFixed(2)}), blockPos=(${blockPos.x.toFixed(2)}, ${blockPos.z.toFixed(2)}), final=(${pos.x.toFixed(2)}, ${pos.z.toFixed(2)})`);
-                        }
-
                         dummy.position.copy(pos);
                         dummy.rotation.set(-Math.PI / 2, blockRot.y, 0, 'YXZ');
                         dummy.scale.set(containerLength, containerWidth, 1);
@@ -441,16 +440,13 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
                         count++;
 
                         // Build unique position key: Terminal-Block-Lot-Row
-                        // Robust parsing: split by '_block_' to handle terminals like 'trl_1' and blocks like 'e'
-                        console.log('[useEffect] Block ID: ' + block.id);
                         const parts = block.id.split('_block_');
                         if (parts.length === 2) {
                             const terminal = parts[0].toUpperCase();
-                            const blockLetter = parts[1].toUpperCase();
-                            console.log('[useEffect] Terminal: ' + terminal + ', Block: ' + blockLetter + ', Lot: ' + currentLotNumber + ', Row: ' + currentRowLabel);
+                            const blockLetterKey = parts[1].toUpperCase();
                             // currentLotNumber is the actual lot number (e.g., 1, 3, 5)
                             // currentRowLabel is the row letter (e.g., 'A', 'B', 'K')
-                            const posKey = `${terminal}-${blockLetter}-${currentLotNumber}-${currentRowLabel}`;
+                            const posKey = `${terminal}-${blockLetterKey}-${currentLotNumber}-${currentRowLabel}`;
                             markingPositions[posKey] = {
                                 x: pos.x,
                                 y: pos.y,
