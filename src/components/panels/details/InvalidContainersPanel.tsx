@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { X, AlertTriangle, ArrowLeft, FileText, Ship, Loader2, MapPin } from 'lucide-react';
+import { X, AlertTriangle, ArrowLeft, FileText, Ship, Loader2, MapPin, Search } from 'lucide-react';
 import { useStore } from '../../../store/store';
 import { useUIStore } from '../../../store/uiStore';
 import { getContainerDetails } from '../../../api';
@@ -289,17 +289,32 @@ export default function InvalidContainersPanel() {
     const [isVisible, setIsVisible] = useState(false);
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
 
+    // Search state
+    const [searchInput, setSearchInput] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+
+    // Debounce search - trigger API when length >= 3 or cleared
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (searchInput.length >= 3 || searchInput.length === 0) {
+                setDebouncedSearch(searchInput);
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchInput]);
+
     // Global panel control
     const activePanel = useUIStore(state => state.activePanel);
+    const setSearchFocused = useUIStore(state => state.setSearchFocused);
 
-    // Fetch invalid containers with infinite query
+    // Fetch invalid containers with infinite query and search
     const {
         data,
         isLoading,
         hasNextPage,
         fetchNextPage,
         isFetchingNextPage
-    } = useInvalidContainersQuery();
+    } = useInvalidContainersQuery(debouncedSearch || undefined);
 
     // Flatten pages into single array
     const allContainers = data?.pages.flatMap(page => page.data) || [];
@@ -317,13 +332,20 @@ export default function InvalidContainersPanel() {
                 setSelectedContainerId(null);
             }
         }
-    }, [isInvalidContainersArea, activePanel]);
+
+        // Cleanup search focus if panel becomes invisible
+        if (!isVisible) {
+            setSearchFocused(false);
+        }
+    }, [isInvalidContainersArea, activePanel, isVisible, setSearchFocused]);
 
     const handleClose = () => {
         setIsVisible(false);
         setTimeout(() => {
             setSelectedBlock(null);
             setSelectedContainerId(null);
+            setSearchInput('');
+            setDebouncedSearch('');
         }, 300);
     };
 
@@ -355,12 +377,12 @@ export default function InvalidContainersPanel() {
         >
             {/* Header */}
             <div style={{
-                padding: '20px 24px 16px',
+                padding: '20px 24px 12px',
                 background: '#FEF3C7', // Pastel Amber 100
                 position: 'relative',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.05)',
+                boxShadow: selectedContainerId ? '0 4px 16px rgba(0, 0, 0, 0.05)' : 'none',
                 zIndex: 10,
-                borderBottom: '1px solid rgba(245, 158, 11, 0.1)'
+                borderBottom: selectedContainerId ? '1px solid rgba(245, 158, 11, 0.1)' : 'none'
             }}>
                 {/* Back Button (Only in Detail View) */}
                 {selectedContainerId ? (
@@ -426,6 +448,89 @@ export default function InvalidContainersPanel() {
                     </button>
                 </div>
             </div>
+
+            {/* Search Bar - Only show in list view */}
+            {!selectedContainerId && (
+                <div style={{
+                    padding: '0 24px 20px',
+                    background: '#FEF3C7',
+                    borderBottom: '1px solid rgba(245, 158, 11, 0.1)',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.05)',
+                    position: 'relative',
+                    zIndex: 9
+                }}>
+                    <div style={{ position: 'relative' }}>
+                        <Search
+                            size={16}
+                            style={{
+                                position: 'absolute',
+                                left: '12px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: '#B45309',
+                                opacity: 0.6
+                            }}
+                        />
+                        <input
+                            type="text"
+                            placeholder="Search containers (min 3 chars)..."
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            style={{
+                                width: '100%',
+                                boxSizing: 'border-box',
+                                padding: '10px 36px 10px 36px',
+                                background: 'rgba(255, 255, 255, 0.8)',
+                                border: '1px solid rgba(180, 83, 9, 0.2)',
+                                borderRadius: '10px',
+                                color: '#92400E',
+                                fontSize: '13px',
+                                outline: 'none',
+                                transition: 'all 0.2s',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                            }}
+                            onFocus={(e) => {
+                                e.currentTarget.style.borderColor = '#B45309';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(180, 83, 9, 0.1)';
+                                setSearchFocused(true);
+                            }}
+                            onBlur={(e) => {
+                                e.currentTarget.style.borderColor = 'rgba(180, 83, 9, 0.2)';
+                                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
+                                setSearchFocused(false);
+                            }}
+                        />
+                        {searchInput && (
+                            <button
+                                onClick={() => setSearchInput('')}
+                                style={{
+                                    position: 'absolute',
+                                    right: '8px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: 'rgba(180, 83, 9, 0.1)',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    width: '20px',
+                                    height: '20px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    padding: 0
+                                }}
+                            >
+                                <X size={12} color="#B45309" />
+                            </button>
+                        )}
+                    </div>
+                    {searchInput.length > 0 && searchInput.length < 3 && (
+                        <div style={{ fontSize: '11px', color: '#B45309', marginTop: '6px', paddingLeft: '4px' }}>
+                            Type {3 - searchInput.length} more character{3 - searchInput.length !== 1 ? 's' : ''} to search
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Content */}
             {isLoading ? (

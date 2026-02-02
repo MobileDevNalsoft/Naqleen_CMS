@@ -6,15 +6,18 @@ import { Package } from 'lucide-react';
 
 export default function HoverInfoPanel() {
     const hoverId = useStore(state => state.hoverId);
+    const selectId = useStore(state => state.selectId);
+    const selectedBlock = useStore(state => state.selectedBlock);
     const activePanel = useUIStore(state => state.activePanel);
     const panelRef = useRef<HTMLDivElement>(null);
     const timelineRef = useRef<gsap.core.Timeline | null>(null);
 
     useEffect(() => {
         const source = useStore.getState().hoverSource;
+        const isAnyPanelOpen = !!(activePanel || selectId || selectedBlock);
 
-        // Hide hover info if ANY action panel is open
-        if (hoverId && source !== 'panel' && !activePanel) {
+        // Hide hover info if ANY action or detail panel is open
+        if (hoverId && source !== 'panel' && !isAnyPanelOpen) {
             // Kill existing animation if any
             if (timelineRef.current) timelineRef.current.kill();
 
@@ -44,13 +47,13 @@ export default function HoverInfoPanel() {
                 ease: "power2.in",
                 onComplete: () => {
                     // Ensure it stays hidden
-                    if (!useStore.getState().hoverId) { // Double check consistency
+                    if (!useStore.getState().hoverId || useUIStore.getState().activePanel || useStore.getState().selectId || useStore.getState().selectedBlock) { // Double check consistency
                         gsap.set(panelRef.current, { autoAlpha: 0 });
                     }
                 }
             });
         }
-    }, [hoverId, activePanel]);
+    }, [hoverId, activePanel, selectId, selectedBlock]);
 
     // Don't render null to keep ref alive for GSAP, but control visibility via CSS/GSAP
     // Ideally we always render and just hide it.

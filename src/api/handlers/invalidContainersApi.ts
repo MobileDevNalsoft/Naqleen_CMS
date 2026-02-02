@@ -5,10 +5,14 @@ import type { ApiResponse } from '../types/commonTypes';
 import type { InvalidContainer, InvalidContainersResponse } from '../types/containerTypes';
 
 /**
- * Fetch invalid containers with pagination
+ * Fetch invalid containers with pagination and optional search
  * @param offset - Number of rows to skip
+ * @param searchText - Optional search text to filter containers
  */
-export async function getInvalidContainers(offset: number = 0): Promise<InvalidContainersResponse> {
+export async function getInvalidContainers(
+    offset: number = 0,
+    searchText?: string
+): Promise<InvalidContainersResponse> {
     try {
         const response = await apiClient.get<ApiResponse<InvalidContainer[]> & {
             total_count: number;
@@ -16,7 +20,7 @@ export async function getInvalidContainers(offset: number = 0): Promise<InvalidC
             limit: number;
         }>(
             API_CONFIG.ENDPOINTS.GET_INVALID_CONTAINERS,
-            { params: { offset } }
+            { params: { offset, searchText: searchText || undefined } }
         );
 
         if (response.data.response_code === 200) {
@@ -37,13 +41,14 @@ export async function getInvalidContainers(offset: number = 0): Promise<InvalidC
 }
 
 /**
- * React Query infinite query hook for scroll-based pagination
+ * React Query infinite query hook for scroll-based pagination with optional search
+ * @param searchText - Optional search text to filter containers
  */
-export const useInvalidContainersQuery = () => {
+export const useInvalidContainersQuery = (searchText?: string) => {
     return useInfiniteQuery({
-        queryKey: ['invalidContainers'],
+        queryKey: ['invalidContainers', searchText],
         queryFn: async ({ pageParam = 0 }) => {
-            return getInvalidContainers(pageParam);
+            return getInvalidContainers(pageParam, searchText);
         },
         initialPageParam: 0,
         getNextPageParam: (lastPage) => {
