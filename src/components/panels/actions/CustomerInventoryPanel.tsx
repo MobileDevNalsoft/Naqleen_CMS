@@ -5,7 +5,6 @@ import PanelLayout from '../PanelLayout';
 import {
     Plus,
     Upload,
-    Search,
     X,
     Package,
     FileSpreadsheet,
@@ -19,10 +18,11 @@ import {
     AlertCircle,
     AlertTriangle
 } from 'lucide-react';
+import { useRef } from 'react';
 import Dropdown from '../../ui/custom-components/Dropdown';
 import { createInventory, createBulkInventory, fetchCustomerLookup, fetchShipmentLookup, fetchCustomerStock, type CustomerStockItem } from '../../../api/handlers/inventoryApi';
 import { parseInventoryExcel } from '../../../services/excelImportService';
-import type { InventoryRecord, InventoryItem, InventoryPayloadItem } from '../../../api/types/inventoryTypes';
+import type { InventoryRecord, InventoryItem, InventoryImportRow } from '../../../api/types/inventoryTypes';
 
 interface CustomerInventoryPanelProps {
     isOpen: boolean;
@@ -46,7 +46,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     // Import State
     const [isImporting, setIsImporting] = useState(false);
     // Removed unused importFile state
-    const [importedItems, setImportedItems] = useState<InventoryPayloadItem[]>([]);
+    const [importedItems, setImportedItems] = useState<InventoryImportRow[]>([]);
 
     // Bulk Conflict State
     const [showBulkConflictModal, setShowBulkConflictModal] = useState(false);
@@ -55,9 +55,15 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     // View Inventory State
     const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
 
+
     // Form States
     const [customer, setCustomer] = useState('');
+    const [viewCustomer, setViewCustomer] = useState('');
+    const [viewItemCode, setViewItemCode] = useState('');
+
+    const [searchType, setSearchType] = useState<'customer' | 'item_code'>('customer');
     const [selectedCustomerId, setSelectedCustomerId] = useState<string>(''); // Payload needs Name, Lookup needs ID
+
     const [terminal, setTerminal] = useState('');
     const [contact, setContact] = useState('');
     const [containerNumber, setContainerNumber] = useState('');
@@ -75,6 +81,8 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     const [shipmentsData, setShipmentsData] = useState<any[]>([]); // Store shipment objects
     const [isContainerReadOnly, setIsContainerReadOnly] = useState(false);
     const [isLoadingShipments, setIsLoadingShipments] = useState(false);
+    const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+    const customerSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Cleanup: Reset modal/temporary states when panel closes to prevent blocking overlays
     useEffect(() => {
@@ -89,43 +97,56 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
         }
     }, [isOpen]);
 
-    const handleCustomerSearch = async (query: string) => {
-        console.log("Searching for:", query);
-        // Allow empty query for initial load
-        try {
-            const data = await fetchCustomerLookup(query);
-            console.log("Customer Lookup API Response:", data);
-
-            // Normalize data: API might return string[] (from /customers) or Object[]
-            let normalizedData: { customer_name: string; original: any }[] = [];
-
-            if (Array.isArray(data) && data.length > 0) {
-                if (typeof data[0] === 'string') {
-                    // Handle string[]
-                    normalizedData = (data as any as string[]).map(s => ({ customer_name: s, original: s }));
-                } else {
-                    // Handle CustomerLookupData[]
-                    normalizedData = data.map(c => ({ customer_name: c.customer_name, original: c }));
-                }
-            } else if (Array.isArray(data)) {
-                normalizedData = [];
-            }
-
-            // Deduplicate by name
-            const uniqueData = normalizedData.filter((item, index, self) =>
-                index === self.findIndex((t) => (
-                    t.customer_name === item.customer_name
-                ))
-            );
-
-            // Map to options
-            const options = uniqueData.map(c => ({ label: c.customer_name, value: c.customer_name, original: c.original }));
-            console.log("Mapped Options:", options);
-            setCustomerOptions(options);
-            setCustomersData(uniqueData); // Store normalized data for lookup
-        } catch (error) {
-            console.error("Error searching customers:", error);
+    const handleCustomerSearch = (query: string) => {
+        if (customerSearchTimeout.current) {
+            clearTimeout(customerSearchTimeout.current);
         }
+
+        // Immediate state update for UI feedback if needed, 
+        // but typically we wait for debounce to fire loading.
+        // For smoother UX, maybe set loading true immediately? 
+        // No, that flickers. Let's wait for debounce.
+
+        customerSearchTimeout.current = setTimeout(async () => {
+            console.log("Searching for:", query);
+            setIsLoadingCustomers(true);
+            try {
+                const data = await fetchCustomerLookup(query);
+                console.log("Customer Lookup API Response:", data);
+
+                // Normalize data: API might return string[] (from /customers) or Object[]
+                let normalizedData: { customer_name: string; original: any }[] = [];
+
+                if (Array.isArray(data) && data.length > 0) {
+                    if (typeof data[0] === 'string') {
+                        // Handle string[]
+                        normalizedData = (data as any as string[]).map(s => ({ customer_name: s, original: s }));
+                    } else {
+                        // Handle CustomerLookupData[]
+                        normalizedData = data.map(c => ({ customer_name: c.customer_name, original: c }));
+                    }
+                } else if (Array.isArray(data)) {
+                    normalizedData = [];
+                }
+
+                // Deduplicate by name
+                const uniqueData = normalizedData.filter((item, index, self) =>
+                    index === self.findIndex((t) => (
+                        t.customer_name === item.customer_name
+                    ))
+                );
+
+                // Map to options
+                const options = uniqueData.map(c => ({ label: c.customer_name, value: c.customer_name, original: c.original }));
+                console.log("Mapped Options:", options);
+                setCustomerOptions(options);
+                setCustomersData(uniqueData); // Store normalized data for lookup
+            } catch (error) {
+                console.error("Error searching customers:", error);
+            } finally {
+                setIsLoadingCustomers(false);
+            }
+        }, 500); // 500ms debounce
     };
 
     const handleShipmentSearch = async (query: string) => {
@@ -179,36 +200,39 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
 
     // Load inventory on mount and tab change
     // Effect to reset search when tab opens - triggers the debounce effect below because stockSearchTerm changes (or is set to empty)
+    // Load inventory on mount and tab change
+    // Effect to reset search when tab opens
     useEffect(() => {
         if (activeTab === 'view' && isOpen) {
-            setStockSearchTerm('');
-            handleStockSearch('');
+            handleStockSearch(viewCustomer, viewItemCode);
         }
     }, [activeTab, isOpen]);
+
+    // specific debounce for item code search
+    useEffect(() => {
+        if (searchType === 'item_code') {
+            const timer = setTimeout(() => {
+                handleStockSearch('', viewItemCode);
+            }, 200);
+            return () => clearTimeout(timer);
+        }
+    }, [viewItemCode, searchType]);
 
 
 
 
     // New Stock Inventory State
     const [customerStock, setCustomerStock] = useState<CustomerStockItem[]>([]);
-    const [stockSearchTerm, setStockSearchTerm] = useState('');
     const [isLoadingStock, setIsLoadingStock] = useState(false);
 
-    // Debounced Search Effect
-    useEffect(() => {
-        if (activeTab === 'view' && isOpen) {
-            const delayDebounceFn = setTimeout(() => {
-                handleStockSearch(stockSearchTerm);
-            }, 500);
+    // --- Stock Search Handler ---
+    const handleStockSearch = async (custName: string, itemCode: string = '') => {
+        // Allow empty search to fetch all (or let backend handle it)
 
-            return () => clearTimeout(delayDebounceFn);
-        }
-    }, [stockSearchTerm]); // Trigger on term change
 
-    const handleStockSearch = async (custName: string) => {
         setIsLoadingStock(true);
         try {
-            const data = await fetchCustomerStock(custName);
+            const data = await fetchCustomerStock(custName, itemCode);
             setCustomerStock(data);
         } catch (error) {
             console.error("Failed to load customer stock:", error);
@@ -217,6 +241,11 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
             setIsLoadingStock(false);
         }
     };
+
+    // Computed unique item codes from the stock list for the Item Code dropdown
+    // Note: We populate this from the currently fetched stock list.
+    // Ideally, we'd fetch the list of codes separately, but deriving from stock is a good start.
+    // const uniqueItemCodes = Array.from(new Set(customerStock.map(item => item.item_code).filter(Boolean))).sort();
 
     // Confirmation Modal State
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -228,7 +257,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     // ...
 
     const handleCreateInventory = async () => {
-        if (!customer || !terminal || !otmShipmentNumber || !containerNumber) {
+        if (!customer || !terminal || !otmShipmentNumber) {
             showNotification("Please fill in all required fields.", 'warning');
             return;
         }
@@ -241,6 +270,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
         setIsSubmitting(true);
         const newRecord = {
             customer,
+            customerNumber: selectedCustomerId,
             containerNumber,
             otmShipmentNumber,
             items
@@ -248,7 +278,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
 
         try {
             // Step 1: Check/Create with flag='CHECK'
-            await createInventory(newRecord, 'CHECK');
+            await createInventory(newRecord);
 
             // Step 2: If 200, it's done (as per user instruction)
             // Assuming response contains status or we check for success some other way.
@@ -282,7 +312,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
         setIsSubmitting(true);
         try {
             // Step 4: Force Insert with flag='INSERT'
-            await createInventory(pendingRecord, 'INSERT');
+            await createInventory(pendingRecord);
             showNotification("Inventory forcibly created!", 'success');
             resetForm();
             setShowConfirmModal(false);
@@ -351,7 +381,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     const handleConfirmImport = async () => {
         setIsSubmitting(true);
         try {
-            const checkResponse = await createBulkInventory(importedItems, 'CHECK');
+            const checkResponse = await createBulkInventory(importedItems);
             if (checkResponse.response_code === 500 && checkResponse.response_message === 'Duplicate records found' && Array.isArray(checkResponse.data)) {
                 setConflictDetails({ conflicts: checkResponse.data });
                 setShowBulkConflictModal(true);
@@ -389,7 +419,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     const handleForceImport = async () => {
         setIsSubmitting(true);
         try {
-            await createBulkInventory(importedItems, 'INSERT');
+            await createBulkInventory(importedItems);
             showNotification(`Successfully imported ${importedItems.length} items (Forced)!`, 'success');
             handleCancelImport();
 
@@ -705,7 +735,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                                     <div style={{ fontWeight: 500, color: 'var(--text-color)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.customer}>{item.customer}</div>
                                                     <div style={{ color: '#334155', fontFamily: 'monospace', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.container_nbr}>{item.container_nbr}</div>
                                                     <div style={{ color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.shipment_nbr}>{item.shipment_nbr}</div>
-                                                    <div style={{ color: '#64748b', fontFamily: 'monospace' }}>{item.hs_code || '-'}</div>
+                                                    <div style={{ color: '#64748b', fontFamily: 'monospace' }}>{item.item_code || '-'}</div>
                                                     <div style={{ color: 'var(--text-color)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.item_description}>{item.item_description || '-'}</div>
                                                     <div style={{ color: '#64748b' }}>{item.quantity} {item.quantity_uom}</div>
                                                     <div style={{ color: '#64748b' }}>{item.gross_weight} {item.weight_uom}</div>
@@ -802,7 +832,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                                         const selected = customersData.find(c => c.customer_name === val);
                                                         if (selected) {
                                                             // If original is object with ID, use it. If string, use name as ID.
-                                                            const id = selected.original?.customer_nbr || selected.customer_name;
+                                                            const id = selected.original?.customer_number || selected.customer_name;
                                                             setSelectedCustomerId(id);
                                                             // Reset shipment when customer changes
                                                             setOtmShipmentNumber('');
@@ -812,6 +842,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                                     placeholder="Search Customer"
                                                     searchable
                                                     onSearch={handleCustomerSearch}
+                                                    loading={isLoadingCustomers}
                                                 />
                                             </div>
                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -897,7 +928,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                                 <Package size={16} color="var(--primary-color)" /> Container Details
                                             </div>
                                             <div>
-                                                <label style={labelStyle}>Container Number <span style={{ color: 'red' }}>*</span></label>
+                                                <label style={labelStyle}>Container Number</label>
                                                 <input
                                                     type="text"
                                                     value={containerNumber}
@@ -1039,65 +1070,70 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                 {activeTab === 'view' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%' }}>
                         {/* Search Bar */}
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                            <div style={{ position: 'relative', flex: 1 }}>
-                                <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                                <input
-                                    type="text"
-                                    placeholder="Search by Customer Name"
-                                    value={stockSearchTerm}
-                                    onChange={(e) => setStockSearchTerm(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            handleStockSearch(stockSearchTerm);
-                                        }
-                                    }}
-                                    style={{ ...inputStyle, paddingLeft: '38px', paddingRight: '32px', background: 'white', borderColor: '#e2e8f0' }}
-                                />
-                                {stockSearchTerm && (
-                                    <button
-                                        onClick={() => {
-                                            setStockSearchTerm('');
-                                            setCustomerStock([]);
+
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'end' }}>
+                            <div style={{ flex: 1 }}>
+                                {searchType === 'customer' ? (
+                                    <Dropdown
+                                        label="Search Value"
+                                        options={customerOptions}
+                                        value={viewCustomer}
+                                        onChange={(val) => {
+                                            setViewCustomer(val);
+                                            setViewItemCode(''); // Reset item code when customer changes
+                                            handleStockSearch(val, '');
                                         }}
-                                        style={{
-                                            position: 'absolute',
-                                            right: '12px',
-                                            top: '50%',
-                                            transform: 'translateY(-50%)',
-                                            background: 'none',
-                                            border: 'none',
-                                            padding: '0',
-                                            cursor: 'pointer',
-                                            color: '#94a3b8',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                        }}
-                                    >
-                                        <X size={14} />
-                                    </button>
+                                        placeholder="Select Customer"
+                                        searchable
+                                        data-testid="view-customer-dropdown"
+                                        onSearch={handleCustomerSearch}
+                                        loading={isLoadingCustomers}
+                                    />
+                                ) : (
+                                    <div style={{ position: 'relative', width: '100%' }}>
+                                        <label style={{
+                                            display: 'block',
+                                            marginBottom: '6px',
+                                            fontSize: '12px',
+                                            fontWeight: 600,
+                                            color: '#64748b',
+                                            letterSpacing: '0.02em',
+                                        }}>
+                                            Search Value
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={viewItemCode}
+                                            onChange={(e) => setViewItemCode(e.target.value)}
+                                            placeholder="Enter Item Code..."
+                                            style={{
+                                                width: '100%',
+                                                padding: '12px 14px',
+                                                background: '#f8fafc',
+                                                border: '1px solid #e2e8f0',
+                                                borderRadius: '8px',
+                                                color: 'var(--text-color)',
+                                                fontSize: '14px',
+                                                outline: 'none',
+                                                transition: 'all 0.2s',
+                                                boxSizing: 'border-box'
+                                            }}
+                                        />
+                                    </div>
                                 )}
                             </div>
-                            <button
-                                onClick={() => handleStockSearch(stockSearchTerm)}
-                                style={{
-                                    background: 'var(--primary-color)',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    padding: '0 24px',
-                                    height: '42px',
-                                    fontWeight: 600,
-                                    fontSize: '13px',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px'
-                                }}
-                            >
-                                <Search size={14} /> Search
-                            </button>
+                            <div style={{ width: '150px' }}>
+                                <Dropdown
+                                    label="Search By"
+                                    options={[
+                                        { label: 'Customer', value: 'customer' },
+                                        { label: 'Item Code', value: 'item_code' }
+                                    ]}
+                                    value={searchType}
+                                    onChange={(val) => setSearchType(val as any)}
+                                    placeholder="Search By"
+                                />
+                            </div>
                         </div>
 
                         {/* Table */}
@@ -1120,7 +1156,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                     </div>
                                 ) : customerStock.length === 0 ? (
                                     <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                                        {stockSearchTerm ? 'No inventory found regarding to the search text.' : 'Search for a customer to view inventory.'}
+                                        No inventory records found.
                                     </div>
                                 ) : (
                                     customerStock.map((item, idx) => (

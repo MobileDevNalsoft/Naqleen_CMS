@@ -1,5 +1,7 @@
 import ExcelJS from 'exceljs';
 
+import type { InventoryImportRow } from '../api/types/inventoryTypes';
+
 export interface ExcelImportRow {
     // Define expected columns from Excel based on "Customer Inventory CSV.xlsx"
     // I am assuming common headers based on the inventory structure.
@@ -8,7 +10,7 @@ export interface ExcelImportRow {
     Customer?: string;
     'Container Number'?: string;
     'Shipment Number'?: string;
-    'Item Code'?: string;
+    'Item Code'?: string; // Or 'HS Code'
     'Description'?: string;
     'Quantity'?: number;
     'UOM'?: string;
@@ -20,27 +22,7 @@ export interface ExcelImportRow {
     'Country of Origin'?: string;
 }
 
-export interface InventoryPayloadItem {
-    customer: string;
-    customer_nbr?: string;
-    container_nbr: string;
-    shipment_nbr: string;
-    item_description: string;
-    cargo_description: string;
-    hs_code: string;
-    gross_weight: number;
-    net_weight: number;
-    weight_uom: string;
-    volume: number;
-    volume_uom: string;
-    un_class: string;
-    country_of_origin: string;
-    quantity: number;
-    quantity_uom: string;
-    rcvd_qty: number;
-}
-
-export const parseInventoryExcel = async (file: File): Promise<InventoryPayloadItem[]> => {
+export const parseInventoryExcel = async (file: File): Promise<InventoryImportRow[]> => {
     const arrayBuffer = await file.arrayBuffer();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
@@ -62,11 +44,8 @@ export const parseInventoryExcel = async (file: File): Promise<InventoryPayloadI
 
     // 1. Parse Header Info (Cells)
     // B1 -> Customer
-    // D1 -> Email (not used)
-    // F1 -> Contact (not used)
-    // B2 -> Container No
     // D2 -> OTM Shipment No
-    // F2 -> Terminal (not used)
+    // B2 -> Container No
     const customer = getCellValue(1, 2); // B1
     const containerNbr = getCellValue(2, 2); // B2
     const shipmentNbr = getCellValue(2, 4); // D2
@@ -87,7 +66,7 @@ export const parseInventoryExcel = async (file: File): Promise<InventoryPayloadI
     });
 
     // Parse data rows starting from row 4
-    const payloadItems: InventoryPayloadItem[] = [];
+    const payloadItems: InventoryImportRow[] = [];
     const rowCount = worksheet.rowCount;
 
     for (let rowNum = 4; rowNum <= rowCount; rowNum++) {
@@ -108,19 +87,19 @@ export const parseInventoryExcel = async (file: File): Promise<InventoryPayloadI
         };
 
         const description = getRowValue('Description');
-        const itemCode = getRowValue('Item Code');
+        const itemCode = getRowValue('Item Code') || getRowValue('HS Code');
 
         // Skip rows without Item Code or Description
         if (!itemCode && !description) continue;
 
         payloadItems.push({
             customer: customer,
-            customer_nbr: '',
+            customer_nbr: customer, // Same as customer name per user request
             container_nbr: containerNbr,
             shipment_nbr: shipmentNbr,
             item_description: description,
             cargo_description: description, // Fallback
-            hs_code: itemCode,
+            item_code: itemCode, // Mapped
             gross_weight: parseFloat(getRowValue('Weight')) || 0,
             net_weight: 0, // Not in Excel
             weight_uom: getRowValue('Weight UOM') || 'KGM',
@@ -134,5 +113,6 @@ export const parseInventoryExcel = async (file: File): Promise<InventoryPayloadI
         });
     }
 
+    console.log("Parsed Excel Items:", payloadItems);
     return payloadItems;
 };

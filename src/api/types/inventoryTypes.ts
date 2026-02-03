@@ -52,6 +52,7 @@ export interface InventoryItem {
 export interface InventoryRecord {
     id: string;
     customer: string;
+    customerNumber?: string; // Added for manual entry
     containerNumber: string;
     otmShipmentNumber: string;
     contactPerson?: string;
@@ -60,14 +61,17 @@ export interface InventoryRecord {
 }
 
 // --- POST Payload Interfaces ---
-export interface InventoryPayloadItem {
+// --- POST Payload Interfaces ---
+
+// Flat structure for Excel Import (Intermediate)
+export interface InventoryImportRow {
     customer: string;
-    customer_nbr?: string; // Optional if not available in UI
+    customer_nbr?: string;
     container_nbr: string;
     shipment_nbr: string;
     item_description: string;
-    cargo_description: string;
-    hs_code: string;
+    cargo_description: string; // Usually same as description or separate?
+    item_code: string; // was hs_code
     gross_weight: number;
     net_weight: number;
     weight_uom: string;
@@ -80,13 +84,38 @@ export interface InventoryPayloadItem {
     rcvd_qty: number;
 }
 
+// Nested Payload for API
+export interface InventoryItemPayload {
+    item_code: string;
+    item_description: string;
+    quantity: number;
+    quantity_uom: string;
+    gross_weight: number;
+    net_weight: number;
+    weight_uom: string;
+    volume: number;
+    volume_uom: string;
+    UN_Class: string;
+    country_of_origin: string;
+}
+
+export interface InventoryContainerPayload {
+    customer_name: string;
+    customer_nbr: string;
+    container_nbr: string;
+    shipment_nbr: string;
+    shipment_name: string;
+    cargo_description: string;
+    items: InventoryItemPayload[];
+}
+
 export interface CreateInventoryPayload {
     flag: 'CHECK' | 'INSERT';
-    data: InventoryPayloadItem[];
+    data: InventoryContainerPayload[];
 }
 
 export interface CustomerLookupData {
-    customer_nbr: string;
+    customer_number: string;
     customer_name: string;
 }
 

@@ -6,8 +6,10 @@ import type {
     InventoryApiResponse,
     InventoryItem,
     InventoryRecord,
-    InventoryPayloadItem,
-    CreateInventoryPayload,
+    InventoryImportRow,
+    InventoryContainerPayload,
+    InventoryItemPayload,
+
     CustomerLookupData,
     ShipmentLookupData
 } from '../types/inventoryTypes';
@@ -90,45 +92,44 @@ const mapApiResponseToInventoryRecords = (apiData: CustomerInventoryData[]): Inv
 // --- POST Payload Interfaces ---
 
 // Function to create new inventory 
-export const createInventory = async (data: Omit<InventoryRecord, 'id'>, flag: 'CHECK' | 'INSERT' = 'CHECK'): Promise<any> => {
+export const createInventory = async (data: Omit<InventoryRecord, 'id'>): Promise<any> => {
     const url = API_CONFIG.ENDPOINTS.CREATE_INVENTORY;
 
-    // Map UI data to API Payload
-    const payloadItems: InventoryPayloadItem[] = data.items.map(item => ({
-        customer: data.customer,
-        customer_nbr: '', // UI doesn't have this, maybe backend handles or we need to look it up? Sending empty for now
-        container_nbr: data.containerNumber,
-        shipment_nbr: data.otmShipmentNumber,
+    // Map UI data to API Payload (Nested)
+    const itemsPayload: InventoryItemPayload[] = data.items.map(item => ({
+        item_code: item.hsCode,
         item_description: item.description,
-        cargo_description: item.description, // Fallback
-        hs_code: item.hsCode,
+        quantity: parseFloat(item.qty) || 0,
+        quantity_uom: item.uom || 'EA',
         gross_weight: parseFloat(item.grossWeight) || 0,
         net_weight: parseFloat(item.netWeight || '0') || 0,
         weight_uom: item.weightUom || 'KGM',
         volume: parseFloat(item.volume) || 0,
         volume_uom: item.volumeUom || 'M3',
-        un_class: item.unClass || 'N/A',
-        country_of_origin: item.countryOfOrigin || '',
-        quantity: parseFloat(item.qty) || 0,
-        quantity_uom: item.uom || 'EA',
-        rcvd_qty: parseFloat(item.qty) || 0 // Assuming received = entered
+        UN_Class: item.unClass || 'N/A',
+        country_of_origin: item.countryOfOrigin || ''
     }));
 
-    const payload: CreateInventoryPayload = {
-        flag,
-        data: payloadItems
+    const containerPayload: InventoryContainerPayload = {
+        customer_name: data.customer,
+        customer_nbr: data.customerNumber || '', // Use passed customer number
+        container_nbr: data.containerNumber,
+        shipment_nbr: data.otmShipmentNumber,
+        shipment_name: data.otmShipmentNumber, // Using shipment number as name if not available
+        cargo_description: itemsPayload[0]?.item_description || '', // Use first item desc as cargo desc
+        items: itemsPayload
     };
+
+    // User requested direct payload
+    const payload = containerPayload;
+
+    console.log("createInventory Payload:", JSON.stringify(payload, null, 2));
 
     try {
         const response = await mobileApiClient.post(url, payload);
         return response.data;
     } catch (error: any) {
         console.error("Error creating inventory:", error);
-        // Rethrow or return structured error to UI
-        // If 400/500, apiClient likely throws. 
-        // But user says: "if response is as such show a dialog...". 
-        // We need to return the response data even on error if it contains duplicate info?
-        // Axios throws on non-2xx status by default. We might need to handle that.
         if (error.response && error.response.data) {
             throw error.response.data; // Throw backend error response to be caught by UI
         }
@@ -136,13 +137,47 @@ export const createInventory = async (data: Omit<InventoryRecord, 'id'>, flag: '
     }
 };
 
-export const createBulkInventory = async (payloadItems: InventoryPayloadItem[], flag: 'CHECK' | 'INSERT' = 'CHECK'): Promise<any> => {
+export const createBulkInventory = async (importRows: InventoryImportRow[]): Promise<any> => {
     const url = API_CONFIG.ENDPOINTS.CREATE_INVENTORY;
 
-    const payload: CreateInventoryPayload = {
-        flag,
-        data: payloadItems
-    };
+    // Group import rows by Container (and Shipment)
+    const containerMap = new Map<string, InventoryContainerPayload>();
+
+    importRows.forEach(row => {
+        const key = `${row.container_nbr}-${row.shipment_nbr}`;
+
+        if (!containerMap.has(key)) {
+            containerMap.set(key, {
+                customer_name: row.customer,
+                customer_nbr: row.customer_nbr || '',
+                container_nbr: row.container_nbr,
+                shipment_nbr: row.shipment_nbr,
+                shipment_name: row.shipment_nbr,
+                cargo_description: row.cargo_description || row.item_description,
+                items: []
+            });
+        }
+
+        const container = containerMap.get(key)!;
+        container.items.push({
+            item_code: row.item_code,
+            item_description: row.item_description,
+            quantity: row.quantity,
+            quantity_uom: row.quantity_uom,
+            gross_weight: row.gross_weight,
+            net_weight: row.net_weight,
+            weight_uom: row.weight_uom,
+            volume: row.volume,
+            volume_uom: row.volume_uom,
+            UN_Class: row.un_class,
+            country_of_origin: row.country_of_origin
+        });
+    });
+
+    // User requested direct payload
+    const payload = Array.from(containerMap.values());
+
+    console.log("createBulkInventory Payload:", JSON.stringify(payload, null, 2));
 
     try {
         const response = await mobileApiClient.post(url, payload);
@@ -198,10 +233,18 @@ export interface CustomerStockItem {
     weight_uom: string;
 }
 
-export const fetchCustomerStock = async (customerName: string): Promise<CustomerStockItem[]> => {
+export const fetchCustomerStock = async (customerName?: string, itemCode?: string): Promise<CustomerStockItem[]> => {
     try {
+        const params: any = {};
+        if (customerName) {
+            params.customerName = customerName;
+        }
+        if (itemCode) {
+            params.itemCode = itemCode;
+        }
+
         const response = await mobileApiClient.get<ApiResponse<CustomerStockItem[]>>('/getCustomerStock', {
-            params: { customerName: customerName }
+            params: params
         });
 
         if (response.data.response_code === 200 && response.data.data) {
