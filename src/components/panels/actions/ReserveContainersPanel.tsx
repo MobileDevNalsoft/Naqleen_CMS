@@ -14,13 +14,12 @@ interface ReserveContainersPanelProps {
 }
 
 // --- POSITION FORMATTING HELPER ---
-function formatPosition(position: string | { terminal: string; block: string; lot: number; row: number; level: number } | null | undefined): string {
+function formatPosition(position: string | { terminal: string; block: string; lot: number; row: string; level: number } | null | undefined): string {
     if (!position) return 'Position N/A';
 
     // If it's an object (from store entities)
     if (typeof position === 'object' && position.block) {
-        const rowLetter = String.fromCharCode(64 + (position.row || 1)); // 1=A, 2=B, etc.
-        return `${position.terminal}-${position.block}-${position.lot}-${rowLetter}-${position.level}`;
+        return `${position.terminal}-${position.block}-${position.lot}-${position.row}-${position.level}`;
     }
 
     return 'Position N/A';
@@ -566,11 +565,7 @@ function SwapWorkspace({ toSwap, bookingRequirements, onConfirm, onCancel, recom
                                     if (selectedTerminal && ent.terminal !== selectedTerminal) matchesSearch = false;
                                     if (selectedBlock && ent.block !== selectedBlock) matchesSearch = false;
                                     if (selectedLot && String(ent.lot) !== selectedLot) matchesSearch = false;
-                                    // Row in store is 0-based, dropdown is 1-based string? 
-                                    // Wait, in previous code: `ent.row + 1` was used in API response.
-                                    // formatPosition uses `pos.row + 1`. dropdowns use 1-based.
-                                    // So we must compare `ent.row + 1`.
-                                    if (selectedRow && String(ent.row + 1) !== selectedRow) matchesSearch = false;
+                                    if (selectedRow && ent.row !== selectedRow) matchesSearch = false;
                                     if (selectedLevel && String(ent.level) !== selectedLevel) matchesSearch = false;
                                 } else {
                                     // If no entity data, we can't match position, so hide it? 

@@ -94,11 +94,17 @@ export default function Dashboard() {
             </div>
 
             {/* Top Row: Summary Cards */}
-            <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+                gap: '24px',
+                width: '100%'
+            }}>
                 {/* Truck Utilization Card */}
                 <MetricCard
                     title="Truck Utilization"
                     icon={Truck}
+                    width="100%"
                     action={
                         <DateFilterDropdown
                             title="Truck Utilization"
@@ -119,6 +125,7 @@ export default function Dashboard() {
                 <MetricCard
                     title="Drivers Utilization"
                     icon={Users}
+                    width="100%"
                     action={
                         <DateFilterDropdown
                             title="Drivers Utilization"
@@ -139,6 +146,7 @@ export default function Dashboard() {
                 <MetricCard
                     title="Fleet Efficiency"
                     icon={Activity}
+                    width="100%"
                     action={
                         <DateFilterDropdown
                             title="Fleet Efficiency"

@@ -124,7 +124,7 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
                             block,
                             blockId,
                             lot,
-                            row: rowLabel.charCodeAt(0) - 'A'.charCodeAt(0),
+                            row: rowLabel,
                             level,
                             type: containerType,
                             status: 'active'
