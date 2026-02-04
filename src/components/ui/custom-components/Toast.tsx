@@ -32,9 +32,15 @@ export const useToastStore = create<ToastStore>((set) => ({
     toasts: [],
     addToast: (toast) => {
         const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        set((state) => ({
-            toasts: [...state.toasts, { ...toast, id }]
-        }));
+        set((state) => {
+            // Prevent redundant toasts with same message and type
+            const isDuplicate = state.toasts.some(t => t.type === toast.type && t.message === toast.message);
+            if (isDuplicate) return state;
+
+            return {
+                toasts: [...state.toasts, { ...toast, id }]
+            };
+        });
     },
     removeToast: (id) => {
         set((state) => ({
@@ -324,7 +330,7 @@ export default function ToastContainer() {
                 position: 'fixed',
                 top: '100px',
                 right: '24px',
-                zIndex: 9999,
+                zIndex: 99999,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '12px',

@@ -13,9 +13,8 @@ export const API_CONFIG = {
     ENDPOINTS: {
         // Inventory endpoints
         GET_CONTAINERS: '/getContainers',
-        GET_CUSTOMERS_AND_BOOKINGS: '/getCustomersAndBookings',
+        GET_CUSTOMERS: '/getCustomers',
         GET_RECOMMENDED_CONTAINERS: '/getRecommendedContainers',
-        GET_CONTAINERS_OF_TYPE: '/getContainersOfType',
         GET_INVENTORY: '/getInventory',
         GET_CONTAINER_DETAILS: '/getContainerDetails',
         CREATE_INVENTORY: '/customerInventory',
@@ -25,6 +24,8 @@ export const API_CONFIG = {
         GATE_IN_TRUCK_DETAILS: '/gateInTruckDetails',
         CUSTOMER_SHIPMENTS: '/customerShipments',
         CUSTOMER_BOOKINGS: '/getCustomerBookings',
+        GET_BOOKINGS: '/getBookings',
+        GET_AVAILABLE_RESERVED: '/getAvailableReservedContainers',
         BOOKING_SHIPMENTS: '/getBookingShipments',
         SHIPMENT_DETAILS: '/shipmentDetails',
         SUBMIT_GATE_IN: '/submitGateIn',
@@ -35,7 +36,6 @@ export const API_CONFIG = {
         // Reservation endpoints
         POST_RESERVATION_CONTAINERS: '/postReservationContainers',
         DELETE_RESERVATION_CONTAINERS: '/deleteReservationContainers',
-        SWAP_RESERVATION_CONTAINERS: '/swapReservationContainers',
         // Release Container endpoints
         RELEASE_CONTAINER_TRUCKS: '/getReleaseContainerTrucks',
         RELEASE_CONTAINER_TRUCK_DETAILS: '/releaseContainerTruckDetails',

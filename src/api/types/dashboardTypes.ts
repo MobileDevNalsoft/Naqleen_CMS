@@ -56,20 +56,23 @@ export interface DateRange {
     end: string;
 }
 
-/** Trucks summary response */
+/** Status item in dynamic response */
+export interface StatusItem {
+    status: string;  // e.g., "Committed", "Available", "Oos"
+    count: number;
+}
+
+/** Trucks summary response - now with dynamic statuses */
 export interface TrucksResponse {
     total: number;
-    active: number;
-    idle: number;
-    inactive: number;
+    statuses: StatusItem[];
     dateRange: DateRange;
 }
 
-/** Drivers summary response */
+/** Drivers summary response - now with dynamic statuses */
 export interface DriversResponse {
     total: number;
-    active: number;
-    idle: number;
+    statuses: StatusItem[];
     dateRange: DateRange;
 }
 
@@ -81,12 +84,16 @@ export interface EfficiencyResponse {
     dateRange: DateRange;
 }
 
-/** Trend data point */
+/** Trend status item */
+export interface TrendStatusItem {
+    status: string;
+    count: number;
+}
+
+/** Trend data point - now with dynamic statuses */
 export interface TrendDataPoint {
     label: string;       // Display label (e.g., "Jan 29", "Week 4", "Jan")
-    active: number;
-    idle: number;
-    inactive?: number;   // Only for trucks
+    statuses: TrendStatusItem[];
 }
 
 /** Trucks Trend response */

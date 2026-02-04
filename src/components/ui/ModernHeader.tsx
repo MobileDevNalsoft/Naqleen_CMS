@@ -1029,6 +1029,10 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                                                     fontSize: '14px',
                                                                     fontWeight: 600,
                                                                     color: 'white',
+                                                                    maxWidth: '260px',
+                                                                    whiteSpace: 'nowrap',
+                                                                    overflow: 'hidden',
+                                                                    textOverflow: 'ellipsis'
                                                                 }}>
                                                                     {customerName}
                                                                 </div>
@@ -1076,7 +1080,17 @@ export default function ModernHeader({ activeNav, onNavChange, isSearchVisible =
                                                                         }}>
                                                                             <span>{id}</span>
                                                                             {entity?.customerName && (
-                                                                                <span style={{ fontSize: '11px', color: 'var(--secondary-color)', fontWeight: 400 }}>
+                                                                                <span style={{
+                                                                                    fontSize: '11px',
+                                                                                    color: 'var(--secondary-color)',
+                                                                                    fontWeight: 400,
+                                                                                    maxWidth: '180px',
+                                                                                    whiteSpace: 'nowrap',
+                                                                                    overflow: 'hidden',
+                                                                                    textOverflow: 'ellipsis',
+                                                                                    marginLeft: '12px',
+                                                                                    textAlign: 'right'
+                                                                                }}>
                                                                                     {entity.customerName}
                                                                                 </span>
                                                                             )}

@@ -34,7 +34,7 @@ import Dashboard from './components/ui/Dashboard';
 import { DashboardDrilldownModal } from './components/ui/DashboardDrilldownModal';
 import Containers from './components/layout/Containers';
 import CustomerInventoryPanel from './components/panels/actions/CustomerInventoryPanel';
-import ReserveContainersPanel from './components/panels/actions/ReserveContainersPanel';
+import { ReserveContainersPanelNew } from './components/panels/actions/ReserveContainersPanelNew';
 import ReleaseContainerPanel from './components/panels/actions/ReleaseContainerPanel';
 import SettingsPanel from './components/panels/settings/SettingsPanel'; // [NEW] Import
 import SwapConnectionLines from './components/layout/SwapConnectionLines';
@@ -302,32 +302,8 @@ const App = () => {
             />
           </Canvas>
 
-          {/* Panels */}
-          <ContainerDetailsPanel />
-          <BlockDetailsPanel />
-          <CFSDetailsPanel />
-          <InvalidContainersPanel />
-          <PositionContainerPanel isOpen={activePanel === 'position'} onClose={closePanel} />
-          <PositionContainerPanel
-            isOpen={activePanel === 'cfsPosition'}
-            onClose={closePanel}
-            mode="cfs_container"
-            cfsContainer={panelData as any}
-            categoryLabel={(panelData as any)?.categoryLabel}
-          />
-          <RestackContainersPanel isOpen={activePanel === 'restack'} onClose={closePanel} />
-          <GateInPanel isOpen={activePanel === 'gateIn'} onClose={closePanel} />
-          <GateOutPanel isOpen={activePanel === 'gateOut'} onClose={closePanel} />
-          <StuffingPanel isOpen={activePanel === 'stuffing'} onClose={closePanel} />
-          <DestuffingPanel isOpen={activePanel === 'destuffing'} onClose={closePanel} />
-          <PlugInOutPanel isOpen={activePanel === 'plugInOut'} onClose={closePanel} />
-          <CFSTaskAssignmentPanel isOpen={activePanel === 'cfsTask'} onClose={closePanel} />
-          <ReserveContainersPanel isOpen={activePanel === 'reserveContainers'} onClose={closePanel} />
-          <ReleaseContainerPanel isOpen={activePanel === 'releaseContainer'} onClose={closePanel} />
-          <CustomerInventoryPanel isOpen={activePanel === 'customerInventory'} onClose={closePanel} />
 
-          {/* Settings Panel (Centralized Configuration) */}
-          <SettingsPanel />
+
 
         </section>
 
@@ -356,6 +332,37 @@ const App = () => {
 
       {/* Global Drilldown Modal - Portal powered */}
       <DashboardDrilldownModal />
+
+      {/* Action Panels Overlay Layer (PROPER ROOT POSITION) */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none' }}>
+        <div style={{ position: 'relative', width: '100%', height: '100%', pointerEvents: 'none' }}>
+          <div style={{ pointerEvents: 'auto' }}>
+            <ContainerDetailsPanel />
+            <BlockDetailsPanel />
+            <CFSDetailsPanel />
+            <InvalidContainersPanel />
+            <PositionContainerPanel isOpen={activePanel === 'position'} onClose={closePanel} />
+            <PositionContainerPanel
+              isOpen={activePanel === 'cfsPosition'}
+              onClose={closePanel}
+              mode="cfs_container"
+              cfsContainer={panelData as any}
+              categoryLabel={(panelData as any)?.categoryLabel}
+            />
+            <RestackContainersPanel isOpen={activePanel === 'restack'} onClose={closePanel} />
+            <GateInPanel isOpen={activePanel === 'gateIn'} onClose={closePanel} />
+            <GateOutPanel isOpen={activePanel === 'gateOut'} onClose={closePanel} />
+            <StuffingPanel isOpen={activePanel === 'stuffing'} onClose={closePanel} />
+            <DestuffingPanel isOpen={activePanel === 'destuffing'} onClose={closePanel} />
+            <PlugInOutPanel isOpen={activePanel === 'plugInOut'} onClose={closePanel} />
+            <CFSTaskAssignmentPanel isOpen={activePanel === 'cfsTask'} onClose={closePanel} />
+            <ReserveContainersPanelNew isOpen={activePanel === 'reserveContainers'} onClose={closePanel} />
+            <ReleaseContainerPanel isOpen={activePanel === 'releaseContainer'} onClose={closePanel} />
+            <CustomerInventoryPanel isOpen={activePanel === 'customerInventory'} onClose={closePanel} />
+            <SettingsPanel />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

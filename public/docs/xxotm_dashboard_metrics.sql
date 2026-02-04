@@ -87,6 +87,30 @@ create or replace procedure xxotm_get_dashboard_metrics_p (
          return null;
    end parse_date;
 
+    -- Helper: Format status (trim prefix, capitalize first letter)
+   function format_status (
+      p_status in varchar2,
+      p_prefix in varchar2
+   ) return varchar2 is
+      l_trimmed varchar2(100);
+   begin
+      -- Remove prefix if present
+      if p_status like p_prefix || '%' then
+         l_trimmed := substr(
+            p_status,
+            length(p_prefix) + 1
+         );
+      else
+         l_trimmed := p_status;
+      end if;
+      -- Capitalize first letter, lowercase the rest, replace underscores with spaces
+      return initcap(replace(
+         lower(l_trimmed),
+         '_',
+         ' '
+      ));
+   end format_status;
+
     -- Helper: Resolve date range from date/startDate/endDate
    procedure resolve_dates (
       p_obj       in json_object_t,
@@ -289,42 +313,84 @@ begin
         into v_truck_total
         from xxotm_vehicle_history_t
        where truck_daily_status is not null
-         and to_date(substr(event_date, 1, 10), 'YYYY-MM-DD')
-             between v_trucks_start and v_trucks_end;
+         and to_date(substr(
+         event_date,
+         1,
+         10
+      ),
+        'YYYY-MM-DD') between v_trucks_start and v_trucks_end;
 
       apex_json.open_object('trucks');
-      apex_json.write('total', nvl(v_truck_total, 0));
+      apex_json.write(
+         'total',
+         nvl(
+            v_truck_total,
+            0
+         )
+      );
       apex_json.open_array('statuses');
 
       -- Loop through statuses and get average daily counts
       for rec in (
-        with daily_counts as (
-          select
-            truck_daily_status,
-            count(*) as status_count
-          from xxotm_vehicle_history_t
-          where truck_daily_status is not null
-            and to_date(substr(event_date, 1, 10), 'YYYY-MM-DD')
-                between v_trucks_start and v_trucks_end
-          group by to_date(substr(event_date, 1, 10), 'YYYY-MM-DD'), truck_daily_status
-        )
-        select
-          truck_daily_status,
-          round(avg(status_count)) as avg_count
-        from daily_counts
-        group by truck_daily_status
-        order by truck_daily_status
+         with daily_counts as (
+            select truck_daily_status,
+                   count(*) as status_count
+              from xxotm_vehicle_history_t
+             where truck_daily_status is not null
+               and to_date(substr(
+               event_date,
+               1,
+               10
+            ),
+        'YYYY-MM-DD') between v_trucks_start and v_trucks_end
+             group by to_date(substr(
+               event_date,
+               1,
+               10
+            ),
+        'YYYY-MM-DD'),
+                      truck_daily_status
+         )
+         select truck_daily_status,
+                round(avg(status_count)) as avg_count
+           from daily_counts
+          group by truck_daily_status
+          order by truck_daily_status
       ) loop
-        apex_json.open_object;
-        apex_json.write('status', rec.truck_daily_status);
-        apex_json.write('count', nvl(rec.avg_count, 0));
-        apex_json.close_object;
+         apex_json.open_object;
+         apex_json.write(
+            'status',
+            format_status(
+               rec.truck_daily_status,
+               'TRUCK_'
+            )
+         );
+         apex_json.write(
+            'count',
+            nvl(
+               rec.avg_count,
+               0
+            )
+         );
+         apex_json.close_object;
       end loop;
 
       apex_json.close_array; -- statuses
       apex_json.open_object('dateRange');
-      apex_json.write('start', to_char(v_trucks_start, 'YYYY-MM-DD'));
-      apex_json.write('end', to_char(v_trucks_end, 'YYYY-MM-DD'));
+      apex_json.write(
+         'start',
+         to_char(
+            v_trucks_start,
+            'YYYY-MM-DD'
+         )
+      );
+      apex_json.write(
+         'end',
+         to_char(
+            v_trucks_end,
+            'YYYY-MM-DD'
+         )
+      );
       apex_json.close_object;
       apex_json.close_object;
    end if;
@@ -338,42 +404,84 @@ begin
         into v_driver_total
         from xxotm_driver_history_t
        where driver_daily_status is not null
-         and to_date(substr(event_date, 1, 10), 'YYYY-MM-DD')
-             between v_drivers_start and v_drivers_end;
+         and to_date(substr(
+         event_date,
+         1,
+         10
+      ),
+        'YYYY-MM-DD') between v_drivers_start and v_drivers_end;
 
       apex_json.open_object('drivers');
-      apex_json.write('total', nvl(v_driver_total, 0));
+      apex_json.write(
+         'total',
+         nvl(
+            v_driver_total,
+            0
+         )
+      );
       apex_json.open_array('statuses');
 
       -- Loop through statuses and get average daily counts
       for rec in (
-        with daily_counts as (
-          select
-            driver_daily_status,
-            count(*) as status_count
-          from xxotm_driver_history_t
-          where driver_daily_status is not null
-            and to_date(substr(event_date, 1, 10), 'YYYY-MM-DD')
-                between v_drivers_start and v_drivers_end
-          group by to_date(substr(event_date, 1, 10), 'YYYY-MM-DD'), driver_daily_status
-        )
-        select
-          driver_daily_status,
-          round(avg(status_count)) as avg_count
-        from daily_counts
-        group by driver_daily_status
-        order by driver_daily_status
+         with daily_counts as (
+            select driver_daily_status,
+                   count(*) as status_count
+              from xxotm_driver_history_t
+             where driver_daily_status is not null
+               and to_date(substr(
+               event_date,
+               1,
+               10
+            ),
+        'YYYY-MM-DD') between v_drivers_start and v_drivers_end
+             group by to_date(substr(
+               event_date,
+               1,
+               10
+            ),
+        'YYYY-MM-DD'),
+                      driver_daily_status
+         )
+         select driver_daily_status,
+                round(avg(status_count)) as avg_count
+           from daily_counts
+          group by driver_daily_status
+          order by driver_daily_status
       ) loop
-        apex_json.open_object;
-        apex_json.write('status', rec.driver_daily_status);
-        apex_json.write('count', nvl(rec.avg_count, 0));
-        apex_json.close_object;
+         apex_json.open_object;
+         apex_json.write(
+            'status',
+            format_status(
+               rec.driver_daily_status,
+               'DRIVER_'
+            )
+         );
+         apex_json.write(
+            'count',
+            nvl(
+               rec.avg_count,
+               0
+            )
+         );
+         apex_json.close_object;
       end loop;
 
       apex_json.close_array; -- statuses
       apex_json.open_object('dateRange');
-      apex_json.write('start', to_char(v_drivers_start, 'YYYY-MM-DD'));
-      apex_json.write('end', to_char(v_drivers_end, 'YYYY-MM-DD'));
+      apex_json.write(
+         'start',
+         to_char(
+            v_drivers_start,
+            'YYYY-MM-DD'
+         )
+      );
+      apex_json.write(
+         'end',
+         to_char(
+            v_drivers_end,
+            'YYYY-MM-DD'
+         )
+      );
       apex_json.close_object;
       apex_json.close_object;
    end if;
@@ -564,7 +672,7 @@ begin
    end if;
 
     -- =========================================================================
-    -- 7. Trucks Trend (simplified - viewMode only)
+    -- 7. Trucks Trend (with unique counts + averages for WEEKLY/MONTHLY)
     -- =========================================================================
    if v_inc_trucks_trend then
       apex_json.open_object('trucksTrend');
@@ -573,70 +681,245 @@ begin
          v_tt_mode
       );
       apex_json.open_array('data');
-      v_current_label := '___INIT___';
-
-      for rec in (
-         with trend_data as (
-            select
-                to_date(substr(event_date, 1, 10), 'YYYY-MM-DD') as event_day,
-                truck_daily_status
-            from xxotm_vehicle_history_t
-            where truck_daily_status is not null
-              and to_date(substr(event_date, 1, 10), 'YYYY-MM-DD') between v_tt_start and v_tt_end
-         )
-         select
-            case v_tt_mode
-               when 'DAILY'   then to_char(event_day, 'Mon DD')
-               when 'WEEKLY'  then to_char(event_day, 'Mon') || ' W' || to_char(event_day, 'IW')
-               when 'MONTHLY' then to_char(event_day, 'Mon')
-               else to_char(event_day, 'Mon DD')
-            end as label,
-            case v_tt_mode
-               when 'DAILY'   then event_day
-               when 'WEEKLY'  then trunc(event_day, 'IW')
-               when 'MONTHLY' then trunc(event_day, 'MM')
-               else event_day
-            end as sort_date,
-            truck_daily_status,
-            count(*) as status_count
-         from trend_data
-         group by
-            case v_tt_mode
-               when 'DAILY'   then to_char(event_day, 'Mon DD')
-               when 'WEEKLY'  then to_char(event_day, 'Mon') || ' W' || to_char(event_day, 'IW')
-               when 'MONTHLY' then to_char(event_day, 'Mon')
-               else to_char(event_day, 'Mon DD')
-            end,
-            case v_tt_mode
-               when 'DAILY'   then event_day
-               when 'WEEKLY'  then trunc(event_day, 'IW')
-               when 'MONTHLY' then trunc(event_day, 'MM')
-               else event_day
-            end,
-            truck_daily_status
-         order by sort_date, label, truck_daily_status
-      ) loop
-         if rec.label <> v_current_label then
-            if v_current_label <> '___INIT___' then
-               apex_json.close_array; -- statuses
-               apex_json.close_object;
+      if v_tt_mode = 'DAILY' then
+         -- DAILY MODE: Keep original simple logic
+         v_current_label := '___INIT___';
+         for rec in (
+            with trend_data as (
+               select to_date(substr(
+                  event_date,
+                  1,
+                  10
+               ),
+        'YYYY-MM-DD') as event_day,
+                      truck_daily_status
+                 from xxotm_vehicle_history_t
+                where truck_daily_status is not null
+                  and to_date(substr(
+                  event_date,
+                  1,
+                  10
+               ),
+        'YYYY-MM-DD') between v_tt_start and v_tt_end
+            )
+            select to_char(
+               event_day,
+               'Mon DD'
+            ) as label,
+                   event_day as sort_date,
+                   null as total,
+                   truck_daily_status,
+                   count(*) as status_count
+              from trend_data
+             group by to_char(
+               event_day,
+               'Mon DD'
+            ),
+                      event_day,
+                      truck_daily_status
+             order by sort_date,
+                      label,
+                      truck_daily_status
+         ) loop
+            if rec.label <> v_current_label then
+               if v_current_label <> '___INIT___' then
+                  apex_json.close_array; -- statuses
+                  apex_json.close_object;
+               end if;
+               v_current_label := rec.label;
+               apex_json.open_object;
+               apex_json.write(
+                  'label',
+                  rec.label
+               );
+               apex_json.open_array('statuses');
             end if;
-            v_current_label := rec.label;
+
             apex_json.open_object;
-            apex_json.write('label', rec.label);
-            apex_json.open_array('statuses');
+            apex_json.write(
+               'status',
+               format_status(
+                  rec.truck_daily_status,
+                  'TRUCK_'
+               )
+            );
+            apex_json.write(
+               'count',
+               rec.status_count
+            );
+            apex_json.close_object;
+         end loop;
+
+         if v_current_label <> '___INIT___' then
+            apex_json.close_array; -- statuses
+            apex_json.close_object;
          end if;
+      else
+         -- WEEKLY/MONTHLY MODE: Use unique counts + averages
+         v_current_label := '___INIT___';
+         for rec in (
+            with raw_data as (
+               select vehicle_xid,
+                      to_date(substr(
+                         event_date,
+                         1,
+                         10
+                      ),
+                              'YYYY-MM-DD') as event_day,
+                      truck_daily_status,
+                      case v_tt_mode
+                         when 'WEEKLY'  then
+                            to_char(
+                               to_date(substr(
+                                  event_date,
+                                  1,
+                                  10
+                               ),
+                                    'YYYY-MM-DD'),
+                               'Mon'
+                            )
+                            || ' W'
+                            || to_char(
+                               to_date(substr(
+                                  event_date,
+                                  1,
+                                  10
+                               ),
+                     'YYYY-MM-DD'),
+                               'W'
+                            )
+                         when 'MONTHLY' then
+                            to_char(
+                               to_date(substr(
+                                  event_date,
+                                  1,
+                                  10
+                               ),
+                                    'YYYY-MM-DD'),
+                               'Mon'
+                            )
+                      end as period_label,
+                      case v_tt_mode
+                         when 'WEEKLY'  then
+                            trunc(
+                               to_date(substr(
+                                  event_date,
+                                  1,
+                                  10
+                               ),
+                                  'YYYY-MM-DD'),
+                               'MM'
+                            ) + ( to_number(to_char(
+                               to_date(substr(
+                                  event_date,
+                                  1,
+                                  10
+                               ),
+                     'YYYY-MM-DD'),
+                               'W'
+                            )) - 1 ) * 7
+                         when 'MONTHLY' then
+                            trunc(
+                               to_date(substr(
+                                  event_date,
+                                  1,
+                                  10
+                               ),
+                                  'YYYY-MM-DD'),
+                               'MM'
+                            )
+                      end as period_sort
+                 from xxotm_vehicle_history_t
+                where truck_daily_status is not null
+                  and to_date(substr(
+                  event_date,
+                  1,
+                  10
+               ),
+        'YYYY-MM-DD') between v_tt_start and v_tt_end
+            ),
+            -- Daily counts per status per day within each period
+            daily_status_counts as (
+               select period_label,
+                      period_sort,
+                      event_day,
+                      truck_daily_status,
+                      count(*) as daily_count
+                 from raw_data
+                group by period_label,
+                         period_sort,
+                         event_day,
+                         truck_daily_status
+            ),
+            -- Unique trucks per period
+            period_totals as (
+               select period_label,
+                      period_sort,
+                      count(distinct vehicle_xid) as total_trucks
+                 from raw_data
+                group by period_label,
+                         period_sort
+            ),
+            -- Average daily count per status per period
+            period_averages as (
+               select period_label,
+                      period_sort,
+                      truck_daily_status,
+                      round(avg(daily_count)) as avg_count
+                 from daily_status_counts
+                group by period_label,
+                         period_sort,
+                         truck_daily_status
+            )
+            select pt.period_label as label,
+                   pt.period_sort as sort_date,
+                   pt.total_trucks as total,
+                   pa.truck_daily_status,
+                   pa.avg_count as status_count
+              from period_totals pt
+              join period_averages pa
+            on pt.period_label = pa.period_label
+               and pt.period_sort = pa.period_sort
+             order by pt.period_sort,
+                      pa.truck_daily_status
+         ) loop
+            if rec.label <> v_current_label then
+               if v_current_label <> '___INIT___' then
+                  apex_json.close_array; -- statuses
+                  apex_json.close_object;
+               end if;
+               v_current_label := rec.label;
+               apex_json.open_object;
+               apex_json.write(
+                  'label',
+                  rec.label
+               );
+               apex_json.write(
+                  'total',
+                  rec.total
+               );
+               apex_json.open_array('statuses');
+            end if;
 
-         apex_json.open_object;
-         apex_json.write('status', rec.truck_daily_status);
-         apex_json.write('count', rec.status_count);
-         apex_json.close_object;
+            apex_json.open_object;
+            apex_json.write(
+               'status',
+               format_status(
+                  rec.truck_daily_status,
+                  'TRUCK_'
+               )
+            );
+            apex_json.write(
+               'count',
+               rec.status_count
+            );
+            apex_json.close_object;
+         end loop;
 
-      end loop;
-
-      if v_current_label <> '___INIT___' then
-         apex_json.close_array; -- statuses
-         apex_json.close_object;
+         if v_current_label <> '___INIT___' then
+            apex_json.close_array; -- statuses
+            apex_json.close_object;
+         end if;
       end if;
 
       apex_json.close_array; -- data
@@ -644,7 +927,7 @@ begin
    end if;
 
     -- =========================================================================
-    -- 8. Drivers Trend (simplified - viewMode only)
+    -- 8. Drivers Trend (with unique counts + averages for WEEKLY/MONTHLY)
     -- =========================================================================
    if v_inc_drivers_trend then
       apex_json.open_object('driversTrend');
@@ -653,70 +936,245 @@ begin
          v_dt_mode
       );
       apex_json.open_array('data');
-      v_current_label := '___INIT___';
-
-      for rec in (
-         with trend_data as (
-            select
-                to_date(substr(event_date, 1, 10), 'YYYY-MM-DD') as event_day,
-                driver_daily_status
-            from xxotm_driver_history_t
-            where driver_daily_status is not null
-              and to_date(substr(event_date, 1, 10), 'YYYY-MM-DD') between v_dt_start and v_dt_end
-         )
-         select
-            case v_dt_mode
-               when 'DAILY'   then to_char(event_day, 'Mon DD')
-               when 'WEEKLY'  then to_char(event_day, 'Mon') || ' W' || to_char(event_day, 'IW')
-               when 'MONTHLY' then to_char(event_day, 'Mon')
-               else to_char(event_day, 'Mon DD')
-            end as label,
-            case v_dt_mode
-               when 'DAILY'   then event_day
-               when 'WEEKLY'  then trunc(event_day, 'IW')
-               when 'MONTHLY' then trunc(event_day, 'MM')
-               else event_day
-            end as sort_date,
-            driver_daily_status,
-            count(*) as status_count
-         from trend_data
-         group by
-            case v_dt_mode
-               when 'DAILY'   then to_char(event_day, 'Mon DD')
-               when 'WEEKLY'  then to_char(event_day, 'Mon') || ' W' || to_char(event_day, 'IW')
-               when 'MONTHLY' then to_char(event_day, 'Mon')
-               else to_char(event_day, 'Mon DD')
-            end,
-            case v_dt_mode
-               when 'DAILY'   then event_day
-               when 'WEEKLY'  then trunc(event_day, 'IW')
-               when 'MONTHLY' then trunc(event_day, 'MM')
-               else event_day
-            end,
-            driver_daily_status
-         order by sort_date, label, driver_daily_status
-      ) loop
-         if rec.label <> v_current_label then
-            if v_current_label <> '___INIT___' then
-               apex_json.close_array; -- statuses
-               apex_json.close_object;
+      if v_dt_mode = 'DAILY' then
+         -- DAILY MODE: Keep original simple logic
+         v_current_label := '___INIT___';
+         for rec in (
+            with trend_data as (
+               select to_date(substr(
+                  event_date,
+                  1,
+                  10
+               ),
+        'YYYY-MM-DD') as event_day,
+                      driver_daily_status
+                 from xxotm_driver_history_t
+                where driver_daily_status is not null
+                  and to_date(substr(
+                  event_date,
+                  1,
+                  10
+               ),
+        'YYYY-MM-DD') between v_dt_start and v_dt_end
+            )
+            select to_char(
+               event_day,
+               'Mon DD'
+            ) as label,
+                   event_day as sort_date,
+                   null as total,
+                   driver_daily_status,
+                   count(*) as status_count
+              from trend_data
+             group by to_char(
+               event_day,
+               'Mon DD'
+            ),
+                      event_day,
+                      driver_daily_status
+             order by sort_date,
+                      label,
+                      driver_daily_status
+         ) loop
+            if rec.label <> v_current_label then
+               if v_current_label <> '___INIT___' then
+                  apex_json.close_array; -- statuses
+                  apex_json.close_object;
+               end if;
+               v_current_label := rec.label;
+               apex_json.open_object;
+               apex_json.write(
+                  'label',
+                  rec.label
+               );
+               apex_json.open_array('statuses');
             end if;
-            v_current_label := rec.label;
+
             apex_json.open_object;
-            apex_json.write('label', rec.label);
-            apex_json.open_array('statuses');
+            apex_json.write(
+               'status',
+               format_status(
+                  rec.driver_daily_status,
+                  'DRIVER_'
+               )
+            );
+            apex_json.write(
+               'count',
+               rec.status_count
+            );
+            apex_json.close_object;
+         end loop;
+
+         if v_current_label <> '___INIT___' then
+            apex_json.close_array; -- statuses
+            apex_json.close_object;
          end if;
+      else
+         -- WEEKLY/MONTHLY MODE: Use unique counts + averages
+         v_current_label := '___INIT___';
+         for rec in (
+            with raw_data as (
+               select driver_xid,
+                      to_date(substr(
+                         event_date,
+                         1,
+                         10
+                      ),
+                              'YYYY-MM-DD') as event_day,
+                      driver_daily_status,
+                      case v_dt_mode
+                         when 'WEEKLY'  then
+                            to_char(
+                               to_date(substr(
+                                  event_date,
+                                  1,
+                                  10
+                               ),
+                                    'YYYY-MM-DD'),
+                               'Mon'
+                            )
+                            || ' W'
+                            || to_char(
+                               to_date(substr(
+                                  event_date,
+                                  1,
+                                  10
+                               ),
+                     'YYYY-MM-DD'),
+                               'W'
+                            )
+                         when 'MONTHLY' then
+                            to_char(
+                               to_date(substr(
+                                  event_date,
+                                  1,
+                                  10
+                               ),
+                                    'YYYY-MM-DD'),
+                               'Mon'
+                            )
+                      end as period_label,
+                      case v_dt_mode
+                         when 'WEEKLY'  then
+                            trunc(
+                               to_date(substr(
+                                  event_date,
+                                  1,
+                                  10
+                               ),
+                                  'YYYY-MM-DD'),
+                               'MM'
+                            ) + ( to_number(to_char(
+                               to_date(substr(
+                                  event_date,
+                                  1,
+                                  10
+                               ),
+                     'YYYY-MM-DD'),
+                               'W'
+                            )) - 1 ) * 7
+                         when 'MONTHLY' then
+                            trunc(
+                               to_date(substr(
+                                  event_date,
+                                  1,
+                                  10
+                               ),
+                                  'YYYY-MM-DD'),
+                               'MM'
+                            )
+                      end as period_sort
+                 from xxotm_driver_history_t
+                where driver_daily_status is not null
+                  and to_date(substr(
+                  event_date,
+                  1,
+                  10
+               ),
+        'YYYY-MM-DD') between v_dt_start and v_dt_end
+            ),
+            -- Daily counts per status per day within each period
+            daily_status_counts as (
+               select period_label,
+                      period_sort,
+                      event_day,
+                      driver_daily_status,
+                      count(*) as daily_count
+                 from raw_data
+                group by period_label,
+                         period_sort,
+                         event_day,
+                         driver_daily_status
+            ),
+            -- Unique drivers per period
+            period_totals as (
+               select period_label,
+                      period_sort,
+                      count(distinct driver_xid) as total_drivers
+                 from raw_data
+                group by period_label,
+                         period_sort
+            ),
+            -- Average daily count per status per period
+            period_averages as (
+               select period_label,
+                      period_sort,
+                      driver_daily_status,
+                      round(avg(daily_count)) as avg_count
+                 from daily_status_counts
+                group by period_label,
+                         period_sort,
+                         driver_daily_status
+            )
+            select pt.period_label as label,
+                   pt.period_sort as sort_date,
+                   pt.total_drivers as total,
+                   pa.driver_daily_status,
+                   pa.avg_count as status_count
+              from period_totals pt
+              join period_averages pa
+            on pt.period_label = pa.period_label
+               and pt.period_sort = pa.period_sort
+             order by pt.period_sort,
+                      pa.driver_daily_status
+         ) loop
+            if rec.label <> v_current_label then
+               if v_current_label <> '___INIT___' then
+                  apex_json.close_array; -- statuses
+                  apex_json.close_object;
+               end if;
+               v_current_label := rec.label;
+               apex_json.open_object;
+               apex_json.write(
+                  'label',
+                  rec.label
+               );
+               apex_json.write(
+                  'total',
+                  rec.total
+               );
+               apex_json.open_array('statuses');
+            end if;
 
-         apex_json.open_object;
-         apex_json.write('status', rec.driver_daily_status);
-         apex_json.write('count', rec.status_count);
-         apex_json.close_object;
+            apex_json.open_object;
+            apex_json.write(
+               'status',
+               format_status(
+                  rec.driver_daily_status,
+                  'DRIVER_'
+               )
+            );
+            apex_json.write(
+               'count',
+               rec.status_count
+            );
+            apex_json.close_object;
+         end loop;
 
-      end loop;
-
-      if v_current_label <> '___INIT___' then
-         apex_json.close_array; -- statuses
-         apex_json.close_object;
+         if v_current_label <> '___INIT___' then
+            apex_json.close_array; -- statuses
+            apex_json.close_object;
+         end if;
       end if;
 
       apex_json.close_array; -- data

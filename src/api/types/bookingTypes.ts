@@ -1,12 +1,20 @@
-import type { ContainerType } from './containerTypes';
-
-export interface CustomerBookingResponse {
+export interface Customer {
     cust_name: string;
     cust_nbr: string;
-    bookings: {
-        booking_id: string;
-        container_types: ContainerType[];
-    }[];
+    booking_count: number;
+}
+
+// Booking List Types
+export interface BookingTypeStats {
+    type: string;
+    total: number;
+    reserved: number;
+    to_plan: number;
+}
+
+export interface Booking {
+    booking_id: string;
+    types: BookingTypeStats[];
 }
 
 // Reservation API types
@@ -27,10 +35,4 @@ export interface ReservationResponse {
 export interface UnreservationRequest {
     booking_id: string;
     unreserve_containers: string[];
-}
-
-export interface SwapReservationRequest {
-    booking_id: string;
-    unreserve_containers: string[];
-    reserve_containers: string[];
 }

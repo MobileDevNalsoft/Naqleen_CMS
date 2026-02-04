@@ -2,21 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getTrucksSummary } from '../../api/handlers/dashboardApi';
 import type { TrucksResponse } from '../../api/types/dashboardTypes';
 import MetricLoader from './MetricLoader';
+import { getTruckStatusColor } from '../../utils/statusColors';
+import { useUIStore } from '../../store/uiStore';
 
 interface TruckUtilizationContentProps {
     date?: string;
     startDate?: string;
     endDate?: string;
 }
-
-// Map frontend labels to API status values
-const STATUS_MAP: Record<string, 'ACTIVE' | 'IDLE' | 'INACTIVE'> = {
-    'Active': 'ACTIVE',
-    'Idle': 'IDLE',
-    'InActive': 'INACTIVE'
-};
-
-import { useUIStore } from '../../store/uiStore';
 
 export default function TruckUtilizationContent({
     date,
@@ -35,7 +28,7 @@ export default function TruckUtilizationContent({
         try {
             const data = await getTrucksSummary(date, startDate, endDate);
             setStats(data);
-            setAnimationKey(prev => prev + 1); // Trigger re-animation
+            setAnimationKey(prev => prev + 1);
         } catch (err) {
             console.error("Failed to fetch truck stats", err);
             setError("Failed to load data");
@@ -56,15 +49,16 @@ export default function TruckUtilizationContent({
         return <MetricLoader />;
     }
 
-    // Premium pastel color palette
+    // Build chart data dynamically from API response
     const isRange = Boolean(startDate && endDate && startDate !== endDate);
     const labelSuffix = isRange ? ' (Avg)' : '';
 
-    const data = [
-        { label: `Active${labelSuffix}`, value: stats.active, color: '#2DB3AA', bgColor: '#D4F1EE' },
-        { label: `Idle${labelSuffix}`, value: stats.idle, color: '#6BBF8A', bgColor: '#DFF2E6' },
-        { label: `InActive${labelSuffix}`, value: stats.inactive, color: '#E8846E', bgColor: '#FCE4DF' },
-    ];
+    const data = (stats.statuses || []).map((item, index) => ({
+        label: `${item.status}${labelSuffix}`,
+        value: item.count,
+        status: item.status,
+        ...getTruckStatusColor(index)
+    }));
 
     const total = stats.total;
     const size = 180;
@@ -74,12 +68,12 @@ export default function TruckUtilizationContent({
     const center = size / 2;
     let currentOffset = 0;
 
-    const handleDrillDown = (status: any) => {
+    const handleDrillDown = (status: string) => {
         console.error('[TruckUtilization] handleDrillDown triggered for status:', status);
         openDrillDown({
             type: 'TRUCKS',
             status: status || 'ALL',
-            title: status === 'ALL' || !status ? 'All Trucks' : `${status.charAt(0) + status.slice(1).toLowerCase()} Trucks`,
+            title: status === 'ALL' || !status ? 'All Trucks' : `${status} Trucks`,
             date,
             startDate,
             endDate
@@ -175,7 +169,7 @@ export default function TruckUtilizationContent({
                                 }} />
                                 <span
                                     style={{ fontSize: '14px', color: '#475569', fontWeight: 500, whiteSpace: 'nowrap', cursor: 'pointer' }}
-                                    onClick={() => handleDrillDown(STATUS_MAP[item.label.replace(/ \(Avg\)$/, '')])}
+                                    onClick={() => handleDrillDown(item.status)}
                                     className="hover:text-blue-600 transition-colors"
                                 >
                                     {item.label}

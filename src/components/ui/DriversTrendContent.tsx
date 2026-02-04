@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { getDriversTrend } from '../../api/handlers/dashboardApi';
 import type { DriversTrendResponse, TrendViewMode } from '../../api/types/dashboardTypes';
 import TrendLoader from './TrendLoader';
+import { getDriverChartColor } from '../../utils/statusColors';
 
 interface DriversTrendContentProps {
     viewMode: TrendViewMode;
@@ -58,6 +59,29 @@ export default function DriversTrendContent({ viewMode }: DriversTrendContentPro
         fetchTrend();
     }, [fetchTrend]);
 
+    // Extract unique statuses and transform data for Recharts
+    const { uniqueStatuses, chartData } = useMemo(() => {
+        if (!data?.data) return { uniqueStatuses: [], chartData: [] };
+
+        // Get all unique status names across all data points
+        const statusSet = new Set<string>();
+        data.data.forEach(point => {
+            point.statuses.forEach(s => statusSet.add(s.status));
+        });
+        const uniqueStatuses = Array.from(statusSet);
+
+        // Transform to flat structure for Recharts
+        const chartData = data.data.map(point => {
+            const obj: Record<string, any> = { label: point.label };
+            point.statuses.forEach(s => {
+                obj[s.status] = s.count;
+            });
+            return obj;
+        });
+
+        return { uniqueStatuses, chartData };
+    }, [data]);
+
     if (error) {
         return <div style={{ color: '#EF4444', fontSize: '14px', padding: '20px', textAlign: 'center' }}>Error loading trend data</div>;
     }
@@ -77,7 +101,7 @@ export default function DriversTrendContent({ viewMode }: DriversTrendContentPro
         >
             <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                    data={data.data}
+                    data={chartData}
                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
                     barGap={2}
                     barCategoryGap="20%"
@@ -104,21 +128,18 @@ export default function DriversTrendContent({ viewMode }: DriversTrendContentPro
                         formatter={(value) => <span style={{ color: '#475569', fontSize: '11px', fontWeight: 500 }}>{value}</span>}
                     />
 
-                    <Bar
-                        dataKey="active"
-                        name="On Duty"
-                        fill="#5A7FD6"
-                        radius={[8, 8, 0, 0]}
-                        animationDuration={800}
-                    />
-                    <Bar
-                        dataKey="idle"
-                        name="Idle"
-                        fill="#E5AE56"
-                        radius={[8, 8, 0, 0]}
-                        animationDuration={800}
-                        animationBegin={150}
-                    />
+                    {/* Dynamically render bars based on unique statuses */}
+                    {uniqueStatuses.map((status, index) => (
+                        <Bar
+                            key={status}
+                            dataKey={status}
+                            name={status}
+                            fill={getDriverChartColor(index)}
+                            radius={[8, 8, 0, 0]}
+                            animationDuration={800}
+                            animationBegin={index * 150}
+                        />
+                    ))}
                 </BarChart>
             </ResponsiveContainer>
 

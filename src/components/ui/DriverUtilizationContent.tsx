@@ -2,20 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getDriversSummary } from '../../api/handlers/dashboardApi';
 import type { DriversResponse } from '../../api/types/dashboardTypes';
 import MetricLoader from './MetricLoader';
+import { getDriverStatusColor } from '../../utils/statusColors';
+import { useUIStore } from '../../store/uiStore';
 
 interface DriverUtilizationContentProps {
     date?: string;
     startDate?: string;
     endDate?: string;
 }
-
-// Map frontend labels to API status values
-const STATUS_MAP: Record<string, 'ACTIVE' | 'IDLE' | 'INACTIVE'> = {
-    'OnDuty': 'ACTIVE',
-    'Idle': 'IDLE'
-};
-
-import { useUIStore } from '../../store/uiStore';
 
 export default function DriverUtilizationContent({
     date,
@@ -55,13 +49,16 @@ export default function DriverUtilizationContent({
         return <MetricLoader />;
     }
 
+    // Build chart data dynamically from API response
     const isRange = Boolean(startDate && endDate && startDate !== endDate);
     const labelSuffix = isRange ? ' (Avg)' : '';
 
-    const data = [
-        { label: `OnDuty${labelSuffix}`, value: stats.active, color: '#5A7FD6', bgColor: '#DEE8F9' },
-        { label: `Idle${labelSuffix}`, value: stats.idle, color: '#E5AE56', bgColor: '#FAF0DA' },
-    ];
+    const data = (stats.statuses || []).map((item, index) => ({
+        label: `${item.status}${labelSuffix}`,
+        value: item.count,
+        status: item.status,
+        ...getDriverStatusColor(index)
+    }));
 
     const total = stats.total;
     const size = 180;
@@ -71,12 +68,12 @@ export default function DriverUtilizationContent({
     const center = size / 2;
     let currentOffset = 0;
 
-    const handleDrillDown = (status: any) => {
+    const handleDrillDown = (status: string) => {
         console.error('[DriverUtilization] handleDrillDown triggered for status:', status);
         openDrillDown({
             type: 'DRIVERS',
             status: status || 'ALL',
-            title: status === 'ALL' || !status ? 'All Drivers' : `${status.charAt(0) + status.slice(1).toLowerCase()} Drivers`,
+            title: status === 'ALL' || !status ? 'All Drivers' : `${status} Drivers`,
             date,
             startDate,
             endDate
@@ -172,7 +169,7 @@ export default function DriverUtilizationContent({
                                 }} />
                                 <span
                                     style={{ fontSize: '14px', color: '#475569', fontWeight: 500, whiteSpace: 'nowrap', cursor: 'pointer' }}
-                                    onClick={() => handleDrillDown(STATUS_MAP[item.label.replace(/ \(Avg\)$/, '')])}
+                                    onClick={() => handleDrillDown(item.status)}
                                     className="hover:text-blue-600 transition-colors"
                                 >
                                     {item.label}

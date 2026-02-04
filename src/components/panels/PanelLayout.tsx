@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Maximize2, Minimize2 } from 'lucide-react';
 
 interface PanelLayoutProps {
-    title: string;
+    title: React.ReactNode;
     category?: string;
     titleBadge?: React.ReactNode;
     subtitle?: React.ReactNode; // New prop for subtitle/badge below title
@@ -13,6 +13,9 @@ interface PanelLayoutProps {
     headerActions?: React.ReactNode;
     tabsContent?: React.ReactNode; // Fixed content between header and scrollable area (e.g., tabs)
     width?: string;
+    top?: string;
+    height?: string;
+    zIndex?: number;
     allowExpansion?: boolean;
     fitContent?: boolean; // If true, panel height fits content instead of full height
 }
@@ -29,6 +32,9 @@ export default function PanelLayout({
     headerActions,
     tabsContent,
     width = '420px',
+    top = '90px',
+    height,
+    zIndex = 1000,
     allowExpansion = false,
     fitContent = false
 }: PanelLayoutProps) {
@@ -48,24 +54,34 @@ export default function PanelLayout({
         }
     }, [isOpen]);
 
+    // Reset expansion if not allowed (e.g., navigating back to list)
+    useEffect(() => {
+        if (!allowExpansion) {
+            setIsExpanded(false);
+        }
+    }, [allowExpansion]);
+
+    const defaultHeight = isExpanded ? 'calc(100vh - 114px)' : 'calc(100vh - 114px)';
+    const calculatedHeight = height || defaultHeight;
+
     if (!isVisible && !isOpen) return null;
 
     return (
         <div
             style={{
                 position: 'fixed',
-                top: isExpanded ? '90px' : '90px',
+                top: top,
                 right: '24px',
                 width: isExpanded ? '900px' : width,
                 maxWidth: 'calc(100vw - 48px)', // Prevent overflow on small screens
-                height: fitContent ? 'auto' : (isExpanded ? 'calc(100vh - 114px)' : 'calc(100vh - 114px)'),
-                maxHeight: fitContent ? 'calc(100vh - 114px)' : undefined,
+                height: fitContent ? 'auto' : calculatedHeight,
+                maxHeight: fitContent ? calculatedHeight : undefined,
                 backgroundColor: 'rgba(253, 246, 235, 0.95)',
                 backdropFilter: 'blur(24px) saturate(180%)',
                 borderRadius: '24px',
                 border: '1px solid rgba(75, 104, 108, 0.1)',
                 boxShadow: '0 24px 48px rgba(0, 0, 0, 0.1), 0 12px 24px rgba(0,0,0,0.05)',
-                zIndex: 1000,
+                zIndex: zIndex,
                 color: '#1e293b',
                 display: 'flex',
                 flexDirection: 'column',
@@ -103,7 +119,7 @@ export default function PanelLayout({
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <h2 style={{
-                                fontSize: '24px',
+                                fontSize: '18px',
                                 fontWeight: 800,
                                 margin: 0,
                                 background: 'white',
