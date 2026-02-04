@@ -183,6 +183,7 @@ export default function Dropdown({
                             type="text"
                             value={inputValue}
                             onChange={handleInputChange}
+                            onClick={(e) => e.stopPropagation()}
                             onFocus={() => {
                                 setIsOpen(true);
                                 if (onFocus) onFocus();
@@ -217,14 +218,7 @@ export default function Dropdown({
                     )}
 
                     <div style={{ display: 'flex', alignItems: 'center', paddingRight: '10px' }}>
-                        {loading && (
-                            <div style={{ marginRight: '8px', animation: 'spin 1s linear infinite' }}>
-                                {/* Simple CSS spinner or Lucide loader */}
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                                </svg>
-                            </div>
-                        )}
+
                         {showClear && !disabled && !loading && (
                             <div
                                 onClick={handleClear}
@@ -270,7 +264,23 @@ export default function Dropdown({
                             animation: 'fadeIn 0.1s ease-out'
                         }}>
                         <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
-                            {filteredOptions.length > 0 ? (
+                            {loading ? (
+                                <div style={{ padding: '8px' }}>
+                                    {[1, 2, 3].map((i) => (
+                                        <div key={i} style={{ padding: '10px 14px', display: 'flex', alignItems: 'center' }}>
+                                            <div style={{
+                                                height: '14px',
+                                                width: '70%',
+                                                background: '#f1f5f9',
+                                                borderRadius: '4px',
+                                                backgroundImage: 'linear-gradient(to right, #f1f5f9 0%, #e2e8f0 20%, #f1f5f9 40%, #f1f5f9 100%)',
+                                                backgroundSize: '1000px 100%',
+                                                animation: 'shimmer 2s infinite linear'
+                                            }} />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : filteredOptions.length > 0 ? (
                                 filteredOptions.map((option, index) => (
                                     <div
                                         key={`${option.value}-${index}`}
@@ -315,6 +325,10 @@ export default function Dropdown({
                 @keyframes spin {
                     from { transform: rotate(0deg); }
                     to { transform: rotate(360deg); }
+                }
+                @keyframes shimmer {
+                    0% { background-position: -1000px 0; }
+                    100% { background-position: 1000px 0; }
                 }
             `}</style>
         </div>

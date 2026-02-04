@@ -64,7 +64,8 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     const [searchType, setSearchType] = useState<'customer' | 'item_code'>('customer');
     const [selectedCustomerId, setSelectedCustomerId] = useState<string>(''); // Payload needs Name, Lookup needs ID
 
-    const [terminal, setTerminal] = useState('');
+    const terminals = ['Naqleen Jeddah'];
+    const [terminal, setTerminal] = useState(terminals[0]);
     const [contact, setContact] = useState('');
     const [containerNumber, setContainerNumber] = useState('');
     const [otmShipmentNumber, setOtmShipmentNumber] = useState('');
@@ -73,7 +74,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     // Mock Options - Customers replaced by API lookup
     const [customerOptions, setCustomerOptions] = useState<{ label: string; value: string; original?: any }[]>([]);
     const [shipmentOptions, setShipmentOptions] = useState<{ label: string; value: string }[]>([]);
-    const terminals = ['Naqleen Jeddah'];
+
     // Shipment numbers replaced by API lookup
 
     // New state to store raw customer and shipment data
@@ -217,6 +218,16 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
             return () => clearTimeout(timer);
         }
     }, [viewItemCode, searchType]);
+
+    // specific debounce for customer search
+    useEffect(() => {
+        if (searchType === 'customer') {
+            const timer = setTimeout(() => {
+                handleStockSearch(viewCustomer, '');
+            }, 200);
+            return () => clearTimeout(timer);
+        }
+    }, [viewCustomer, searchType]);
 
 
 
@@ -1074,21 +1085,41 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                         <div style={{ display: 'flex', gap: '12px', alignItems: 'end' }}>
                             <div style={{ flex: 1 }}>
                                 {searchType === 'customer' ? (
-                                    <Dropdown
-                                        label="Search Value"
-                                        options={customerOptions}
-                                        value={viewCustomer}
-                                        onChange={(val) => {
-                                            setViewCustomer(val);
-                                            setViewItemCode(''); // Reset item code when customer changes
-                                            handleStockSearch(val, '');
-                                        }}
-                                        placeholder="Select Customer"
-                                        searchable
-                                        data-testid="view-customer-dropdown"
-                                        onSearch={handleCustomerSearch}
-                                        loading={isLoadingCustomers}
-                                    />
+                                    <div style={{ position: 'relative', width: '100%' }}>
+                                        <label style={{
+                                            display: 'block',
+                                            marginBottom: '6px',
+                                            fontSize: '12px',
+                                            fontWeight: 600,
+                                            color: '#64748b',
+                                            letterSpacing: '0.02em',
+                                        }}>
+                                            Search Value
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={viewCustomer}
+                                            onChange={(e) => {
+                                                setViewCustomer(e.target.value);
+                                                // Item code resets when switching context, handled by searchType switch mostly. 
+                                                // Here we just update state, useEffect handles fetch.
+                                                if (viewItemCode) setViewItemCode('');
+                                            }}
+                                            placeholder="Enter Customer Name..."
+                                            style={{
+                                                width: '100%',
+                                                padding: '12px 14px',
+                                                background: '#f8fafc',
+                                                border: '1px solid #e2e8f0',
+                                                borderRadius: '8px',
+                                                color: 'var(--text-color)',
+                                                fontSize: '14px',
+                                                outline: 'none',
+                                                transition: 'all 0.2s',
+                                                boxSizing: 'border-box'
+                                            }}
+                                        />
+                                    </div>
                                 ) : (
                                     <div style={{ position: 'relative', width: '100%' }}>
                                         <label style={{
@@ -1122,17 +1153,46 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                     </div>
                                 )}
                             </div>
-                            <div style={{ width: '150px' }}>
-                                <Dropdown
-                                    label="Search By"
-                                    options={[
-                                        { label: 'Customer', value: 'customer' },
-                                        { label: 'Item Code', value: 'item_code' }
-                                    ]}
-                                    value={searchType}
-                                    onChange={(val) => setSearchType(val as any)}
-                                    placeholder="Search By"
-                                />
+                            <div style={{ width: '200px' }}>
+                                <label style={{
+                                    display: 'block',
+                                    marginBottom: '6px',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    color: '#64748b',
+                                    letterSpacing: '0.02em',
+                                }}>
+                                    Search By
+                                </label>
+                                <div style={{
+                                    display: 'flex',
+                                    background: '#f1f5f9',
+                                    padding: '4px',
+                                    borderRadius: '10px',
+                                    border: '1px solid #e2e8f0'
+                                }}>
+                                    {['customer', 'item_code'].map((type) => (
+                                        <button
+                                            key={type}
+                                            onClick={() => setSearchType(type as any)}
+                                            style={{
+                                                flex: 1,
+                                                padding: '8px',
+                                                fontSize: '13px',
+                                                fontWeight: 600,
+                                                border: 'none',
+                                                borderRadius: '8px',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.3s ease',
+                                                background: searchType === type ? 'var(--primary-color)' : 'transparent',
+                                                color: searchType === type ? 'white' : '#64748b',
+                                                boxShadow: searchType === type ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
+                                            }}
+                                        >
+                                            {type === 'customer' ? 'Customer' : 'Item Code'}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 
