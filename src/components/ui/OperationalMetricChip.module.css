@@ -1,0 +1,57 @@
+/* OperationalMetricChip.module.css */
+
+.container {
+  /* Dynamic gradient background via inline style for specific colors, or base style here */
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.15), 0 4px 6px -4px rgba(75, 104, 108, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 260px;
+  flex: 1;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+.bgIcon {
+  position: absolute;
+  right: -10px;
+  bottom: -15px;
+  opacity: 0.1;
+  transform: rotate(-10deg);
+  pointer-events: none;
+}
+
+.iconCircle {
+  background: #FFFFFF;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.count {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0F172A; /* Slate-900 */
+  line-height: 1;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748B; /* Slate-500 */
+  white-space: nowrap;
+}

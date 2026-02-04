@@ -117,29 +117,29 @@ const Truck: React.FC<TruckProps> = ({
     }), []);
 
     const chromeMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: '#E0E0E0',
-        roughness: 0.05,
-        metalness: 0.98
+        color: '#808080', // Significantly darker grey
+        roughness: 0.7,
+        metalness: 0.2
     }), []);
 
     const lightMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: '#FFFEF0',
-        emissive: '#FFFACD',
-        emissiveIntensity: 0.6,
-        roughness: 0.1,
-        metalness: 0.1
+        color: '#C0C0C0', // Dimmed white (off state)
+        emissive: '#000000',
+        emissiveIntensity: 0.0,
+        roughness: 0.5,
+        metalness: 0.0
     }), []);
 
     const turnSignalMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: '#FFB300',
-        emissive: '#FF8F00',
-        emissiveIntensity: 0.4
+        color: '#CC8800', // Darker amber
+        emissive: '#000000',
+        emissiveIntensity: 0.0
     }), []);
 
     const tailLightMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: '#B91C1C',
-        emissive: '#DC2626',
-        emissiveIntensity: 0.4
+        color: '#800000', // Darker red
+        emissive: '#000000',
+        emissiveIntensity: 0.0
     }), []);
 
     const wheelRadius = 0.52;

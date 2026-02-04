@@ -166,7 +166,7 @@ const CFSContainerGrid: React.FC<{ width: number; depth: number; containerCount:
 
                 // 2. Container (Use actual containerCount from API)
                 if (placedCount < containerCount) {
-                    const py = 0.2 + contHeight / 2; // Level 1 base (Floor is 0.2)
+                    const py = 0.3 + contHeight / 2; // Level 1 base (Lifted to 0.3 to sit ON TOP of markings at 0.28)
                     const colorHex = colors[placedCount % colors.length];
                     const color = new THREE.Color(colorHex);
 

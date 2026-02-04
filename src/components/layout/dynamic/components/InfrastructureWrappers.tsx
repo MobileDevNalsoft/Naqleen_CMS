@@ -82,7 +82,7 @@ export const TruckWrapper: React.FC<DynamicComponentProps> = ({
     // Raise y position by 0.2 to sit on top of CFS area floor
     const adjustedPosition: [number, number, number] = [
         position[0],
-        position[1] + 0.2,
+        position[1], // Ensure perfectly grounded (Y=0)
         position[2]
     ];
 

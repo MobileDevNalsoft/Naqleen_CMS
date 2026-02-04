@@ -60,7 +60,12 @@ const ContainerCard = memo(({
     }
 
     return (
-        <button
+        <motion.button
+            layout
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
             onClick={() => onClick(container.id)}
             style={{
                 background: bg,
@@ -121,7 +126,7 @@ const ContainerCard = memo(({
 
             {/* Selection Highlight Bar */}
             {isSelected && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px', background: highlightBarColor, zIndex: 1 }}></div>}
-        </button>
+        </motion.button>
     );
 }, (prev, next) => {
     return prev.container.id === next.container.id && prev.isSelected === next.isSelected && prev.type === next.type;
@@ -1227,15 +1232,20 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
                                     {bookings.map((booking) => {
                                         const isExpanded = expandedBookingId === booking.booking_id;
                                         return (
-                                            <div key={booking.booking_id} style={{
-                                                background: 'white',
-                                                borderRadius: '12px',
-                                                border: isExpanded ? '1px solid #4B686C' : '1px solid #e2e8f0',
+                                            <motion.div
+                                                layout
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                key={booking.booking_id}
+                                                style={{
+                                                    background: 'white',
+                                                    borderRadius: '12px',
+                                                    border: isExpanded ? '1px solid #4B686C' : '1px solid #e2e8f0',
 
-                                                overflow: 'hidden',
-                                                transition: 'all 0.2s ease',
-                                                boxShadow: isExpanded ? '0 4px 12px rgba(75, 104, 108, 0.1)' : '0 1px 2px rgba(0,0,0,0.05)'
-                                            }}>
+                                                    overflow: 'hidden',
+                                                    transition: 'all 0.2s ease', // keeping standard transition for non-layout properties
+                                                    boxShadow: isExpanded ? '0 4px 12px rgba(75, 104, 108, 0.1)' : '0 1px 2px rgba(0,0,0,0.05)'
+                                                }}>
                                                 {/* Booking Header (Click to Expand) */}
                                                 <button
                                                     onClick={() => setExpandedBookingId(prev => prev === booking.booking_id ? null : booking.booking_id)}
@@ -1302,7 +1312,7 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
                                                         </div>
                                                     </div>
                                                 )}
-                                            </div>
+                                            </motion.div>
                                         );
                                     })}
                                     {isFetchingNextPage && (

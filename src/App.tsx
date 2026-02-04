@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
-import { MapControls, Environment as DreiEnvironment, ContactShadows } from '@react-three/drei';
+import { MapControls, Environment as DreiEnvironment } from '@react-three/drei';
 import { useRef, useState, useEffect } from 'react';
 import LayoutEnvironment from './components/layout/Environment';
 import LoadingScreen from './components/ui/animations/LoadingScreen';
@@ -42,6 +42,7 @@ import RestackConnectionLine from './components/layout/RestackConnectionLine';
 import GhostContainer from './components/layout/GhostContainer';
 import ToastContainer from './components/ui/custom-components/Toast';
 import { EffectsWrapper } from './components/effects/EffectsWrapper';
+import { Lighting } from './components/layout/Lighting';
 import ViewNavigationPanel from './components/ui/ViewNavigationPanel';
 
 import { useAuthStore } from './store/authStore';
@@ -167,7 +168,7 @@ const App = () => {
     >
       {/* Modern Branding Header - Fixed Overlay */}
       {activePanel !== 'accessControl' && (
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000, height: 0 }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: activePanel === 'settings' ? 10005 : 1000, height: 0 }}>
           <ModernHeader
             activeNav={activeNav}
             onNavChange={handleNavChange}
@@ -222,49 +223,22 @@ const App = () => {
             shadows
             dpr={[1, 1.25]} // Reduced max DPR to save render buffer memory
             gl={{
-              toneMapping: THREE.ACESFilmicToneMapping,
-              toneMappingExposure: 1.6,
+              toneMapping: THREE.ACESFilmicToneMapping, // Cinenmatic Tone Mapping
+              toneMappingExposure: 1.2, // Slightly increased exposure for brightness
               antialias: true,
-              powerPreference: 'high-performance'
+              powerPreference: 'high-performance',
+              stencil: false,
+              depth: true
             }}
           >
             <color attach="background" args={['#BCE6FF']} />
-            <fog attach="fog" args={['#BCE6FF', 800, 4000]} /> {/* Clean yard, far horizon fog */}
+            <fog attach="fog" args={['#BCE6FF', 800, 4000]} /> {/* Match fog to background */}
 
-            {/* Professional Lighting Rig - High Key, Warm & Bright */}
-            <ambientLight intensity={1.0} color="#fffaf0" /> {/* Warm white, full fill */}
-            <hemisphereLight
-              intensity={0.9}
-              color="#b0e0e6" // Powder Blue sky
-              groundColor="#c3ebc3" // Light Green ground reflection
-              position={[0, 50, 0]}
-            />
-            <directionalLight
-              position={[100, 150, 50]} // Higher sun position for softer shadows
-              intensity={0.8} // Reduced for softer contrast
-              castShadow
-              shadow-mapSize={[1024, 1024]} // Optimized Shadow Map (1024)
-              shadow-camera-near={0.5}
-              shadow-camera-far={500}
-              shadow-camera-left={-200}
-              shadow-camera-right={200}
-              shadow-camera-top={200}
-              shadow-camera-bottom={-200}
-              shadow-bias={-0.0001}
-            />
+            {/* Centralized Studio Lighting */}
+            <Lighting />
 
-            {/* Cinematic Environment */}
+            {/* Cinematic Environment Map */}
             <DreiEnvironment preset="city" blur={0.8} background={false} />
-
-            <ContactShadows
-              position={[0, -0.01, 0]}
-              opacity={0.45}
-              scale={2000}
-              blur={2.0}
-              far={10}
-              resolution={512} // Optimized Contact Shadow Resolution
-              color="#000000"
-            />
 
             <EffectsWrapper>
               <LayoutEnvironment />
