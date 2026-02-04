@@ -35,17 +35,6 @@ export interface ContainerDetailsResponse {
     tracking_events?: TrackingEvent[];
 }
 
-export interface RecommendedContainersResponse {
-    container_type: string;
-    recommended_containers: string[];
-}
-
-export interface SwapCandidate {
-    container_nbr: string;
-    container_type: string;
-    position: string;
-}
-
 // Also used in booking, but primarily a container spec
 export interface ContainerType {
     container_type: string;

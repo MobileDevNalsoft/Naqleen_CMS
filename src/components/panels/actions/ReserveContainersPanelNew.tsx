@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, useMemo, memo } from 'react';
 import { VirtuosoGrid } from 'react-virtuoso';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, ChevronLeft, ChevronRight, Search, Loader2, ChevronDown, ChevronUp, MapPin, Box, Check, X } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Search, Loader2, ChevronDown, ChevronUp, MapPin, Box, X } from 'lucide-react';
 import { useStore } from '../../../store/store';
 import { showToast } from '../../ui/custom-components/Toast';
 import PanelLayout from '../PanelLayout';

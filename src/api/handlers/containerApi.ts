@@ -9,10 +9,8 @@ import type { ApiResponse } from '../types/commonTypes';
 import type {
     ContainerPosition,
     ContainerDetailsResponse,
-    SwapCandidate,
     CustomerContainerGroup,
     ContainerFromApi,
-    RecommendedContainersResponse,
     GetContainersResponse,
     CfsContainer
 } from '../types/containerTypes';
@@ -149,74 +147,6 @@ export async function getContainerDetails(containerNbr: string): Promise<Contain
     }
 }
 
-export const getRecommendedContainers = async (
-    custNbr: string,
-    requirements: { container_type: string; container_count: number }[]
-): Promise<RecommendedContainersResponse[]> => {
-    try {
-        const payload = {
-            cust_nbr: custNbr,
-            container_types: requirements
-        };
-        const response = await apiClient.post<ApiResponse<RecommendedContainersResponse[]>>(
-            API_CONFIG.ENDPOINTS.GET_RECOMMENDED_CONTAINERS,
-            payload
-        );
-
-        if (response.data.response_code === 200 && Array.isArray(response.data.data)) {
-            return response.data.data;
-        }
-
-        console.warn('Invalid response from recommendation API', response.data);
-        return [];
-    } catch (error) {
-        console.error('Error fetching recommendations:', error);
-        return [];
-    }
-};
-
-export const getContainersToSwap = async (
-    type: string,
-    query: string,
-    offset: number
-): Promise<SwapCandidate[]> => {
-    try {
-        const response = await apiClient.get<ApiResponse<string[]>>(
-            API_CONFIG.ENDPOINTS.GET_CONTAINERS_OF_TYPE,
-            {
-                params: {
-                    containerType: type,
-                    offset: offset,
-                    searchText: query
-                }
-            }
-        );
-
-        if (response.data.response_code === 200 && Array.isArray(response.data.data)) {
-            const entities = useStore.getState().entities;
-            return response.data.data.map((nbr: string) => {
-                const ent = entities[nbr];
-                let positionStr = 'Yard';
-                if (ent) {
-                    // Format: TERMINAL-BLOCK-LOT-ROW-LEVEL
-                    // row is now stored as string label directly (e.g., 'D')
-                    positionStr = `${ent.terminal}-${ent.block}-${ent.lot}-${ent.row}-${ent.level}`;
-                }
-                return {
-                    container_nbr: nbr,
-                    container_type: type,
-                    position: positionStr
-                };
-            });
-        }
-
-        return [];
-    } catch (error) {
-        console.error('Error fetching swap candidates:', error);
-        return [];
-    }
-};
-
 // --- Hooks ---
 
 export const useContainersQuery = (layout: DynamicIcdLayout | null) => {
@@ -256,26 +186,4 @@ export const useContainersQuery = (layout: DynamicIcdLayout | null) => {
         ...query,
         data: query.data?.positions || []
     };
-};
-
-export const useRecommendedContainersQuery = (
-    bookingId: string | null,
-    custNbr: string | null,
-    requirements: { container_type: string, container_count: number }[] | null
-) => {
-    return useQuery({
-        queryKey: ['recommendedContainers', bookingId, custNbr, requirements],
-        queryFn: () => getRecommendedContainers(custNbr!, requirements!),
-        enabled: !!bookingId && !!custNbr && !!requirements,
-        staleTime: 1000 * 60 * 5,
-    });
-};
-
-export const useSwapContainersQuery = (type: string | null, query: string, offset: number, fetchAll: boolean = false) => {
-    return useQuery({
-        queryKey: ['swapContainers', type, query, offset, fetchAll],
-        queryFn: () => getContainersToSwap(type!, query, offset),
-        enabled: !!type && (fetchAll || query.length >= 3),
-        staleTime: 1000 * 60,
-    });
 };
