@@ -100,14 +100,14 @@ export default function Dashboard() {
                 gap: '24px',
                 width: '100%'
             }}>
-                {/* Truck Utilization Card */}
+                {/* Truck Summary Card */}
                 <MetricCard
-                    title="Truck Utilization"
+                    title="Truck Summary"
                     icon={Truck}
                     width="100%"
                     action={
                         <DateFilterDropdown
-                            title="Truck Utilization"
+                            title="Truck Summary"
                             value={trucksFilter}
                             onChange={setTrucksFilter}
                             minDate={metadata?.vehicleMinDate || undefined}
@@ -121,14 +121,14 @@ export default function Dashboard() {
                     />
                 </MetricCard>
 
-                {/* Driver Utilization Card */}
+                {/* Driver Summary Card */}
                 <MetricCard
-                    title="Drivers Utilization"
+                    title="Drivers Summary"
                     icon={Users}
                     width="100%"
                     action={
                         <DateFilterDropdown
-                            title="Drivers Utilization"
+                            title="Drivers Summary"
                             value={driversFilter}
                             onChange={setDriversFilter}
                             minDate={metadata?.driverMinDate || undefined}

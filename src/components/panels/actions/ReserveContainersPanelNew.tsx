@@ -76,7 +76,9 @@ const ContainerCard = memo(({
                 gap: '4px',
                 position: 'relative',
                 overflow: 'hidden',
-                width: '100%'
+                width: '100%',
+                height: '55px',
+                boxSizing: 'border-box'
             }}
         >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -87,8 +89,18 @@ const ContainerCard = memo(({
                     </span>
                 </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: subTextColor, opacity: isSelected ? 0.8 : 1 }}>
-                <MapPin size={10} />
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '10px',
+                color: subTextColor,
+                opacity: isSelected ? 0.8 : 1,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+            }}>
+                <MapPin size={10} style={{ flexShrink: 0 }} />
                 <span>{posStr}</span>
             </div>
 
@@ -306,7 +318,8 @@ const BookingSkeleton = () => (
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        background: 'white'
+        background: 'white',
+        boxSizing: 'border-box'
     }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <div className="skeleton-block" style={{ width: '100px', height: '14px' }} />
@@ -327,7 +340,8 @@ const ContainerSkeleton = ({ type }: { type: 'available' | 'reserved' }) => (
         flexDirection: 'column',
         gap: '4px',
         height: '55px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+        boxSizing: 'border-box'
     }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div className="skeleton-block" style={{ width: '14px', height: '14px' }} />
@@ -1122,7 +1136,9 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
                                         justifyContent: 'space-between',
                                         cursor: 'pointer',
                                         transition: 'all 0.2s',
-                                        textAlign: 'left'
+                                        textAlign: 'left',
+                                        height: '70px',
+                                        boxSizing: 'border-box'
                                     }}
                                     onMouseEnter={e => {
                                         e.currentTarget.style.borderColor = '#4B686C';
@@ -1228,7 +1244,9 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
                                                         padding: '16px',
                                                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                                         background: 'transparent', border: 'none', cursor: 'pointer',
-                                                        textAlign: 'left'
+                                                        textAlign: 'left',
+                                                        height: '64px',
+                                                        boxSizing: 'border-box'
                                                     }}
                                                 >
                                                     <div>
