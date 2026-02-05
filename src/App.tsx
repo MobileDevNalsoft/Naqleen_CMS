@@ -234,7 +234,9 @@ const App = () => {
               toneMapping: THREE.ACESFilmicToneMapping, // Cinenmatic Tone Mapping
               toneMappingExposure: 1.2, // Slightly increased exposure for brightness
               antialias: true,
-              powerPreference: 'high-performance'
+              powerPreference: 'high-performance',
+              stencil: false,
+              depth: true
             }}
           >
             <color attach="background" args={['#BCE6FF']} />
