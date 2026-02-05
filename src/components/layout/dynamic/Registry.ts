@@ -1,6 +1,9 @@
 import GenericZone from './components/GenericZone';
 import { CFSAreaWrapper, WarehouseWrapper, TruckWrapper } from './components/InfrastructureWrappers';
 
+// Silent component for entities handled by other systems (like IcdMarkings)
+const NullComponent = () => null;
+
 // Mapping of JSON 'type' to React Component
 // Note: Block types (container_block_*) are NOT registered here.
 // They are rendered by IcdMarkings (SlotMarkings + BlockLabels) which handles
@@ -22,6 +25,15 @@ export const ComponentRegistry: Record<string, React.FC<any>> = {
     'cfs_area': CFSAreaWrapper,
     'warehouse': WarehouseWrapper,
     'truck': TruckWrapper,
+
+    // Buildings (Mapped to WarehouseWrapper)
+    'resting_room': WarehouseWrapper,
+    'generator_room': WarehouseWrapper,
+    'terminal_office': WarehouseWrapper,
+    'terminal_dispatch_office': WarehouseWrapper,
+
+    // Ignored Types (Handled separately but registered to silence warnings)
+    'container_block_a': NullComponent,
 
     // Fallback/Generic
     'zone': GenericZone

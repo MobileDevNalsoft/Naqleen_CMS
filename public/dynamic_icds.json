@@ -429,7 +429,7 @@
         {
           "id": "cfs_area_1",
           "type": "cfs_area",
-          "name": "CFS Area - 1",
+          "name": "CFS Area",
           "position": { "x": -215, "y": 0.3, "z": -11 },
           "dimensions": { "width": 70, "height": 22 },
           "rotation": 0

@@ -164,7 +164,9 @@ export const useContainersQuery = (layout: DynamicIcdLayout | null) => {
             return getContainers();
         },
         enabled: !!layout && hasMarkingPositions,
-        staleTime: Infinity,
+        // staleTime: 5000,
+        // refetchInterval: 5000,
+        // refetchIntervalInBackground: true,
         refetchOnWindowFocus: false,
     });
 
@@ -172,12 +174,10 @@ export const useContainersQuery = (layout: DynamicIcdLayout | null) => {
 
     useEffect(() => {
         if (query.data && (query.data.positions.length > 0 || query.data.cfsContainers?.length > 0)) {
-            const currentIds = useStore.getState().ids;
-            if (currentIds.length === 0) {
-                setEntitiesBatch(query.data.positions);
-                setCustomerByContainer(query.data.customerByContainer);
-                setCfsContainers(query.data.cfsContainers || []);
-            }
+            // Always update store with fresh data for real-time sync
+            setEntitiesBatch(query.data.positions);
+            setCustomerByContainer(query.data.customerByContainer);
+            setCfsContainers(query.data.cfsContainers || []);
         }
     }, [query.data, setEntitiesBatch, setCfsContainers, setCustomerByContainer]);
 

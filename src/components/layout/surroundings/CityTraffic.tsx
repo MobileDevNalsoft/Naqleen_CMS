@@ -62,10 +62,11 @@ export default function CityTraffic({ trackWaypoints }: CityTrafficProps) {
     const tempVec = useMemo(() => new THREE.Vector3(), []);
     const tempTarget = useMemo(() => new THREE.Vector3(), []);
 
+    // PERF FIX: Cache curve length instead of computing every frame
+    const curveLength = useMemo(() => trackCurve?.getLength() || 1, [trackCurve]);
+
     useFrame((_, delta) => {
         if (trackCurve && trackCars.length > 0) {
-            const curveLength = trackCurve.getLength();
-
             trackCars.forEach((car) => {
                 if (!car.scene) return;
 

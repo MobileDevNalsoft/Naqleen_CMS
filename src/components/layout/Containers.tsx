@@ -27,6 +27,10 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
     const reserveContainers = useStore(state => state.reserveContainers);
     const releaseContainers = useStore(state => state.releaseContainers);
     const ghostContainer = useStore(state => state.ghostContainer);
+    // PERF FIX: Subscribe to these values outside useFrame to avoid getState() calls
+    const selectedCustomer = useStore(state => state.selectedCustomer);
+    const focusPosition = useStore(state => state.focusPosition);
+    const activePanel = useUIStore(state => state.activePanel);
 
     const { camera } = useThree();
 
@@ -205,13 +209,11 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         if (!mesh || instanceData.length === 0) return;
 
         const reserveActive = reserveContainers.length > 0;
-        const selectedCustomer = useStore.getState().selectedCustomer;
-
-        const focusPosition = useStore.getState().focusPosition;
+        // PERF FIX: Use subscribed values instead of getState()
 
         // Check if Restack Panel is open AND we have a valid focus position (visualization active)
         // If so, DISABLE LIFTING to align with connection line
-        const isRestackOpen = useUIStore.getState().activePanel === 'restack';
+        const isRestackOpen = activePanel === 'restack';
         const isRestackVisualizationFull = isRestackOpen && !!focusPosition;
 
         // TELIA-STYLE: No block lift - containers stay flat

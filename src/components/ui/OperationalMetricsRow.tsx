@@ -4,6 +4,8 @@ import OperationalMetricChip from './OperationalMetricChip';
 import { getOperationalMetrics } from '../../api/handlers/dashboardApi';
 import type { OperationalMetricsResponse } from '../../api/types/dashboardTypes';
 
+import styles from './OperationalMetricsRow.module.css';
+
 export default function OperationalMetricsRow() {
     const [metrics, setMetrics] = useState<OperationalMetricsResponse['data'] | null>(null);
 
@@ -20,12 +22,7 @@ export default function OperationalMetricsRow() {
     };
 
     return (
-        <div style={{
-            display: 'flex',
-            width: '100%',
-            gap: '24px',
-            flexWrap: 'wrap'
-        }}>
+        <div className={styles.container}>
             <OperationalMetricChip
                 title="Trucks in Yard"
                 count={data.trucks_in_yard}

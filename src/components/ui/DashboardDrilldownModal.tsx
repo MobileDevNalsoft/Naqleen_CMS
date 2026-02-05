@@ -21,6 +21,7 @@ import type {
     DrillDownRow
 } from '../../api/types/dashboardTypes';
 import { useUIStore } from '../../store/uiStore';
+import { getTruckStatusColor, getDriverStatusColor } from '../../utils/statusColors';
 
 type SortField = keyof DrillDownRow;
 type SortDirection = 'asc' | 'desc' | null;
@@ -123,6 +124,50 @@ export const DashboardDrilldownModal: React.FC = () => {
         });
         return sorted;
     }, [filteredData, sortField, sortDirection]);
+
+    // Helper to determine status color configuration dynamically
+    const getStatusConfig = (statusName: string, entityType: 'TRUCKS' | 'DRIVERS') => {
+        if (!statusName || statusName === 'ALL') {
+            return {
+                color: '#64748B',
+                bgColor: 'rgba(241, 245, 249, 0.5)',
+                borderColor: '#E2E8F0',
+                dotColor: '#94A3B8'
+            };
+        }
+
+        // Map known statuses to specific indices to maintain consistency with charts
+        // Committed/Active -> 0 (Teal/Blue)
+        // Available/Idle -> 1 (Green/Gold) 
+        // Inactive/OOS -> 2 (Coral/Purple)
+        // Others -> Hash based
+        let index = 0;
+        const lowerStatus = statusName.toLowerCase();
+
+        if (lowerStatus.includes('committed') || lowerStatus.includes('active')) {
+            index = 0;
+        } else if (lowerStatus.includes('available') || lowerStatus.includes('idle')) {
+            index = 1;
+        } else if (lowerStatus.includes('out') || lowerStatus.includes('inactive')) {
+            index = 2;
+        } else {
+            // Simple hash for consistency
+            index = statusName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        }
+
+        const config = entityType === 'TRUCKS'
+            ? getTruckStatusColor(index)
+            : getDriverStatusColor(index);
+
+        return {
+            color: config.color, // Text/Dot color
+            bgColor: config.bgColor, // Badge background (light)
+            borderColor: config.bgColor.replace('0.2)', '0.3)'), // Subtle border
+            dotColor: config.color
+        };
+    };
+
+    const headerStatusConfig = getStatusConfig(initialStatus || 'ALL', type || 'TRUCKS');
 
 
     // Use Portal to escape any parent transform/z-index context
@@ -231,25 +276,13 @@ export const DashboardDrilldownModal: React.FC = () => {
                                         <div style={{
                                             padding: '2px 10px',
                                             borderRadius: '20px',
-                                            background: initialStatus === 'ACTIVE'
-                                                ? 'rgba(16, 185, 129, 0.2)'
-                                                : initialStatus === 'IDLE'
-                                                    ? 'rgba(245, 158, 11, 0.2)'
-                                                    : 'rgba(226, 232, 240, 0.2)',
-                                            border: `1px solid ${initialStatus === 'ACTIVE'
-                                                ? 'rgba(16, 185, 129, 0.3)'
-                                                : initialStatus === 'IDLE'
-                                                    ? 'rgba(245, 158, 11, 0.3)'
-                                                    : 'rgba(226, 232, 240, 0.3)'
-                                                }`,
+                                            background: initialStatus ? headerStatusConfig.bgColor : 'rgba(226, 232, 240, 0.2)',
+                                            border: `1px solid ${initialStatus ? headerStatusConfig.color : '#E2E8F0'}`,
                                             fontSize: '11px',
                                             fontWeight: 700,
                                             textTransform: 'uppercase',
-                                            color: initialStatus === 'ACTIVE'
-                                                ? '#6EE7B7'
-                                                : initialStatus === 'IDLE'
-                                                    ? '#FCD34D'
-                                                    : '#E2E8F0'
+                                            color: initialStatus ? headerStatusConfig.color : '#E2E8F0',
+                                            opacity: initialStatus ? 1 : 0.8
                                         }}>
                                             {initialStatus}
                                         </div>
@@ -464,57 +497,60 @@ export const DashboardDrilldownModal: React.FC = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {sortedData.map((row, idx) => (
-                                                <tr key={`${row.truckId}-${row.driverId}-${idx}`} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.2s' }}>
-                                                    <td style={{ padding: '16px 24px', fontSize: '14px', color: '#475569' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                            <Clock size={14} style={{ opacity: 0.4 }} />
-                                                            {row.eventDate}
-                                                        </div>
-                                                    </td>
-                                                    <td style={{ padding: '16px 24px' }}>
-                                                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B', background: '#F1F5F9', padding: '4px 8px', borderRadius: '8px' }}>
-                                                            {type === 'TRUCKS' ? row.truckId : row.driverId}
-                                                        </span>
-                                                    </td>
-                                                    <td style={{ padding: '16px 24px' }}>
-                                                        <div style={{
-                                                            display: 'inline-flex',
-                                                            alignItems: 'center',
-                                                            gap: '8px',
-                                                            padding: '4px 12px',
-                                                            borderRadius: '100px',
-                                                            fontSize: '11px',
-                                                            fontWeight: 700,
-                                                            background: row.status === 'Active' ? '#ECFDF5' : row.status === 'Idle' ? '#FFFBEB' : '#FFF1F2',
-                                                            color: row.status === 'Active' ? '#065F46' : row.status === 'Idle' ? '#92400E' : '#9F1239',
-                                                            border: `1px solid ${row.status === 'Active' ? '#D1FAE5' : row.status === 'Idle' ? '#FEF3C7' : '#FFE4E6'}`
-                                                        }}>
-                                                            <div style={{
-                                                                width: '6px',
-                                                                height: '6px',
-                                                                borderRadius: '50%',
-                                                                background: row.status === 'Active' ? '#10B981' : row.status === 'Idle' ? '#F59E0B' : '#EF4444'
-                                                            }} />
-                                                            {row.status}
-                                                        </div>
-                                                    </td>
-                                                    <td style={{ padding: '16px 24px', fontSize: '14px', color: '#475569' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                            <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8' }}>
-                                                                {type === 'TRUCKS' ? <User size={14} /> : <Truck size={14} />}
+                                            {sortedData.map((row, idx) => {
+                                                const rowStatusConfig = getStatusConfig(row.status, type);
+                                                return (
+                                                    <tr key={`${row.truckId}-${row.driverId}-${idx}`} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.2s' }}>
+                                                        <td style={{ padding: '16px 24px', fontSize: '14px', color: '#475569' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <Clock size={14} style={{ opacity: 0.4 }} />
+                                                                {row.eventDate}
                                                             </div>
-                                                            <span style={{ fontWeight: 500 }}>{type === 'TRUCKS' ? (row.driverId || 'Unassigned') : (row.truckId || 'None')}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td style={{ padding: '16px 24px' }}>
-                                                        <div style={{ padding: '4px 10px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '12px', color: '#64748B', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'monospace' }}>
-                                                            <LayoutList size={12} />
-                                                            {row.equipment || 'Standard'}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                                        </td>
+                                                        <td style={{ padding: '16px 24px' }}>
+                                                            <span style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B', background: '#F1F5F9', padding: '4px 8px', borderRadius: '8px' }}>
+                                                                {type === 'TRUCKS' ? row.truckId : row.driverId}
+                                                            </span>
+                                                        </td>
+                                                        <td style={{ padding: '16px 24px' }}>
+                                                            <div style={{
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '8px',
+                                                                padding: '4px 12px',
+                                                                borderRadius: '100px',
+                                                                fontSize: '11px',
+                                                                fontWeight: 700,
+                                                                background: rowStatusConfig.bgColor,
+                                                                color: rowStatusConfig.color,
+                                                                border: `1px solid ${rowStatusConfig.bgColor.replace('0.2', '0.4')}` // Fallback border logic
+                                                            }}>
+                                                                <div style={{
+                                                                    width: '6px',
+                                                                    height: '6px',
+                                                                    borderRadius: '50%',
+                                                                    background: rowStatusConfig.dotColor
+                                                                }} />
+                                                                {row.status}
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ padding: '16px 24px', fontSize: '14px', color: '#475569' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8' }}>
+                                                                    {type === 'TRUCKS' ? <User size={14} /> : <Truck size={14} />}
+                                                                </div>
+                                                                <span style={{ fontWeight: 500 }}>{type === 'TRUCKS' ? (row.driverId || 'Unassigned') : (row.truckId || 'None')}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ padding: '16px 24px' }}>
+                                                            <div style={{ padding: '4px 10px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '12px', color: '#64748B', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'monospace' }}>
+                                                                <LayoutList size={12} />
+                                                                {row.equipment || 'Standard'}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 )}

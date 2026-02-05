@@ -151,12 +151,14 @@ export const useBookingsQuery = (cust_nbr: string | null, searchText: string = '
     });
 };
 
-export const useAvailableReservedQuery = (cust_nbr: string | null, booking_id: string | null, type: string | null) => {
+export const useAvailableReservedQuery = (cust_nbr: string | null, booking_id: string | null, type: string | null, enabled: boolean = true) => {
     return useQuery({
         queryKey: ['availableReserved', cust_nbr, booking_id, type],
         queryFn: () => getAvailableReserved(cust_nbr!, booking_id!, type!),
-        enabled: !!cust_nbr && !!booking_id && !!type,
-        staleTime: 0, // Always fetch fresh data for reservation status
+        enabled: enabled && !!cust_nbr && !!booking_id && !!type,
+        staleTime: 5000,
+        refetchInterval: 5000,
+        refetchIntervalInBackground: true,
     });
 };
 

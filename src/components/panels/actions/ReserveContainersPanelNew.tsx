@@ -17,15 +17,13 @@ import {
 } from '../../../api';
 
 // --- MEMOIZED COMPONENTS ---
-const ContainerCard = memo(({
-    container,
-    isSelected,
-    type, // 'available' | 'reserved'
-    onClick
-}: {
+
+
+
+const ContainerCard = memo(({ container, type = 'available', isSelected, onClick }: {
     container: any,
+    type?: 'available' | 'reserved',
     isSelected: boolean,
-    type: 'available' | 'reserved',
     onClick: (id: string) => void
 }) => {
     const posStr = container.terminal ? `${container.terminal}-${container.block}-${container.lot}-${container.row}-${container.level}` : 'Yard';
@@ -60,7 +58,18 @@ const ContainerCard = memo(({
     }
 
     return (
-        <button
+        <motion.button
+            layout
+            transition={{
+                type: 'spring',
+                damping: 25,
+                stiffness: 200,
+                layout: {
+                    type: 'tween',
+                    duration: 0.8,
+                    ease: [0.4, 0, 0.2, 1]
+                }
+            }}
             onClick={() => onClick(container.id)}
             style={{
                 background: bg,
@@ -77,7 +86,7 @@ const ContainerCard = memo(({
                 position: 'relative',
                 overflow: 'hidden',
                 width: '100%',
-                height: '55px',
+                height: '62px',
                 boxSizing: 'border-box'
             }}
         >
@@ -121,7 +130,7 @@ const ContainerCard = memo(({
 
             {/* Selection Highlight Bar */}
             {isSelected && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px', background: highlightBarColor, zIndex: 1 }}></div>}
-        </button>
+        </motion.button>
     );
 }, (prev, next) => {
     return prev.container.id === next.container.id && prev.isSelected === next.isSelected && prev.type === next.type;
@@ -339,7 +348,7 @@ const ContainerSkeleton = ({ type }: { type: 'available' | 'reserved' }) => (
         display: 'flex',
         flexDirection: 'column',
         gap: '4px',
-        height: '55px',
+        height: '62px',
         boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
         boxSizing: 'border-box'
     }}>
@@ -422,7 +431,8 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
     const { data: containerData, isLoading: isLoadingContainers } = useAvailableReservedQuery(
         selectedCustomerNbr,
         selectedBookingId,
-        selectedContainerType
+        selectedContainerType,
+        isOpen
     );
 
     const availableContainers = useMemo(() => containerData?.available || [], [containerData]);
@@ -496,7 +506,7 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
 
                 if (activeTab === 'available') {
                     if (toPlanLimit <= 0) {
-                        showToast('error', `Cannot select containers: Booking limit reached or exceeded (${toPlanLimit})`);
+                        showToast('success', 'Booking Fulfilled');
                         return;
                     }
                     const allIds = filteredAvailable.map(c => c.id);
@@ -504,7 +514,7 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
                     if (allIds.length > toPlanLimit) {
                         const limitedIds = allIds.slice(0, toPlanLimit);
                         setSelectedAvailableIds(new Set(limitedIds));
-                        showToast('info', `Selected top ${toPlanLimit} items (Booking limit)`);
+                        showToast('success', `Booking Fulfilled! Selected ${toPlanLimit} items.`);
                     } else {
                         setSelectedAvailableIds(new Set(allIds));
                     }
@@ -630,14 +640,21 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
         if (activeTab === 'available') {
             const isRemoving = selectedAvailableIds.has(id);
             if (!isRemoving && selectedAvailableIds.size >= toPlanLimit) {
-                showToast('error', `Cannot select more than ${toPlanLimit} containers (Booking limit)`);
+                showToast('success', 'Booking Fulfilled');
                 return;
             }
 
             setSelectedAvailableIds(prev => {
                 const next = new Set(prev);
-                if (next.has(id)) next.delete(id);
-                else next.add(id);
+                if (next.has(id)) {
+                    next.delete(id);
+                } else {
+                    next.add(id);
+                    // Check if we just hit the limit
+                    if (next.size === toPlanLimit) {
+                        showToast('success', `Booking Fulfilled! (${toPlanLimit}/${toPlanLimit})`);
+                    }
+                }
                 return next;
             });
         } else {
@@ -845,7 +862,8 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
                                 }}
                             />
 
-                            <button
+                            <motion.button
+                                layout={false}
                                 onClick={() => setActiveTab('available')}
                                 style={{
                                     flex: 1,
@@ -857,7 +875,6 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
                                     color: activeTab === 'available' ? 'white' : '#64748b',
                                     background: activeTab === 'available' ? 'transparent' : '#eef2ff',
                                     cursor: 'pointer',
-                                    transition: 'all 0.3s ease',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
                                     position: 'relative',
                                     zIndex: 1,
@@ -879,9 +896,10 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
                                 }}>
                                     {availableCount}
                                 </span>
-                            </button>
+                            </motion.button>
 
-                            <button
+                            <motion.button
+                                layout={false}
                                 onClick={() => setActiveTab('reserved')}
                                 style={{
                                     flex: 1,
@@ -893,7 +911,6 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
                                     color: activeTab === 'reserved' ? 'white' : '#64748b',
                                     background: activeTab === 'reserved' ? 'transparent' : '#f0fdf4',
                                     cursor: 'pointer',
-                                    transition: 'all 0.3s ease',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
                                     position: 'relative',
                                     zIndex: 1,
@@ -915,7 +932,7 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
                                 }}>
                                     {reservedCount}
                                 </span>
-                            </button>
+                            </motion.button>
                         </div>
 
                         {/* Search & Filter Section (Bulk Swap Style) - Moved here to be below tabs */}
@@ -1060,7 +1077,14 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
                     <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                         <div style={{ fontSize: '13px', color: '#64748b', marginRight: 'auto' }}>
                             {activeTab === 'available' && toPlanLimit < 999999 ? (
-                                <><strong>{selectedCount}</strong> / {toPlanLimit} selected</>
+                                selectedCount >= toPlanLimit ? (
+                                    <span style={{ color: '#059669', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <div style={{ width: 8, height: 8, background: '#059669', borderRadius: '50%' }} />
+                                        Booking Fulfilled
+                                    </span>
+                                ) : (
+                                    <><strong>{selectedCount}</strong> / {toPlanLimit} selected</>
+                                )
                             ) : (
                                 <><strong>{selectedCount}</strong> selected</>
                             )}
@@ -1227,15 +1251,20 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
                                     {bookings.map((booking) => {
                                         const isExpanded = expandedBookingId === booking.booking_id;
                                         return (
-                                            <div key={booking.booking_id} style={{
-                                                background: 'white',
-                                                borderRadius: '12px',
-                                                border: isExpanded ? '1px solid #4B686C' : '1px solid #e2e8f0',
+                                            <motion.div
+                                                layout
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                key={booking.booking_id}
+                                                style={{
+                                                    background: 'white',
+                                                    borderRadius: '12px',
+                                                    border: isExpanded ? '1px solid #4B686C' : '1px solid #e2e8f0',
 
-                                                overflow: 'hidden',
-                                                transition: 'all 0.2s ease',
-                                                boxShadow: isExpanded ? '0 4px 12px rgba(75, 104, 108, 0.1)' : '0 1px 2px rgba(0,0,0,0.05)'
-                                            }}>
+                                                    overflow: 'hidden',
+                                                    transition: 'all 0.2s ease', // keeping standard transition for non-layout properties
+                                                    boxShadow: isExpanded ? '0 4px 12px rgba(75, 104, 108, 0.1)' : '0 1px 2px rgba(0,0,0,0.05)'
+                                                }}>
                                                 {/* Booking Header (Click to Expand) */}
                                                 <button
                                                     onClick={() => setExpandedBookingId(prev => prev === booking.booking_id ? null : booking.booking_id)}
@@ -1266,43 +1295,51 @@ export function ReserveContainersPanelNew({ isOpen, onClose }: ReserveContainers
                                                 </button>
 
                                                 {/* Expanded Content (Container Types) */}
-                                                {isExpanded && (
-                                                    <div style={{
-                                                        padding: '12px 16px 16px 16px',
-                                                        animation: 'fadeIn 0.2s ease-out'
-                                                    }}>
-                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                                            {booking.types.map((stat) => (
-                                                                <button
-                                                                    key={`${booking.booking_id}-${stat.type}`}
-                                                                    onClick={() => handleTypeSelect(booking.booking_id, stat.type)}
-                                                                    style={{
-                                                                        flex: 1,
-                                                                        minWidth: '100px',
-                                                                        padding: '8px 12px',
-                                                                        borderRadius: '8px',
-                                                                        background: '#f1f5f9',
-                                                                        border: '1px solid #e2e8f0',
-                                                                        textAlign: 'left',
-                                                                        cursor: 'pointer',
-                                                                        transition: 'all 0.2s',
-                                                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                                                                    }}
-                                                                    onMouseEnter={e => e.currentTarget.style.borderColor = '#4B686C'}
-                                                                    onMouseLeave={e => e.currentTarget.style.borderColor = '#e2e8f0'}
-                                                                >
-                                                                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#334155' }}>
-                                                                        {stat.type}
-                                                                    </span>
-                                                                    <span style={{ fontSize: '11px', color: '#64748b' }}>
-                                                                        {(stat.reserved || 0)} / {stat.total}
-                                                                    </span>
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
+                                                <AnimatePresence>
+                                                    {isExpanded && (
+                                                        <motion.div
+                                                            initial={{ height: 0, opacity: 0 }}
+                                                            animate={{ height: 'auto', opacity: 1 }}
+                                                            exit={{ height: 0, opacity: 0 }}
+                                                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                                            style={{
+                                                                padding: '0 16px 16px 16px',
+                                                                overflow: 'hidden'
+                                                            }}
+                                                        >
+                                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingTop: '12px' }}>
+                                                                {booking.types.map((stat) => (
+                                                                    <button
+                                                                        key={`${booking.booking_id}-${stat.type}`}
+                                                                        onClick={() => handleTypeSelect(booking.booking_id, stat.type)}
+                                                                        style={{
+                                                                            flex: 1,
+                                                                            minWidth: '100px',
+                                                                            padding: '8px 12px',
+                                                                            borderRadius: '8px',
+                                                                            background: '#f1f5f9',
+                                                                            border: '1px solid #e2e8f0',
+                                                                            textAlign: 'left',
+                                                                            cursor: 'pointer',
+                                                                            transition: 'all 0.2s',
+                                                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                                                        }}
+                                                                        onMouseEnter={e => e.currentTarget.style.borderColor = '#4B686C'}
+                                                                        onMouseLeave={e => e.currentTarget.style.borderColor = '#e2e8f0'}
+                                                                    >
+                                                                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#334155' }}>
+                                                                            {stat.type}
+                                                                        </span>
+                                                                        <span style={{ fontSize: '11px', color: '#64748b' }}>
+                                                                            {(stat.reserved || 0)} / {stat.total}
+                                                                        </span>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </motion.div>
                                         );
                                     })}
                                     {isFetchingNextPage && (

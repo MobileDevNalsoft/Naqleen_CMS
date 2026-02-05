@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getDriversSummary } from '../../api/handlers/dashboardApi';
 import type { DriversResponse } from '../../api/types/dashboardTypes';
 import MetricLoader from './MetricLoader';
-import { getDriverStatusColor } from '../../utils/statusColors';
+import { getDriverStatusColor, getStatusIndex } from '../../utils/statusColors';
 import { useUIStore } from '../../store/uiStore';
 
 interface DriverUtilizationContentProps {
@@ -53,11 +53,11 @@ export default function DriverUtilizationContent({
     const isRange = Boolean(startDate && endDate && startDate !== endDate);
     const labelSuffix = isRange ? ' (Avg)' : '';
 
-    const data = (stats.statuses || []).map((item, index) => ({
+    const data = (stats.statuses || []).map((item) => ({
         label: `${item.status}${labelSuffix}`,
         value: item.count,
         status: item.status,
-        ...getDriverStatusColor(index)
+        ...getDriverStatusColor(getStatusIndex(item.status))
     }));
 
     const total = stats.total;

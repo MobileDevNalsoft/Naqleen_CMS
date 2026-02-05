@@ -199,11 +199,13 @@ const BlockMarker: React.FC<BlockMarkerProps> = ({
         return audio;
     }, []);
 
+    // PERF FIX: Memoize Vector3 to prevent allocation every frame
+    const markerWorldPos = useMemo(() => new THREE.Vector3(...position), [position]);
+
     // Distance-responsive scaling for the marker
     useFrame(() => {
         if (!groupRef.current) return;
 
-        const markerWorldPos = new THREE.Vector3(...position);
         const distance = camera.position.distanceTo(markerWorldPos);
 
         // Scale based on distance: closer = smaller, further = larger
@@ -477,6 +479,13 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
         console.log(`[useEffect] Total matrices set: ${totalSet}, mesh.count: ${mesh.count}`);
     }, [blocks, dummy, meshReady, setMarkingPositions]); // Re-run when blocks change or mesh becomes ready
 
+    // PERF FIX: Reusable objects for matrix operations (prevents GC pressure)
+    const tempMatrix = useMemo(() => new THREE.Matrix4(), []);
+    const tempPosition = useMemo(() => new THREE.Vector3(), []);
+    const tempRotation = useMemo(() => new THREE.Quaternion(), []);
+    const tempScale = useMemo(() => new THREE.Vector3(), []);
+    const tempColor = useMemo(() => new THREE.Color(), []);
+
     // Animate instance colors for Telia-style dimming (no Y position changes)
     useFrame((_, delta) => {
         const mesh = meshRef.current;
@@ -510,34 +519,26 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
                 needsColorUpdate = true;
                 needsMatrixUpdate = true;
 
-                // Update instance colors for this block's slots
-                const color = new THREE.Color();
                 // Interpolate from dimmed gray to full white based on opacity
-                color.setRGB(
+                tempColor.setRGB(
                     0.29 + 0.71 * state.currentOpacity, // 0.29 = #4a/255 = dark gray
                     0.29 + 0.71 * state.currentOpacity,
                     0.29 + 0.71 * state.currentOpacity
                 );
 
-                // Update scale in instance matrices to hide/show slots
-                const matrix = new THREE.Matrix4();
-                const position = new THREE.Vector3();
-                const rotation = new THREE.Quaternion();
-                const scale = new THREE.Vector3();
-
                 for (let i = state.startIndex; i < state.startIndex + state.count; i++) {
-                    mesh.setColorAt(i, color);
+                    mesh.setColorAt(i, tempColor);
 
                     // Get current matrix, modify scale, and set back
-                    mesh.getMatrixAt(i, matrix);
-                    matrix.decompose(position, rotation, scale);
+                    mesh.getMatrixAt(i, tempMatrix);
+                    tempMatrix.decompose(tempPosition, tempRotation, tempScale);
 
                     // Scale to near-zero to hide, or restore based on original dimensions
                     const targetScaleVal = state.currentOpacity < 0.1 ? 0.001 : 1.0;
-                    scale.set(scale.x > 0.01 ? scale.x : 1, scale.y > 0.01 ? scale.y : 1, targetScaleVal);
+                    tempScale.set(tempScale.x > 0.01 ? tempScale.x : 1, tempScale.y > 0.01 ? tempScale.y : 1, targetScaleVal);
 
-                    matrix.compose(position, rotation, scale);
-                    mesh.setMatrixAt(i, matrix);
+                    tempMatrix.compose(tempPosition, tempRotation, tempScale);
+                    mesh.setMatrixAt(i, tempMatrix);
                 }
             }
         });

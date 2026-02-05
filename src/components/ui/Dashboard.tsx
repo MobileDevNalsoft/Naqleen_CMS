@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Truck, Users, Activity, TrendingUp } from 'lucide-react';
 import MetricCard from './MetricCard';
 import TruckUtilizationContent from './TruckUtilizationContent';
@@ -11,6 +12,7 @@ import TrendsFilter from './TrendsFilter';
 import OperationalMetricsRow from './OperationalMetricsRow';
 import type { TrendViewMode, MetadataResponse } from '../../api/types/dashboardTypes';
 import { getMetadata } from '../../api/handlers/dashboardApi';
+import styles from './Dashboard.module.css';
 
 
 // Default filter value
@@ -36,6 +38,31 @@ function getDatesFromFilter(filter: DateFilterValue): { date?: string; startDate
     const today = new Date().toISOString().split('T')[0];
     return { date: today };
 }
+
+// Entrance variants
+const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.08,
+            delayChildren: 0.1
+        }
+    }
+};
+
+const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+        opacity: 1,
+        y: 0,
+        transition: {
+            type: "spring" as const,
+            stiffness: 80,
+            damping: 15
+        }
+    }
+};
 
 export default function Dashboard() {
     // Date filter states using new component
@@ -66,143 +93,141 @@ export default function Dashboard() {
         : metadata?.vehicleMinDate || metadata?.driverMinDate || undefined;
 
     return (
-        <div style={{
-            width: '100%',
-            minHeight: '100vh',
-            background: '#dbf1f1ff',
-            padding: '100px 40px 40px',
-            boxSizing: 'border-box',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '40px'
-        }}>
+        <motion.div
+            className={styles.container}
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+        >
             {/* Terminal Intelligence Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', width: '100%' }}>
-                <div style={{ flex: 1, height: '2px', borderBottom: '2px dotted #4B686C', opacity: 0.3 }} />
-                <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: '#4B686C' }}>Terminal Intelligence</h2>
-                <div style={{ flex: 1, height: '2px', borderBottom: '2px dotted #4B686C', opacity: 0.3 }} />
-            </div>
+            <motion.div className={styles.sectionHeader} variants={itemVariants}>
+                <div className={styles.separator} />
+                <h2 className={styles.title}>Terminal Intelligence</h2>
+                <div className={styles.separator} />
+            </motion.div>
 
             {/* Terminal Intelligence Content */}
-            <OperationalMetricsRow />
+            <motion.div variants={itemVariants}>
+                <OperationalMetricsRow />
+            </motion.div>
 
             {/* Fleet Intelligence Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', width: '100%' }}>
-                <div style={{ flex: 1, height: '2px', borderBottom: '2px dotted #4B686C', opacity: 0.3 }} />
-                <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: '#4B686C' }}>Fleet Intelligence</h2>
-                <div style={{ flex: 1, height: '2px', borderBottom: '2px dotted #4B686C', opacity: 0.3 }} />
-            </div>
+            <motion.div className={styles.sectionHeader} variants={itemVariants}>
+                <div className={styles.separator} />
+                <h2 className={styles.title}>Fleet Intelligence</h2>
+                <div className={styles.separator} />
+            </motion.div>
 
             {/* Top Row: Summary Cards */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-                gap: '24px',
-                width: '100%'
-            }}>
+            <div className={styles.summaryGrid}>
                 {/* Truck Summary Card */}
-                <MetricCard
-                    title="Truck Summary"
-                    icon={Truck}
-                    width="100%"
-                    action={
-                        <DateFilterDropdown
-                            title="Truck Summary"
-                            value={trucksFilter}
-                            onChange={setTrucksFilter}
-                            minDate={metadata?.vehicleMinDate || undefined}
+                <motion.div variants={itemVariants}>
+                    <MetricCard
+                        title="Truck Summary"
+                        icon={Truck}
+                        width="100%"
+                        action={
+                            <DateFilterDropdown
+                                title="Truck Summary"
+                                value={trucksFilter}
+                                onChange={setTrucksFilter}
+                                minDate={metadata?.vehicleMinDate || undefined}
+                            />
+                        }
+                    >
+                        <TruckUtilizationContent
+                            date={trucksDates.date}
+                            startDate={trucksDates.startDate}
+                            endDate={trucksDates.endDate}
                         />
-                    }
-                >
-                    <TruckUtilizationContent
-                        date={trucksDates.date}
-                        startDate={trucksDates.startDate}
-                        endDate={trucksDates.endDate}
-                    />
-                </MetricCard>
+                    </MetricCard>
+                </motion.div>
 
                 {/* Driver Summary Card */}
-                <MetricCard
-                    title="Drivers Summary"
-                    icon={Users}
-                    width="100%"
-                    action={
-                        <DateFilterDropdown
-                            title="Drivers Summary"
-                            value={driversFilter}
-                            onChange={setDriversFilter}
-                            minDate={metadata?.driverMinDate || undefined}
+                <motion.div variants={itemVariants}>
+                    <MetricCard
+                        title="Drivers Summary"
+                        icon={Users}
+                        width="100%"
+                        action={
+                            <DateFilterDropdown
+                                title="Drivers Summary"
+                                value={driversFilter}
+                                onChange={setDriversFilter}
+                                minDate={metadata?.driverMinDate || undefined}
+                            />
+                        }
+                    >
+                        <DriverUtilizationContent
+                            date={driversDates.date}
+                            startDate={driversDates.startDate}
+                            endDate={driversDates.endDate}
                         />
-                    }
-                >
-                    <DriverUtilizationContent
-                        date={driversDates.date}
-                        startDate={driversDates.startDate}
-                        endDate={driversDates.endDate}
-                    />
-                </MetricCard>
+                    </MetricCard>
+                </motion.div>
 
                 {/* Fleet Efficiency Card */}
-                <MetricCard
-                    title="Fleet Efficiency"
-                    icon={Activity}
-                    width="100%"
-                    action={
-                        <DateFilterDropdown
-                            title="Fleet Efficiency"
-                            value={efficiencyFilter}
-                            onChange={setEfficiencyFilter}
-                            minDate={efficiencyMinDate}
+                <motion.div variants={itemVariants}>
+                    <MetricCard
+                        title="Fleet Efficiency"
+                        icon={Activity}
+                        width="100%"
+                        action={
+                            <DateFilterDropdown
+                                title="Fleet Efficiency"
+                                value={efficiencyFilter}
+                                onChange={setEfficiencyFilter}
+                                minDate={efficiencyMinDate}
+                            />
+                        }
+                    >
+                        <FleetEfficiencyContent
+                            date={efficiencyDates.date}
+                            startDate={efficiencyDates.startDate}
+                            endDate={efficiencyDates.endDate}
                         />
-                    }
-                >
-                    <FleetEfficiencyContent
-                        date={efficiencyDates.date}
-                        startDate={efficiencyDates.startDate}
-                        endDate={efficiencyDates.endDate}
-                    />
-                </MetricCard>
+                    </MetricCard>
+                </motion.div>
             </div>
 
             {/* Bottom Row: Trend Charts - Full width, 2 columns */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '24px',
-                width: '100%'
-            }}>
+            <div className={styles.trendGrid}>
                 {/* Trucks Trend */}
-                <MetricCard
-                    title="Trucks Trend"
-                    icon={TrendingUp}
-                    width="100%"
-                    contentPadding="32px 20px"
-                    action={
-                        <TrendsFilter
-                            viewMode={trucksTrendView}
-                            onViewModeChange={setTrucksTrendView}
-                        />
-                    }
-                >
-                    <TrucksTrendContent viewMode={trucksTrendView} />
-                </MetricCard>
+                <motion.div variants={itemVariants}>
+                    <MetricCard
+                        title="Trucks Trend"
+                        icon={TrendingUp}
+                        width="100%"
+                        contentPadding="32px 20px"
+                        action={
+                            <TrendsFilter
+                                viewMode={trucksTrendView}
+                                onViewModeChange={setTrucksTrendView}
+                            />
+                        }
+                    >
+                        <TrucksTrendContent viewMode={trucksTrendView} />
+                    </MetricCard>
+                </motion.div>
 
                 {/* Drivers Trend */}
-                <MetricCard
-                    title="Drivers Trend"
-                    icon={TrendingUp}
-                    width="100%"
-                    contentPadding="32px 20px"
-                    action={
-                        <TrendsFilter
-                            viewMode={driversTrendView}
-                            onViewModeChange={setDriversTrendView}
-                        />
-                    }
-                >
-                    <DriversTrendContent viewMode={driversTrendView} />
-                </MetricCard>
+                <motion.div variants={itemVariants}>
+                    <MetricCard
+                        title="Drivers Trend"
+                        icon={TrendingUp}
+                        width="100%"
+                        contentPadding="32px 20px"
+                        action={
+                            <TrendsFilter
+                                viewMode={driversTrendView}
+                                onViewModeChange={setDriversTrendView}
+                            />
+                        }
+                    >
+                        <DriversTrendContent viewMode={driversTrendView} />
+                    </MetricCard>
+                </motion.div>
             </div>
-        </div>
+        </motion.div>
     );
 }

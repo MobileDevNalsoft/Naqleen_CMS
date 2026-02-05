@@ -102,6 +102,9 @@ export default function MetricCard({ title, icon: Icon = Truck, children, action
                 padding: contentPadding,
                 display: 'flex',
                 alignItems: 'center',
+                // Force full width to prevent Recharts collapse in flex container
+                width: '100%',
+                boxSizing: 'border-box',
                 position: 'relative',
                 zIndex: 1
             }}>

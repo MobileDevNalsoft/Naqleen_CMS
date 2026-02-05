@@ -1,7 +1,7 @@
 import { Line } from '@react-three/drei';
 import { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { useThree, useFrame } from '@react-three/fiber';
+import { useThree } from '@react-three/fiber';
 import { useStore } from '../../store/store';
 import { RestingRoom, GeneratorRoom } from './RestingRoom';
 import { TerminalDispatchOffice, TerminalOffice } from './TerminalOffice';
@@ -112,17 +112,7 @@ export default function Environment() {
         dragStart.current = { x: e.clientX, y: e.clientY };
     };
 
-    useFrame(({ camera, scene }) => {
-        if (!scene.fog) {
-            scene.fog = new THREE.Fog('#D0CFCB', 800, 4000);
-        }
-        const fog = scene.fog as THREE.Fog;
-        const altitude = Math.max(0, camera.position.y);
-        const baseStart = 800;
-        const baseEnd = 4000;
-        fog.near = baseStart + (altitude * 1.5);
-        fog.far = baseEnd + (altitude * 2.5);
-    });
+    // Fog is handled centrally in App.tsx
 
     useEffect(() => {
         if (terrainRef.current) {
@@ -140,42 +130,22 @@ export default function Environment() {
 
     return (
         <group>
-            {/* <color attach="background" args={['#D0CFCB']} /> - Removed to let App.tsx control background */}
-            {/* Sky removed to fix horizon line separation. relying on App.tsx background + fog match */}
-
-            {/* Note: Environment lights are still active here, adding to App.tsx lights. 
-                Consider consolidating in future cleanup. */}
-            <ambientLight intensity={0.8} color="#FFFFFF" />
-            <directionalLight
-                position={[120, 120, 60]}
-                intensity={3.5}
-                color="#FFFFFF"
-                castShadow
-                shadow-mapSize={[2048, 2048]}
-                shadow-camera-left={-500}
-                shadow-camera-right={500}
-                shadow-camera-top={500}
-                shadow-camera-bottom={-500}
-                shadow-bias={-0.00005}
-            />
-            <directionalLight
-                position={[-60, 60, -60]}
-                intensity={1.0}
-                color="#FFFFFF"
-            />
-
+            {/* Environment lights and fog are handled in App.tsx / Lighting.tsx */}
 
             <mesh
                 ref={terrainRef}
                 rotation={[-Math.PI / 2, 0, 0]}
-                position={[0, -1.0, 0]}
+                position={[0, -10.0, 0]} // Deeply lowered to guarantee NO Z-fighting with ICD base (Horizon only)
                 receiveShadow
             >
-                <planeGeometry args={[10000, 10000, 128, 128]} />
+                {/* Optimized Ground Plane: 1x1 segments since it is flat. 
+                    Huge performance win over 128x128. */}
+                <planeGeometry args={[10000, 10000, 1, 1]} />
                 <meshStandardMaterial
-                    color="#8c7b6c" // Darker gravel/earth tone to be clearly visible
-                    roughness={0.9}
-                    metalness={0.1}
+                    color="#8c7b6c" // Keeping exact Legacy Earth Tone
+                    envMapIntensity={0.2} // Reduces ambient light reception, effectively "dimming" it
+                    roughness={1}
+                    metalness={0.5}
                 />
             </mesh>
 

@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { getDriversTrend } from '../../api/handlers/dashboardApi';
 import type { DriversTrendResponse, TrendViewMode } from '../../api/types/dashboardTypes';
 import TrendLoader from './TrendLoader';
-import { getDriverChartColor } from '../../utils/statusColors';
+import { getDriverChartColor, getStatusIndex } from '../../utils/statusColors';
 
 interface DriversTrendContentProps {
     viewMode: TrendViewMode;
@@ -96,10 +96,12 @@ export default function DriversTrendContent({ viewMode }: DriversTrendContentPro
             style={{
                 width: '100%',
                 height: '350px',
-                animation: 'fadeUp 0.5s ease-out'
+                animation: 'fadeUp 0.5s ease-out',
+                position: 'relative', // Context for responsive sizing
+                minWidth: 0 // Prevent flexbox collapse
             }}
         >
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={100}>
                 <BarChart
                     data={chartData}
                     margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
@@ -134,7 +136,7 @@ export default function DriversTrendContent({ viewMode }: DriversTrendContentPro
                             key={status}
                             dataKey={status}
                             name={status}
-                            fill={getDriverChartColor(index)}
+                            fill={getDriverChartColor(getStatusIndex(status))}
                             radius={[8, 8, 0, 0]}
                             animationDuration={800}
                             animationBegin={index * 150}

@@ -45,10 +45,13 @@ const CFSMarker: React.FC<{
     const groupRef = useRef<THREE.Group>(null);
     const { camera } = useThree();
 
+    // PERF FIX: Memoize Vector3 to prevent allocation every frame
+    const markerWorldPos = useMemo(() => new THREE.Vector3(...position), [position]);
+
     // Scale marker based on distance
     useFrame(() => {
         if (!groupRef.current) return;
-        const distance = camera.position.distanceTo(new THREE.Vector3(...position));
+        const distance = camera.position.distanceTo(markerWorldPos);
         const baseDistance = 100;
         const minScale = 0.5;
         const maxScale = 2.0;
@@ -166,7 +169,7 @@ const CFSContainerGrid: React.FC<{ width: number; depth: number; containerCount:
 
                 // 2. Container (Use actual containerCount from API)
                 if (placedCount < containerCount) {
-                    const py = 0.2 + contHeight / 2; // Level 1 base (Floor is 0.2)
+                    const py = 0.3 + contHeight / 2; // Level 1 base (Lifted to 0.3 to sit ON TOP of markings at 0.28)
                     const colorHex = colors[placedCount % colors.length];
                     const color = new THREE.Color(colorHex);
 
@@ -219,8 +222,17 @@ const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rot
     }), []);
 
     // TELIA-STYLE: Animate opacity using group.traverse
+    // PERF FIX: Only traverse when opacity is actually changing
     useFrame((_, delta) => {
         const targetOpacity = isDimmed ? 0 : 1;
+
+        // PERF FIX: Early exit if opacity is already stable
+        const isStable = Math.abs(opacityRef.current - targetOpacity) < 0.001;
+        if (isStable) {
+            opacityRef.current = targetOpacity; // Snap to exact value
+            return; // Skip expensive traverse
+        }
+
         const lerpSpeed = delta * 3;
 
         // Smoothly lerp opacity

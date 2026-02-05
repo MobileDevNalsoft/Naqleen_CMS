@@ -59,8 +59,17 @@ const Warehouse: React.FC<WarehouseProps> = ({ name, position, width, depth, rot
     const opacityRef = useRef(1);
 
     // TELIA-STYLE: Animate material opacity using group.traverse
+    // PERF FIX: Only traverse when opacity is actually changing
     useFrame((_, delta) => {
         const targetOpacity = isDimmed ? 0 : 1;
+
+        // PERF FIX: Early exit if opacity is already stable
+        const isStable = Math.abs(opacityRef.current - targetOpacity) < 0.001;
+        if (isStable) {
+            opacityRef.current = targetOpacity; // Snap to exact value
+            return; // Skip expensive traverse
+        }
+
         const lerpSpeed = delta * 3;
 
         // Smoothly lerp opacity

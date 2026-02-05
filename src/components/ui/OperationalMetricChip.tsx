@@ -1,4 +1,7 @@
+import { motion, useSpring, useTransform } from 'framer-motion';
+import { useEffect } from 'react';
 import type { LucideIcon } from 'lucide-react';
+import styles from './OperationalMetricChip.module.css';
 
 interface OperationalMetricChipProps {
     title: string;
@@ -8,69 +11,58 @@ interface OperationalMetricChipProps {
     iconColor: string;
 }
 
+// Interpolated counter component
+function AnimatedCounter({ value }: { value: number }) {
+    const springValue = useSpring(value, {
+        stiffness: 75,
+        damping: 15,
+        mass: 1
+    });
+
+    const displayValue = useTransform(springValue, (current) => Math.round(current).toLocaleString());
+
+    useEffect(() => {
+        springValue.set(value);
+    }, [value, springValue]);
+
+    return <motion.span>{displayValue}</motion.span>;
+}
+
 export default function OperationalMetricChip({ title, count, icon: Icon, iconBgColor, iconColor }: OperationalMetricChipProps) {
     return (
-        <div style={{
-            background: `linear-gradient(135deg, #FFFFFF 0%, ${iconBgColor} 100%)`, // Premium white-to-tint gradient
-            borderRadius: '20px', // Slightly softer corners
-            padding: '20px',
-            boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.15), 0 4px 6px -4px rgba(75, 104, 108, 0.1)', // Smoother, lighter shadow
-            display: 'flex',
-            alignItems: 'center',
-            gap: '20px',
-            minWidth: '260px',
-            flex: 1,
-            border: '1px solid rgba(255, 255, 255, 0.6)', // Glassy border
-            position: 'relative',
-            overflow: 'hidden',
-            backdropFilter: 'blur(10px)'
-        }}>
+        <motion.div
+            className={styles.container}
+            style={{
+                background: `linear-gradient(135deg, #FFFFFF 0%, ${iconBgColor} 100%)`
+            }}
+            whileHover={{ scale: 1.02 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+        >
             {/* Background Illustration */}
             <Icon
                 size={80}
                 color={iconColor}
-                style={{
-                    position: 'absolute',
-                    right: -10,
-                    bottom: -15,
-                    opacity: 0.1,
-                    transform: 'rotate(-10deg)',
-                    pointerEvents: 'none'
-                }}
+                className={styles.bgIcon}
             />
             {/* Icon Circle */}
-            <div style={{
-                background: '#FFFFFF', // White background for contrast
-                width: '48px',
-                height: '48px',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-            }}>
+            <motion.div
+                className={styles.iconCircle}
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+            >
                 <Icon size={24} color={iconColor} strokeWidth={2.5} />
-            </div>
+            </motion.div>
 
             {/* Content */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{
-                    fontSize: '24px',
-                    fontWeight: 700,
-                    color: '#0F172A', // Slate-900
-                    lineHeight: 1
-                }}>
-                    {count.toLocaleString()}
+            <div className={styles.content}>
+                <span className={styles.count}>
+                    <AnimatedCounter value={count} />
                 </span>
-                <span style={{
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    color: '#64748B', // Slate-500
-                    whiteSpace: 'nowrap'
-                }}>
+                <span className={styles.title}>
                     {title}
                 </span>
             </div>
-        </div>
+        </motion.div>
     );
 }
