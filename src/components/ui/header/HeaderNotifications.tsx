@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useUIStore } from '../../../store/uiStore';
-import { Bell } from 'lucide-react';
+import { useStore } from '../../../store/store'; // [NEW] Access to selection state
+import { Bell } from 'lucide-react'; // [NEW] Arrow icon
 
 interface HeaderNotificationsProps {
     isUnified: boolean;
@@ -221,15 +222,53 @@ export const HeaderNotifications: React.FC<HeaderNotificationsProps> = ({ isUnif
                                     const iconColor = isAdd ? '#22c55e' : (isDelete ? '#ef4444' : '#64B5F6');
 
                                     return (
-                                        <div key={notification.id} style={{
-                                            background: bgColor,
-                                            borderLeft: `4px solid ${borderColor}`,
-                                            borderRadius: '6px',
-                                            padding: '12px',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            gap: '4px'
-                                        }}>
+                                        <div
+                                            key={notification.id}
+                                            onClick={(e) => {
+                                                // [NEW] Click-to-Navigate Logic for 'ADD' notifications
+                                                if (isAdd) {
+                                                    // Parse ID: "Container CONT123 added at..."
+                                                    // Robust Regex to find the ID after "Container"
+                                                    const match = notification.message.match(/Container\s+(\S+)/);
+                                                    const containerId = match ? match[1] : null;
+
+                                                    if (containerId) {
+                                                        console.log('[Notification] Navigating to:', containerId);
+                                                        e.stopPropagation(); // Prevent bubbling if needed
+
+                                                        // Close any active panel first to ensure ContainerDetailsPanel (which opens when activePanel is null) can show
+                                                        useUIStore.getState().closePanel();
+                                                        useStore.getState().setSelectId(containerId);
+
+                                                        setIsNotificationPanelOpen(false);
+                                                    }
+                                                }
+                                            }}
+                                            style={{
+                                                background: bgColor,
+                                                borderLeft: `4px solid ${borderColor}`,
+                                                borderRadius: '6px',
+                                                padding: '12px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '4px',
+                                                // Make interactive if it's an 'ADD' notification
+                                                cursor: isAdd ? 'pointer' : 'default',
+                                                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                                            }}
+                                            onMouseEnter={e => {
+                                                if (isAdd) {
+                                                    e.currentTarget.style.transform = 'translateY(-2px)';
+                                                    e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                                                }
+                                            }}
+                                            onMouseLeave={e => {
+                                                if (isAdd) {
+                                                    e.currentTarget.style.transform = 'translateY(0)';
+                                                    e.currentTarget.style.boxShadow = 'none';
+                                                }
+                                            }}
+                                        >
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                 <span style={{ fontWeight: 600, fontSize: '14px', color: textColor, display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: iconColor }}></span>
@@ -239,9 +278,24 @@ export const HeaderNotifications: React.FC<HeaderNotificationsProps> = ({ isUnif
                                                     {formatTimeAgo(notification.timestamp)}
                                                 </span>
                                             </div>
-                                            <span style={{ fontSize: '13px', color: textColor, opacity: 0.9, paddingLeft: '14px' }}>
-                                                {notification.message}
-                                            </span>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                                                <span style={{ fontSize: '13px', color: textColor, opacity: 0.9, paddingLeft: '14px', flex: 1 }}>
+                                                    {notification.message}
+                                                </span>
+                                            </div>
+                                            {/* Hint Text for Actionable Cards */}
+                                            {isAdd && (
+                                                <span style={{
+                                                    fontSize: '10px',
+                                                    color: textColor,
+                                                    opacity: 0.6,
+                                                    textAlign: 'right',
+                                                    fontStyle: 'italic',
+                                                    marginTop: '4px'
+                                                }}>
+                                                    Click to locate
+                                                </span>
+                                            )}
                                         </div>
                                     );
                                 })}

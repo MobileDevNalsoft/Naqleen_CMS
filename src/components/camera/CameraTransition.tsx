@@ -39,6 +39,10 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
         // Kill any running tweens
         gsap.killTweensOf("cameraAnimation");
 
+        // Failsafe: Ensure controls are enabled before starting new animation
+        // This handles cases where a previous animation was interrupted
+        if (controlsRef.current) controlsRef.current.enabled = true;
+
         // Capture current state
         const animState = {
             camX: camera.position.x,
@@ -74,9 +78,25 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
                 if (controlsRef.current) {
                     controlsRef.current.enabled = true;
                 }
+            },
+            onInterrupt: () => {
+                // Failsafe: If GSAP kills this tween, re-enable controls
+                if (controlsRef.current) {
+                    controlsRef.current.enabled = true;
+                }
             }
         });
     };
+
+    // Failsafe: Re-enable controls on component unmount
+    useEffect(() => {
+        return () => {
+            gsap.killTweensOf("cameraAnimation");
+            if (controlsRef.current) {
+                controlsRef.current.enabled = true;
+            }
+        };
+    }, []);
 
     // 1. Handle Loading State
     useEffect(() => {

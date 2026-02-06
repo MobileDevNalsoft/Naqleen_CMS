@@ -464,6 +464,15 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
 
     // --- Hover Logic - moved up from below ---
     const [isInteracting, setIsInteracting] = useState(false);
+    const isSyncing = useUIStore(state => state.isSyncing);
+
+    // Failsafe: Reset interaction state if sync toggles
+    // We reset on BOTH start and end of sync to ensure no stuck states.
+    useEffect(() => {
+        setIsInteracting(false);
+        setHoverId(null);
+        document.body.style.cursor = 'auto';
+    }, [isSyncing, setHoverId]);
 
     // Monitor camera interaction to disable hover
     useEffect(() => {

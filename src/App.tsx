@@ -15,6 +15,7 @@ import HoverInfoPanel from './components/ui/HoverInfoPanel';
 import { CameraTransition } from './components/camera/CameraTransition';
 import { useLayoutQuery, useContainersQuery } from './api';
 import { KeyboardNavigation } from './components/camera/KeyboardNavigation';
+import { CameraBounds } from './components/camera/CameraBounds';
 import DynamicLayoutEngine from './components/layout/dynamic/DynamicLayoutEngine';
 import Fencing from './components/layout/Fencing';
 import Gates from './components/layout/Gates';
@@ -101,30 +102,7 @@ const App = () => {
 
 
 
-  // Prevent panning outside environment boundaries
-  const handleControlsChange = () => {
-    if (controlsRef.current) {
-      const target = controlsRef.current.target;
 
-      // Clamp target Y position to stay above ground (y = -1 is the yard base)
-      if (target.y < -1) {
-        target.y = -1;
-      }
-
-      // Clamp target X and Z positions to stay within expanded yard bounds
-      // Much larger bounds to allow free navigation across entire ICD
-      const minX = -900;
-      const maxX = 900;
-      const minZ = -900;
-      const maxZ = 900;
-
-      target.x = Math.max(minX, Math.min(maxX, target.x));
-      target.z = Math.max(minZ, Math.min(maxZ, target.z));
-    }
-
-    // Dispatch event to notify about camera controls change
-    window.dispatchEvent(new CustomEvent('controlsChanged'));
-  };
 
   const isDataLoading = layoutLoading || containersLoading || !sceneReady;
   const [showLoadingScreen, setShowLoadingScreen] = useState(true);
@@ -139,12 +117,11 @@ const App = () => {
   const setSelectId = useStore((state) => state.setSelectId);
   const setSelectedBlock = useStore((state) => state.setSelectedBlock);
 
-  // [NEW] Reset controls after Sync completes (Moved here to access isSyncing)
-  useEffect(() => {
-    if (!isSyncing && controlsRef.current) {
-      controlsRef.current.reset();
-    }
-  }, [isSyncing]);
+  // REMOVED: Post-Sync Control Reset
+  // This was causing a "fake" interaction start event because controls.update()
+  // fires 'change' events which might be interpreted as start of interaction.
+  // Since user hand't moved mouse, 'end' never fired.
+  // Removing this allows camera to stay where it is (better UX anyway).
 
   // Exclusive panel logic
   useEffect(() => {
@@ -229,6 +206,7 @@ const App = () => {
             width: '100%',
             height: '50%', // 50% of 200% = 100vh
             position: 'relative',
+            pointerEvents: isSyncing ? 'none' : 'auto', // CSS-BASED LOCKING (Safer than disabling controls)
           }}
         >
           {/* Loading Screen */}
@@ -323,22 +301,27 @@ const App = () => {
 
             <CameraTransition isLoading={showLoadingScreen} controlsRef={controlsRef} />
             <KeyboardNavigation controlsRef={controlsRef} />
+            <CameraBounds controlsRef={controlsRef} />
 
             {/* MapControls for better large-scale navigation */}
             <MapControls
               ref={controlsRef}
               makeDefault
-              enabled={!isSyncing} // Disable when syncing
+              // enabled={!isSyncing} <--- REMOVED: Caused state desync. Using pointer-events on wrapper instead.
               enableDamping={false}
-              screenSpacePanning={false}
-              minDistance={1}
+              screenSpacePanning={true} // Revert to screen space panning for "normal" feel
+              minDistance={0.1}
               maxDistance={1000}
               maxPolarAngle={Math.PI / 2 - 0.05}
               rotateSpeed={0.5}
               panSpeed={1}
               zoomSpeed={3}
               zoomToCursor={true}
-              onChange={handleControlsChange}
+              mouseButtons={{
+                LEFT: THREE.MOUSE.PAN,
+                MIDDLE: THREE.MOUSE.DOLLY,
+                RIGHT: THREE.MOUSE.ROTATE
+              }}
             />
           </Canvas>
 
