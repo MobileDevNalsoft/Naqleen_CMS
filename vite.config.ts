@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/ords': {
-        target: 'https://g74232442e68f6c-prodatpdb.adb.me-jeddah-1.oraclecloudapps.com',
+        target: 'https://paas.nalsoft.net:4443',
         changeOrigin: true,
         secure: false,
         configure: (proxy, _options) => {
