@@ -204,8 +204,8 @@ export const useContainersQuery = (layout: DynamicIcdLayout | null) => {
             return getContainers();
         },
         enabled: !!layout && hasMarkingPositions,
-        staleTime: 60000,
-        refetchInterval: 60000, // [CHANGED] 60 Second Polling
+        staleTime: 5000,
+        refetchInterval: 5000, // [CHANGED] 5 Second Polling
         refetchIntervalInBackground: true,
         refetchOnWindowFocus: false,
         notifyOnChangeProps: ['data', 'isLoading', 'isError', 'error'] // [CRITICAL] Only re-render on DATA change, ignore isFetching/background updates

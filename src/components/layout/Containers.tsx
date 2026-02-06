@@ -202,11 +202,49 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
     const prevHasSelection = useRef(false);
     const highlightMeshRef = useRef<THREE.Mesh>(null);
     const hoverMeshRef = useRef<THREE.Mesh>(null); // Ref for hover highlight
+    const lastRaycast = useRef(0);
+    const THROTTLE_MS = 100; // Check hover 10 times per second
 
-    // Main Animation Loop (Lift & Opacity)
-    useFrame((_, delta) => {
+    // Main Animation Loop (Lift & Opacity & Raycasting)
+    useFrame((state, delta) => {
         const mesh = meshRef.current;
         if (!mesh || instanceData.length === 0) return;
+
+        // CRITICAL FIX: Ensure bounding sphere is always infinity for correct raycasting
+        if (mesh.geometry.boundingSphere?.radius !== Infinity) {
+            mesh.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Infinity);
+        }
+
+        // --- Manual Raycasting (Throttled) ---
+        const now = Date.now();
+        if (now - lastRaycast.current > THROTTLE_MS) {
+            lastRaycast.current = now;
+
+            // Check if we should block hover
+            const isPositionPanelOpen = useUIStore.getState().activePanel === 'position';
+
+            // Only raycast if panel is NOT open
+            if (!isPositionPanelOpen) {
+                state.raycaster.setFromCamera(state.pointer, state.camera);
+                const intersections = state.raycaster.intersectObject(mesh);
+
+                if (intersections.length > 0) {
+                    const instanceId = intersections[0].instanceId;
+                    if (instanceId !== undefined && ids[instanceId]) {
+                        const id = ids[instanceId];
+                        if (hoverId !== id) {
+                            setHoverId(id);
+                            document.body.style.cursor = 'pointer';
+                        }
+                    }
+                } else {
+                    if (hoverId) {
+                        setHoverId(null);
+                        document.body.style.cursor = 'auto';
+                    }
+                }
+            }
+        }
 
         const reserveActive = reserveContainers.length > 0;
         // PERF FIX: Use subscribed values instead of getState()
@@ -462,72 +500,6 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
         }
     };
 
-    // --- Hover Logic - moved up from below ---
-    const [isInteracting, setIsInteracting] = useState(false);
-    const isSyncing = useUIStore(state => state.isSyncing);
-
-    // Failsafe: Reset interaction state if sync toggles
-    // We reset on BOTH start and end of sync to ensure no stuck states.
-    useEffect(() => {
-        setIsInteracting(false);
-        setHoverId(null);
-        document.body.style.cursor = 'auto';
-    }, [isSyncing, setHoverId]);
-
-    // Monitor camera interaction to disable hover
-    useEffect(() => {
-        const controls = controlsRef?.current;
-        if (!controls) return;
-
-        const onStart = () => setIsInteracting(true);
-        const onEnd = () => setIsInteracting(false);
-
-        controls.addEventListener('start', onStart);
-        controls.addEventListener('end', onEnd);
-
-        return () => {
-            controls.removeEventListener('start', onStart);
-            controls.removeEventListener('end', onEnd);
-        };
-    }, [controlsRef]);
-
-    // Clear hover only when actively interacting with camera
-    useEffect(() => {
-        if (isInteracting) {
-            setHoverId(null);
-            document.body.style.cursor = 'auto';
-        }
-    }, [isInteracting, setHoverId]);
-
-    const handlePointerMove = (e: any) => {
-        e.stopPropagation();
-
-        // Only block hover if we are actively dragging the camera
-        // REMOVED: || selectId || selectedBlock checks to allow hover inspection always
-        if (isInteracting) return;
-
-        // Block hover/interaction if Position Container panel is open
-        const isPositionPanelOpen = useUIStore.getState().activePanel === 'position';
-        if (isPositionPanelOpen) return;
-
-        const instanceId = e.instanceId;
-        if (instanceId !== undefined && ids[instanceId]) {
-            const id = ids[instanceId];
-            if (hoverId !== id) {
-                setHoverId(id);
-                document.body.style.cursor = 'pointer';
-            }
-        }
-    };
-
-    const handlePointerOut = () => {
-        // e.stopPropagation();
-        if (hoverId) {
-            setHoverId(null);
-            document.body.style.cursor = 'auto';
-        }
-    };
-
     // Calculate highlighted container info - moved up
     const hoveredContainerInfo = useMemo(() => {
         if (!hoverId) return null;
@@ -551,8 +523,6 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
                 args={[undefined, undefined, ids.length]}
                 onClick={handleClick}
                 onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerOut={handlePointerOut}
                 frustumCulled={false}
             >
                 <boxGeometry ref={setBoundingSphereOnMount} args={[6.058, 2.591, 2.438]} />
