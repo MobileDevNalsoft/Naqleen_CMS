@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, X, Package, User, MapPin, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../../../store/store';
 import { useUIStore } from '../../../store/uiStore';
 
@@ -20,6 +21,24 @@ export const HeaderSearch: React.FC<HeaderSearchProps> = ({
 
     shouldClose
 }) => {
+    // Custom Scrollbar CSS
+    const scrollbarStyles = `
+        #search-results-dropdown::-webkit-scrollbar {
+            width: 6px;
+        }
+        #search-results-dropdown::-webkit-scrollbar-track {
+            background: transparent;
+            margin: 10px;
+        }
+        #search-results-dropdown::-webkit-scrollbar-thumb {
+            background: rgba(247, 207, 155, 0.3);
+            border-radius: 10px;
+        }
+        #search-results-dropdown::-webkit-scrollbar-thumb:hover {
+            background: rgba(247, 207, 155, 0.5);
+        }
+    `;
+
     // Store access
     const entities = useStore((state) => state.entities);
     const ids = useStore((state) => state.ids);
@@ -170,6 +189,7 @@ export const HeaderSearch: React.FC<HeaderSearchProps> = ({
             pointerEvents: isUnified ? 'none' : 'auto',
             transition: 'all 0.5s cubic-bezier(0.25, 1, 0.3, 1)',
         }} ref={searchContainerRef}>
+            <style>{scrollbarStyles}</style>
             {/* Search Icon Button */}
             {!isSearchOpen && !isSearchClosing && (
                 <div
@@ -241,8 +261,6 @@ export const HeaderSearch: React.FC<HeaderSearchProps> = ({
                             if (searchMode === 'Position') {
                                 val = val.toUpperCase();
                                 // Basic formatting logic simplified for brevity/maintenance
-                                // (Full logic from original file should be preserved if critical, simplified here slightly for cleanliness but retaining core UX)
-                                // Keep the dash-insertion logic? Yes, it's good UX.
                                 const raw = val.replace(/-/g, '');
                                 let formatted = '';
                                 if (raw.length > 0) {
@@ -395,60 +413,47 @@ export const HeaderSearch: React.FC<HeaderSearchProps> = ({
                     </div>
 
                     {/* Search Results Dropdown */}
-                    {(searchResults.length > 0 || (searchQuery.length > (searchMode === 'Customer' ? 1 : 2))) && (!selectedCustomer && !selectId) && (
-                        <div style={{
-                            position: 'absolute',
-                            top: 'calc(100% + 15px)',
-                            left: 0,
-                            right: 0,
-                            maxHeight: '400px',
-                            overflowY: 'auto',
-                            background: 'rgba(75, 104, 108, 0.98)',
-                            backdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(247, 207, 155, 0.3)',
-                            borderRadius: '16px',
-                            zIndex: 1000,
-                        }}>
-                            {searchResults.length === 0 ? (
-                                <div style={{
-                                    padding: '24px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    color: 'rgba(255, 255, 255, 0.5)',
-                                    gap: '8px'
-                                }}>
-                                    <AlertCircle size={24} />
-                                    <span style={{ fontSize: '13px' }}>No matches found</span>
-                                </div>
-                            ) : (
-                                searchMode === 'Customer' ? (
-                                    searchResults.map((customerName) => (
-                                        <div
-                                            key={customerName}
-                                            onClick={() => handleResultClick(customerName)}
-                                            style={{
-                                                padding: '12px 16px',
-                                                cursor: 'pointer',
-                                                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                                            }}
-                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(247, 207, 155, 0.1)'}
-                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'white' }}>
-                                                <User size={16} color="var(--secondary-color)" />
-                                                <span>{customerName}</span>
-                                            </div>
-                                        </div>
-                                    ))
+                    <AnimatePresence>
+                        {(searchResults.length > 0 || (searchQuery.length > (searchMode === 'Customer' ? 1 : 2))) && (!selectedCustomer && !selectId) && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -8, scaleY: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                                exit={{ opacity: 0, y: -8, scaleY: 0.95 }}
+                                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                                style={{
+                                    position: 'absolute',
+                                    top: 'calc(100% + 15px)',
+                                    left: 0,
+                                    right: 0,
+                                    maxHeight: '400px',
+                                    overflowY: 'auto',
+                                    overflowX: 'hidden',
+                                    background: 'rgba(75, 104, 108, 0.98)',
+                                    backdropFilter: 'blur(20px)',
+                                    border: '1px solid rgba(247, 207, 155, 0.3)',
+                                    borderRadius: '16px',
+                                    zIndex: 1000,
+                                    transformOrigin: 'top',
+                                }} id="search-results-dropdown"
+                            >
+                                {searchResults.length === 0 ? (
+                                    <div style={{
+                                        padding: '24px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        color: 'rgba(255, 255, 255, 0.5)',
+                                        gap: '8px'
+                                    }}>
+                                        <AlertCircle size={24} />
+                                        <span style={{ fontSize: '13px' }}>No matches found</span>
+                                    </div>
                                 ) : (
-                                    searchResults.map((id) => {
-                                        const entity = entities[id];
-                                        const rowLabel = entity ? (entity.row as unknown as string) : '?';
-                                        return (
+                                    searchMode === 'Customer' ? (
+                                        searchResults.map((customerName) => (
                                             <div
-                                                key={id}
-                                                onClick={() => handleResultClick(id)}
+                                                key={customerName}
+                                                onClick={() => handleResultClick(customerName)}
                                                 style={{
                                                     padding: '12px 16px',
                                                     cursor: 'pointer',
@@ -457,27 +462,67 @@ export const HeaderSearch: React.FC<HeaderSearchProps> = ({
                                                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(247, 207, 155, 0.1)'}
                                                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                             >
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                    <Package size={16} color="var(--secondary-color)" />
-                                                    <div style={{ flex: 1, color: 'white' }}>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 600 }}>
-                                                            <span>{id}</span>
-                                                            {entity?.customerName && (
-                                                                <span style={{ fontSize: '11px', color: 'var(--secondary-color)' }}>{entity.customerName}</span>
-                                                            )}
-                                                        </div>
-                                                        <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.6)' }}>
-                                                            {entity?.terminal}-{entity?.block}-{entity?.lot}-{rowLabel}-{entity?.level}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'white', minWidth: 0 }}>
+                                                    <User size={16} color="var(--secondary-color)" style={{ flexShrink: 0 }} />
+                                                    <span style={{
+                                                        whiteSpace: 'nowrap',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        flex: 1,
+                                                        maxWidth: '220px',
+                                                        minWidth: 0
+                                                    }} title={customerName}>{customerName}</span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        searchResults.map((id) => {
+                                            const entity = entities[id];
+                                            const rowLabel = entity ? (entity.row as unknown as string) : '?';
+                                            return (
+                                                <div
+                                                    key={id}
+                                                    onClick={() => handleResultClick(id)}
+                                                    style={{
+                                                        padding: '12px 16px',
+                                                        cursor: 'pointer',
+                                                        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                                                    }}
+                                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(247, 207, 155, 0.1)'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                >
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                        <Package size={16} color="var(--secondary-color)" />
+                                                        <div style={{ flex: 1, color: 'white' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 600, gap: '12px' }}>
+                                                                <span style={{ flexShrink: 0 }}>{id}</span>
+                                                                {entity?.customerName && (
+                                                                    <span style={{
+                                                                        fontSize: '11px',
+                                                                        color: 'var(--secondary-color)',
+                                                                        whiteSpace: 'nowrap',
+                                                                        overflow: 'hidden',
+                                                                        textOverflow: 'ellipsis',
+                                                                        textAlign: 'right',
+                                                                        maxWidth: '140px',
+                                                                        flex: 1,
+                                                                        minWidth: 0
+                                                                    }} title={entity.customerName}>{entity.customerName}</span>
+                                                                )}
+                                                            </div>
+                                                            <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.6)' }}>
+                                                                {entity?.terminal}-{entity?.block}-{entity?.lot}-{rowLabel}-{entity?.level}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })
-                                )
-                            )}
-                        </div>
-                    )}
+                                            );
+                                        })
+                                    )
+                                )}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             )}
         </div>

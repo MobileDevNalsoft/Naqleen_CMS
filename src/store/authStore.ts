@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { User, LoginCredentials } from '../api/types/authTypes';
 import { loginUser } from '../api/handlers/authApi';
 import { API_CONFIG } from '../api/apiConfig';
@@ -103,7 +103,8 @@ export const useAuthStore = create<AuthState>()(
             }
         }),
         {
-            name: 'auth-storage', // unique name for localStorage key
+            name: 'auth-storage', // unique name for storage key
+            storage: createJSONStorage(() => sessionStorage), // Use sessionStorage for tab-close logout
             partialize: (state) => ({
                 user: state.user,
                 isAuthenticated: state.isAuthenticated

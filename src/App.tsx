@@ -45,6 +45,7 @@ import ToastContainer from './components/ui/custom-components/Toast';
 import { EffectsWrapper } from './components/effects/EffectsWrapper';
 import { Lighting } from './components/layout/Lighting';
 import ViewNavigationPanel from './components/ui/ViewNavigationPanel';
+import { InactivityManager } from './components/auth/InactivityManager';
 
 import { useAuthStore } from './store/authStore';
 import { useScreenAccess } from './hooks/useScreenAccess';
@@ -189,6 +190,7 @@ const App = () => {
 
       {/* Global Toast Notifications */}
       <ToastContainer />
+      <InactivityManager />
 
       {/* Sliding Viewport Container */}
       <div
