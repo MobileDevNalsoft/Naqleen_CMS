@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { MapControls, Environment as DreiEnvironment } from '@react-three/drei';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import LayoutEnvironment from './components/layout/Environment';
 import LoadingScreen from './components/ui/animations/LoadingScreen';
 import LoginScreen from './components/ui/LoginScreen';
@@ -82,6 +82,11 @@ const App = () => {
   const dashboardSectionRef = useRef<HTMLElement>(null);
   const controlsRef = useRef<any>(null);
 
+  // Stable callback for Containers to preventing re-renders
+  const handleSceneReady = useCallback(() => {
+    setSceneReady(true);
+  }, []);
+
   const handleNavChange = (nav: string) => {
     setActiveNav(nav);
   };
@@ -93,6 +98,8 @@ const App = () => {
       controlsRef.current.enabled = true;
     }
   }, [activeNav]);
+
+
 
   // Prevent panning outside environment boundaries
   const handleControlsChange = () => {
@@ -125,11 +132,19 @@ const App = () => {
   const activePanel = useUIStore((state) => state.activePanel);
   const panelData = useUIStore((state) => state.panelData);
   const closePanel = useUIStore((state) => state.closePanel);
+  const isSyncing = useUIStore((state) => state.isSyncing); // [NEW] Sync State
 
   const selectId = useStore((state) => state.selectId);
   const selectedBlock = useStore((state) => state.selectedBlock);
   const setSelectId = useStore((state) => state.setSelectId);
   const setSelectedBlock = useStore((state) => state.setSelectedBlock);
+
+  // [NEW] Reset controls after Sync completes (Moved here to access isSyncing)
+  useEffect(() => {
+    if (!isSyncing && controlsRef.current) {
+      controlsRef.current.reset();
+    }
+  }, [isSyncing]);
 
   // Exclusive panel logic
   useEffect(() => {
@@ -225,7 +240,50 @@ const App = () => {
               />
             )}
 
+          {/* Sync Overlay - Transparent Loader */}
+          {isSyncing && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              zIndex: 2000,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(0, 0, 0, 0.2)',
+              backdropFilter: 'blur(2px)',
+              pointerEvents: 'all', // Block interactions
+            }}>
+              {/* Modern Spinner */}
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                border: '3px solid rgba(255, 255, 255, 0.1)',
+                borderTopColor: '#64B5F6',
+                animation: 'spin 1s linear infinite',
+                marginBottom: '16px'
+              }} />
+              <span style={{
+                color: 'white',
+                fontSize: '14px',
+                fontWeight: 500,
+                textShadow: '0 2px 10px rgba(0,0,0,0.5)',
+                letterSpacing: '0.5px'
+              }}>
+                Syncing Data...
+              </span>
+              <style>{`
+                    @keyframes spin { to { transform: rotate(360deg); } }
+                 `}</style>
+            </div>
+          )}
+
           <Canvas
+            frameloop="always"
             style={{ width: '100%', height: '100%', display: 'block' }}
             camera={{ position: [0, 150, 300], fov: 45, near: 0.1, far: 5000 }} // Increased far clip
             shadows
@@ -256,7 +314,7 @@ const App = () => {
               <Gates />
               <Containers
                 controlsRef={controlsRef}
-                onReady={() => setSceneReady(true)}
+                onReady={handleSceneReady}
               />
               <SwapConnectionLines />
               <GhostContainer />
@@ -270,7 +328,7 @@ const App = () => {
             <MapControls
               ref={controlsRef}
               makeDefault
-              enabled={true}
+              enabled={!isSyncing} // Disable when syncing
               enableDamping={false}
               screenSpacePanning={false}
               minDistance={1}

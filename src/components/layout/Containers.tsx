@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, useState, type RefObject } from 'react';
+import React, { useRef, useEffect, useMemo, useState, type RefObject } from 'react';
 import * as THREE from 'three';
 import { useStore } from '../../store/store';
 import { useTexture, Outlines } from '@react-three/drei';
@@ -12,7 +12,7 @@ interface ContainersProps {
     onReady?: () => void;
 }
 
-export default function Containers({ controlsRef, onReady }: ContainersProps) {
+export function Containers({ controlsRef, onReady }: ContainersProps) {
     const meshRef = useRef<THREE.InstancedMesh>(null);
     const opacityAttribute = useRef<THREE.InstancedBufferAttribute | null>(null);
 
@@ -629,4 +629,6 @@ export default function Containers({ controlsRef, onReady }: ContainersProps) {
         </group>
     );
 }
+
+export default React.memo(Containers);
 

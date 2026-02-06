@@ -51,6 +51,27 @@ interface UIState {
     drillDown: DrillDownState;
     openDrillDown: (data: Omit<DrillDownState, 'isOpen'>) => void;
     closeDrillDown: () => void;
+
+    // 3D Interaction State
+    is3dInteracting: boolean;
+    setIs3dInteracting: (interacting: boolean) => void;
+
+    // Sync State
+    isSyncing: boolean;
+    setSyncing: (syncing: boolean) => void;
+
+    // Notification State
+    notifications: AppNotification[];
+    addNotification: (n: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => void;
+    clearNotifications: () => void;
+}
+
+export interface AppNotification {
+    id: string;
+    type: 'ADD' | 'DELETE' | 'INFO';
+    message: string;
+    timestamp: number;
+    read: boolean;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -85,4 +106,27 @@ export const useUIStore = create<UIState>((set) => ({
         set({ drillDown: { ...data, isOpen: true } });
     },
     closeDrillDown: () => set((state) => ({ drillDown: { ...state.drillDown, isOpen: false } })),
+
+    // 3D Interaction State
+    is3dInteracting: false,
+    setIs3dInteracting: (interacting) => set({ is3dInteracting: interacting }),
+
+    // Sync State
+    isSyncing: false,
+    setSyncing: (syncing) => set({ isSyncing: syncing }),
+
+    // Notification State
+    notifications: [],
+    addNotification: (n) => set((state) => ({
+        notifications: [
+            {
+                ...n,
+                id: Math.random().toString(36).substring(7),
+                timestamp: Date.now(),
+                read: false
+            },
+            ...state.notifications
+        ].slice(0, 50) // Limit to 50
+    })),
+    clearNotifications: () => set({ notifications: [] }),
 }));
