@@ -42,6 +42,9 @@ create or replace procedure xxotm_get_dashboard_drilldown_p (
    v_total_pages  number := 0;
    v_offset       number := 0;
 
+    -- Search Text
+   v_search_text  varchar2(100);
+
     -- Response Building
    jo_response    json_object_t := json_object_t();
    jo_data        json_object_t := json_object_t();
@@ -216,6 +219,10 @@ begin
       end if;
    end if;
 
+   if jo_request.has('searchText') then
+      v_search_text := trim(jo_request.get_string('searchText'));
+   end if;
+
     -- =========================================================================
     -- 5. Fetch Data Based on Type
     -- =========================================================================
@@ -232,7 +239,18 @@ begin
             1,
             10
          ),
-        'YYYY-MM-DD') between v_date_start and v_date_end;
+        'YYYY-MM-DD') between v_date_start and v_date_end
+            and ( v_search_text is null
+             or length(v_search_text) < 3
+             or ( upper(vehicle_xid) like '%'
+                                          || upper(v_search_text)
+                                          || '%'
+         or upper(driver_xid) like '%'
+                  || upper(v_search_text)
+                  || '%'
+         or upper(equipment) like '%'
+                                  || upper(v_search_text)
+                                  || '%' ) );
       else
             -- Specific status
          select count(*)
@@ -245,7 +263,18 @@ begin
             1,
             10
          ),
-        'YYYY-MM-DD') between v_date_start and v_date_end;
+        'YYYY-MM-DD') between v_date_start and v_date_end
+            and ( v_search_text is null
+             or length(v_search_text) < 3
+             or ( upper(vehicle_xid) like '%'
+                                          || upper(v_search_text)
+                                          || '%'
+         or upper(driver_xid) like '%'
+                  || upper(v_search_text)
+                  || '%'
+         or upper(equipment) like '%'
+                                  || upper(v_search_text)
+                                  || '%' ) );
       end if;
 
       v_total_pages := ceil(v_total_rows / v_page_size);
@@ -268,6 +297,17 @@ begin
                10
             ),
         'YYYY-MM-DD') between v_date_start and v_date_end
+               and ( v_search_text is null
+                or length(v_search_text) < 3
+                or ( upper(vehicle_xid) like '%'
+                                             || upper(v_search_text)
+                                             || '%'
+            or upper(driver_xid) like '%'
+                     || upper(v_search_text)
+                     || '%'
+            or upper(equipment) like '%'
+                                     || upper(v_search_text)
+                                     || '%' ) )
              order by to_date(substr(
                event_date,
                1,
@@ -324,6 +364,17 @@ begin
                10
             ),
         'YYYY-MM-DD') between v_date_start and v_date_end
+               and ( v_search_text is null
+                or length(v_search_text) < 3
+                or ( upper(vehicle_xid) like '%'
+                                             || upper(v_search_text)
+                                             || '%'
+            or upper(driver_xid) like '%'
+                     || upper(v_search_text)
+                     || '%'
+            or upper(equipment) like '%'
+                                     || upper(v_search_text)
+                                     || '%' ) )
              order by to_date(substr(
                event_date,
                1,
@@ -379,7 +430,18 @@ begin
             1,
             10
          ),
-        'YYYY-MM-DD') between v_date_start and v_date_end;
+        'YYYY-MM-DD') between v_date_start and v_date_end
+            and ( v_search_text is null
+             or length(v_search_text) < 3
+             or ( upper(driver_xid) like '%'
+                                         || upper(v_search_text)
+                                         || '%'
+         or upper(vehicle_xid) like '%'
+                  || upper(v_search_text)
+                  || '%'
+         or upper(equipment) like '%'
+                                  || upper(v_search_text)
+                                  || '%' ) );
       else
             -- Specific status
          select count(*)
@@ -392,7 +454,18 @@ begin
             1,
             10
          ),
-        'YYYY-MM-DD') between v_date_start and v_date_end;
+        'YYYY-MM-DD') between v_date_start and v_date_end
+            and ( v_search_text is null
+             or length(v_search_text) < 3
+             or ( upper(driver_xid) like '%'
+                                         || upper(v_search_text)
+                                         || '%'
+         or upper(vehicle_xid) like '%'
+                  || upper(v_search_text)
+                  || '%'
+         or upper(equipment) like '%'
+                                  || upper(v_search_text)
+                                  || '%' ) );
       end if;
 
       v_total_pages := ceil(v_total_rows / v_page_size);
@@ -413,6 +486,17 @@ begin
                10
             ),
         'YYYY-MM-DD') between v_date_start and v_date_end
+               and ( v_search_text is null
+                or length(v_search_text) < 3
+                or ( upper(driver_xid) like '%'
+                                            || upper(v_search_text)
+                                            || '%'
+            or upper(vehicle_xid) like '%'
+                     || upper(v_search_text)
+                     || '%'
+            or upper(equipment) like '%'
+                                     || upper(v_search_text)
+                                     || '%' ) )
              order by to_date(substr(
                event_date,
                1,
@@ -469,6 +553,17 @@ begin
                10
             ),
         'YYYY-MM-DD') between v_date_start and v_date_end
+               and ( v_search_text is null
+                or length(v_search_text) < 3
+                or ( upper(driver_xid) like '%'
+                                            || upper(v_search_text)
+                                            || '%'
+            or upper(vehicle_xid) like '%'
+                     || upper(v_search_text)
+                     || '%'
+            or upper(equipment) like '%'
+                                     || upper(v_search_text)
+                                     || '%' ) )
              order by to_date(substr(
                event_date,
                1,

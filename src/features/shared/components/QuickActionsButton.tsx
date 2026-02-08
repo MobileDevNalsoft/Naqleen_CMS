@@ -1,0 +1,311 @@
+import { useState, useEffect } from 'react';
+import { Zap, X, MoreHorizontal, MapPin, ClipboardList, Truck, ArrowRightLeft, ShieldCheck, Container } from 'lucide-react';
+import { useUIStore } from '../../../store/uiStore';
+
+interface QuickActionsButtonProps { }
+
+export default function QuickActionsButton({ }: QuickActionsButtonProps) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [isActionSelectorOpen, setIsActionSelectorOpen] = useState(false);
+
+    const openPanel = useUIStore((state) => state.openPanel);
+    const activePanel = useUIStore((state) => state.activePanel);
+
+    const handleToggleQuickActions = () => {
+        if (isOpen) {
+            // If open, close panels first then close quick actions
+            setIsActionSelectorOpen(false);
+            setIsOpen(false);
+        } else {
+            // If closed, open quick actions AND actions panel immediately
+            setIsOpen(true);
+            setIsActionSelectorOpen(true);
+        }
+    };
+
+    // Handle click outside to close Quick Actions
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as Element;
+
+            // Check if click is outside the Quick Actions component
+            const quickActionsElement = document.getElementById('quick-actions-container');
+            if (quickActionsElement && !quickActionsElement.contains(target)) {
+                // Close panels first then close quick actions
+                setIsActionSelectorOpen(false);
+                setIsOpen(false);
+            }
+        };
+
+        // Add event listener only when quick actions is open
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isOpen]);
+
+
+
+    const actionModes = [
+        { id: 'gateIn', label: 'Gate In', icon: Truck },
+        { id: 'position', label: 'Position Container', icon: MapPin },
+        // { id: 'stuffing', label: 'Assign Stuffing', icon: PackageOpen },
+        // { id: 'destuffing', label: 'Assign Destuffing', icon: PackageOpen },
+        { id: 'cfsTask', label: 'CFS Task Assignment', icon: ClipboardList },
+        { id: 'customerInventory', label: 'Customer Inventory', icon: ClipboardList },
+        { id: 'reserveContainers', label: 'Reserve Containers', icon: ShieldCheck },
+        { id: 'releaseContainer', label: 'Release Container', icon: Container },
+        { id: 'gateOut', label: 'Gate Out', icon: ArrowRightLeft },
+    ];
+
+    // Store icon components instead of pre-rendered JSX so we can control size centrally
+    const quickActions = [
+        {
+            Icon: MoreHorizontal,
+            label: 'Actions',
+            action: () => {
+                setIsActionSelectorOpen(!isActionSelectorOpen);
+            }
+        },
+    ];
+
+    return (
+        <div id="quick-actions-container" style={{
+            position: 'fixed',
+            bottom: '24px',
+            left: '24px',
+            zIndex: 1000,
+            width: '64px',
+            height: '64px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.5s cubic-bezier(0.25, 1, 0.3, 1)',
+            opacity: activePanel === 'settings' ? 0 : 1,
+            transform: activePanel === 'settings' ? 'scale(0)' : 'scale(1)',
+            pointerEvents: activePanel === 'settings' ? 'none' : 'auto',
+        }}>
+            {/* Expanding Vertical Bar */}
+            <div style={{
+                position: 'absolute',
+                bottom: '0',
+                left: '-4px', // Centered relative to 64px parent (72-64)/2 = 4px offset
+                width: '72px',
+                height: isOpen ? `${72 + 12 + (quickActions.length * 60)}px` : '72px',
+                opacity: isOpen ? 1 : 0,
+                background: 'linear-gradient(135deg, rgba(247, 207, 155, 0.15) 0%, rgba(244, 184, 115, 0.08) 100%)',
+                backdropFilter: 'blur(16px) saturate(180%)',
+                borderRadius: '36px',
+                border: '1px solid rgba(247, 207, 155, 0.3)',
+                boxShadow: isOpen
+                    ? '0 12px 32px rgba(247, 207, 155, 0.15), 0 4px 12px rgba(244, 184, 115, 0.1)'
+                    : 'none',
+                transition: 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)', // Spring-like ease
+                zIndex: 0,
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column-reverse',
+                paddingBottom: isOpen ? '72px' : '72px', // Space for button
+                boxSizing: 'border-box',
+                alignItems: 'center',
+                justifyContent: 'flex-start'
+            }}>
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'column-reverse',
+                    gap: '12px',
+                    width: '100%',
+                    alignItems: 'center',
+                    opacity: isOpen ? 1 : 0,
+                    transform: isOpen ? 'translateY(0)' : 'translateY(20px)',
+                    transition: 'all 0.3s ease 0.1s',
+                    pointerEvents: isOpen ? 'auto' : 'none'
+                }}>
+                    {quickActions.map(({ Icon, label, action }) => (
+                        <button
+                            key={label}
+                            onClick={action}
+                            style={{
+                                width: '56px',
+                                height: '56px',
+                                borderRadius: '50%',
+                                background: 'linear-gradient(135deg, rgba(75, 104, 108, 0.85) 0%, rgba(75, 104, 108, 0.75) 100%)',
+                                border: '1px solid rgba(75, 104, 108, 0.3)',
+                                color: 'rgba(247, 207, 155, 0.95)',
+                                cursor: 'pointer',
+                                outline: 'none',
+                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                position: 'relative',
+                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'scale(1.1)';
+                                e.currentTarget.style.boxShadow = '0 8px 24px rgba(75, 104, 108, 0.3)';
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(75, 104, 108, 0.95) 0%, rgba(75, 104, 108, 0.85) 100%)';
+                                e.currentTarget.style.color = '#F7CF9B';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'scale(1)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(75, 104, 108, 0.85) 0%, rgba(75, 104, 108, 0.75) 100%)';
+                                e.currentTarget.style.color = 'rgba(247, 207, 155, 0.95)';
+                            }}
+                            title={label}
+                        >
+                            <Icon size={36} strokeWidth={2.5} />
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+
+
+            {/* Action Selector Panel */}
+            <div style={{
+                position: 'absolute',
+                bottom: '100px', // Position at Actions button center
+                left: '70px', // Start from Actions button center
+                width: '240px',
+                height: isActionSelectorOpen ? '418px' : '0px', // Adjusted height to fit all items
+                background: 'rgba(253, 246, 235, 0.95)',
+                backdropFilter: 'blur(16px)',
+                borderRadius: '16px',
+                border: isActionSelectorOpen ? '1px solid rgba(75, 104, 108, 0.1)' : 'none',
+                boxShadow: isActionSelectorOpen ? '0 8px 32px rgba(0, 0, 0, 0.1)' : 'none',
+                opacity: isActionSelectorOpen ? 1 : 0,
+                transform: isActionSelectorOpen ? 'scale(1) translate(0, 0)' : 'scale(0.9) translate(-10px, 10px)',
+                transformOrigin: 'bottom left', // Animate from bottom left
+                pointerEvents: isActionSelectorOpen ? 'auto' : 'none',
+                transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
+            }}>
+                <div style={{
+                    padding: '16px',
+                    borderBottom: '1px solid rgba(0,0,0,0.05)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Actions
+                    </span>
+                    <button
+                        onClick={() => setIsActionSelectorOpen(false)}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            padding: '4px',
+                            cursor: 'pointer',
+                            color: '#94a3b8',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '4px',
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(0,0,0,0.05)';
+                            e.currentTarget.style.color = '#64748b';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'none';
+                            e.currentTarget.style.color = '#94a3b8';
+                        }}
+                    >
+                        <X size={14} />
+                    </button>
+                </div>
+                <div style={{ padding: '8px', overflowY: 'auto', flex: 1 }} className="custom-scrollbar">
+                    {actionModes.map((mode) => (
+                        <button
+                            key={mode.id}
+                            onClick={() => {
+                                // Open the corresponding panel via store
+                                openPanel(mode.id as any);
+                                // Close quick actions after selection
+                                setIsActionSelectorOpen(false);
+                                setIsOpen(false);
+                            }}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                padding: '12px',
+                                borderRadius: '10px',
+                                border: '1px solid rgba(196, 196, 196, 1)',
+                                background: 'rgba(255, 255, 255, 0.5)',
+                                color: '#1e293b',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                fontSize: '13px',
+                                fontWeight: 500,
+                                width: '100%',
+                                textAlign: 'left',
+                                marginBottom: '4px',
+                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.03)'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
+                                e.currentTarget.style.transform = 'translateX(4px)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.06)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.5)';
+                                e.currentTarget.style.transform = 'translateX(0)';
+                                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.03)';
+                            }}
+                        >
+                            <mode.icon size={16} style={{ color: '#4B686C' }} />
+                            {mode.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Main Toggle Button */}
+            <button
+                onClick={handleToggleQuickActions}
+                style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    background: 'var(--secondary-gradient)',
+                    border: 'none',
+                    outline: 'none',
+                    color: 'var(--primary-color)',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 2,
+                    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    transform: isOpen ? 'rotate(45deg)' : 'rotate(0deg)'
+                }}
+                onMouseDown={(e) => {
+                    e.currentTarget.style.outline = 'none';
+                    e.currentTarget.style.border = 'none';
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = isOpen ? 'rotate(45deg) scale(1.05)' : 'scale(1.05)';
+                    e.currentTarget.style.boxShadow = '0 12px 32px rgba(247, 207, 155, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = isOpen ? 'rotate(45deg) scale(1)' : 'scale(1)';
+                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.15)';
+                }}
+            >
+                <Zap size={28} fill="none" />
+            </button>
+        </div>
+    );
+}

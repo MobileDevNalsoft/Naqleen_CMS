@@ -457,42 +457,6 @@
           "position": { "x": -247, "y": 0.3, "z": 17 },
           "dimensions": { "width": 67, "height": 26 },
           "rotation": 0
-        },
-        {
-            "id": "truck_cfs_1",
-            "type": "truck",
-            "position": { "x": 0, "y": 0.3, "z": 0 },
-            "placement": { "relative_to": "cfs_area_1", "offset_x": -25, "offset_z": -2 },
-            "rotation": 0,
-            "dimensions": { "width": 2.5, "height": 12 },
-            "props": { "containerColor": "#00695C" }
-        },
-        {
-            "id": "truck_cfs_2",
-            "type": "truck",
-            "position": { "x": 0, "y": 0.3, "z": 0 },
-            "placement": { "relative_to": "cfs_area_1", "offset_x": -15, "offset_z": -2 },
-            "rotation": 0,
-            "dimensions": { "width": 2.5, "height": 12 },
-            "props": { "containerColor": "#1A237E" }
-        },
-        {
-            "id": "truck_cfs_3",
-            "type": "truck",
-            "position": { "x": 0, "y": 0.3, "z": 0 },
-            "placement": { "relative_to": "cfs_area_1", "offset_x": -5, "offset_z": -2 },
-            "rotation": 0,
-            "dimensions": { "width": 2.5, "height": 12 },
-            "props": { "containerColor": "#D84315" }
-        },
-        {
-            "id": "truck_cfs_4",
-            "type": "truck",
-            "position": { "x": 0, "y": 0.3, "z": 0 },
-            "placement": { "relative_to": "cfs_area_1", "offset_x": 5, "offset_z": -2 },
-            "rotation": 0,
-            "dimensions": { "width": 2.5, "height": 12 },
-            "props": { "containerColor": "#F9A825" }
         }
       ]
     }

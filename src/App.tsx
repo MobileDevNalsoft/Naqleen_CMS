@@ -2,53 +2,54 @@ import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { MapControls, Environment as DreiEnvironment } from '@react-three/drei';
 import { useRef, useState, useEffect, useCallback } from 'react';
-import LayoutEnvironment from './components/layout/Environment';
-import LoadingScreen from './components/ui/animations/LoadingScreen';
-import LoginScreen from './components/ui/LoginScreen';
-import SubscriptionExpiredScreen from './components/ui/SubscriptionExpiredScreen';
-import ContainerDetailsPanel from './components/panels/details/ContainerDetailsPanel';
-import BlockDetailsPanel from './components/panels/details/BlockDetailsPanel';
-import CFSDetailsPanel from './components/panels/details/CFSDetailsPanel';
-import InvalidContainersPanel from './components/panels/details/InvalidContainersPanel';
-import ModernHeader from './components/ui/ModernHeader';
-import HoverInfoPanel from './components/ui/HoverInfoPanel';
-import { CameraTransition } from './components/camera/CameraTransition';
-import { useLayoutQuery, useContainersQuery } from './api';
-import { KeyboardNavigation } from './components/camera/KeyboardNavigation';
-import { CameraBounds } from './components/camera/CameraBounds';
-import DynamicLayoutEngine from './components/layout/dynamic/DynamicLayoutEngine';
-import Fencing from './components/layout/Fencing';
-import Gates from './components/layout/Gates';
-import QuickActionsButton from './components/ui/QuickActionsButton';
-import IcdMarkings from './components/layout/IcdMarkings';
+import LayoutEnvironment from './components/scene/core/Environment';
+import LoadingScreen from './components/ui/feedback/scene/SceneLoader';
+import ContainerDetailsPanel from './features/yard-planning/components/ContainerDetailsPanel';
+import BlockDetailsPanel from './features/yard-planning/components/BlockDetailsPanel';
+import CFSDetailsPanel from './features/yard-planning/components/CFSContainersPanel';
+import InvalidContainersPanel from './features/yard-planning/components/InvalidContainersPanel';
+import CustomerDetailsPanel from './features/yard-planning/components/CustomerDetailsPanel';
+import ModernHeader from './components/layout/ModernHeader';
+import HoverInfoPanel from './components/layout/HoverInfoPanel';
+import { CameraTransition } from './components/scene/core/CameraTransition';
+import { KeyboardNavigation } from './components/scene/core/KeyboardNavigation';
+import { CameraBounds } from './components/scene/core/CameraBounds';
+import DynamicLayoutEngine from './components/scene/infrastructure/dynamic/DynamicLayoutEngine';
+import Fencing from './components/scene/infrastructure/Fencing';
+import QuickActionsButton from './features/shared/components/QuickActionsButton';
 import { useUIStore } from './store/uiStore';
 import { useStore } from './store/store';
-import GateInPanel from './components/panels/actions/GateInPanel';
-import GateOutPanel from './components/panels/actions/GateOutPanel';
-import StuffingPanel from './components/panels/actions/StuffingPanel';
-import DestuffingPanel from './components/panels/actions/DestuffingPanel';
-import PlugInOutPanel from './components/panels/actions/PlugInOutPanel';
-import CFSTaskAssignmentPanel from './components/panels/actions/CFSTaskAssignmentPanel';
-import PositionContainerPanel from './components/panels/actions/PositionContainerPanel';
-import RestackContainersPanel from './components/panels/actions/RestackContainersPanel';
-import Dashboard from './components/ui/Dashboard';
-import { DashboardDrilldownModal } from './components/ui/DashboardDrilldownModal';
-import Containers from './components/layout/Containers';
-import CustomerInventoryPanel from './components/panels/actions/CustomerInventoryPanel';
-import { ReserveContainersPanelNew } from './components/panels/actions/ReserveContainersPanelNew';
-import ReleaseContainerPanel from './components/panels/actions/ReleaseContainerPanel';
-import SettingsPanel from './components/panels/settings/SettingsPanel'; // [NEW] Import
-import SwapConnectionLines from './components/layout/SwapConnectionLines';
-import RestackConnectionLine from './components/layout/RestackConnectionLine';
-import GhostContainer from './components/layout/GhostContainer';
-import ToastContainer from './components/ui/custom-components/Toast';
-import { EffectsWrapper } from './components/effects/EffectsWrapper';
-import { Lighting } from './components/layout/Lighting';
-import ViewNavigationPanel from './components/ui/ViewNavigationPanel';
-import { InactivityManager } from './components/auth/InactivityManager';
+import GateInPanel from './features/operations/components/GateInPanel';
+import GateOutPanel from './features/operations/components/GateOutPanel';
+import StuffingPanel from './features/operations/components/StuffingPanel';
+import DestuffingPanel from './features/operations/components/DestuffingPanel';
+import PlugInOutPanel from './features/operations/components/PlugInOutPanel';
+import CFSTaskAssignmentPanel from './features/operations/components/CFSTaskAssignmentPanel';
+import PositionContainerPanel from './features/yard-planning/components/PositionContainerPanel';
+import RestackContainersPanel from './features/yard-planning/components/RestackContainersPanel';
+import Dashboard from './features/dashboard/Dashboard';
+import { DashboardDrilldownModal } from './features/dashboard/components/fleet-intelligence/drilldowns/DashboardDrilldownModal';
+import Containers from './components/scene/objects/Containers';
+import { ReserveContainersPanelNew } from './features/yard-planning/components/ReserveContainersPanelNew';
+import ReleaseContainerPanel from './features/yard-planning/components/ReleaseContainerPanel';
+import SettingsPanel from './features/settings/components/SettingsPanel';
+import GhostContainer from './components/scene/objects/GhostContainer';
+import ToastContainer from './components/ui/feedback/common/Toast';
+import { EffectsWrapper } from './components/scene/effects/EffectsWrapper';
+import { Lighting } from './components/scene/core/Lighting';
+import ViewNavigationPanel from './features/yard-planning/components/ViewNavigationPanel';
 
-import { useAuthStore } from './store/authStore';
 import { useScreenAccess } from './hooks/useScreenAccess';
+import LoginScreen from './features/auth/components/LoginScreen';
+import IcdMarkings from './components/scene/infrastructure/IcdMarkings';
+import Gates from './components/scene/infrastructure/Gates';
+import RestackConnectionLine from './components/scene/effects/RestackConnectionLine';
+import SubscriptionExpiredScreen from './features/auth/components/SubscriptionExpiredScreen';
+import { InactivityManager } from './features/auth/components/InactivityManager';
+import CustomerInventoryPanel from './features/yard-planning/components/CustomerInventoryPanel';
+import { useLayoutQuery } from './components/scene/infrastructure/apis/layoutApi';
+import { useContainersQuery } from './features/yard-planning/apis/containerApi';
+import { useAuthStore } from './features/auth/store/authStore';
 
 const App = () => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -143,6 +144,16 @@ const App = () => {
     }
   }, [selectId, selectedBlock, closePanel]);
 
+  // [NEW] Reset loading state on logout
+  // This ensures that when the user logs back in, they see the loading screen
+  // instead of a black/empty 3D scene while it initializes.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setShowLoadingScreen(true);
+      setSceneReady(false);
+    }
+  }, [isAuthenticated]);
+
   if (!isAuthenticated) {
     // Authentication state is handled solely by the store
     return <LoginScreen />;
@@ -174,7 +185,7 @@ const App = () => {
             activeNav={activeNav}
             onNavChange={handleNavChange}
             isSearchVisible={true}
-            isUIVisible={!showLoadingScreen}
+            isUIVisible={true}
             selectedIcdId={selectedIcdId}
             onIcdChange={setSelectedIcdId}
             onLogout={() => {
@@ -211,16 +222,9 @@ const App = () => {
             pointerEvents: isSyncing ? 'none' : 'auto', // CSS-BASED LOCKING (Safer than disabling controls)
           }}
         >
-          {/* Loading Screen */}
-          {showLoadingScreen &&
-            (
-              <LoadingScreen
-                isLoading={isDataLoading}
-                onComplete={() => setShowLoadingScreen(false)}
-              />
-            )}
 
-          {/* Sync Overlay - Transparent Loader */}
+
+          {/* Sync Overlay - Premium Slate & Gold */}
           {isSyncing && (
             <div style={{
               position: 'absolute',
@@ -233,31 +237,81 @@ const App = () => {
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'rgba(0, 0, 0, 0.2)',
-              backdropFilter: 'blur(2px)',
+              background: 'rgba(17, 24, 39, 0.6)', // Darker slate overlay with transparency
+              backdropFilter: 'blur(8px)', // Glass effect
               pointerEvents: 'all', // Block interactions
+              animation: 'fadeIn 0.3s ease-out'
             }}>
-              {/* Modern Spinner */}
-              <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                border: '3px solid rgba(255, 255, 255, 0.1)',
-                borderTopColor: '#64B5F6',
-                animation: 'spin 1s linear infinite',
-                marginBottom: '16px'
-              }} />
+              {/* Premium Gold Spinner */}
+              <div style={{ position: 'relative', width: '64px', height: '64px', marginBottom: '24px' }}>
+                <svg style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  animation: 'spin 2s linear infinite',
+                }} viewBox="0 0 100 100">
+                  <defs>
+                    <linearGradient id="syncRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#F7CF9B" />
+                      <stop offset="100%" stopColor="#E5B070" stopOpacity="0.3" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="50" cy="50" r="46" fill="none" stroke="url(#syncRingGrad)" strokeWidth="3" strokeDasharray="70 220" strokeLinecap="round" />
+                </svg>
+
+                {/* Inner Logo Icon */}
+                <div style={{
+                  position: 'absolute',
+                  inset: '16px',
+                  borderRadius: '50%',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(255,255,255,0.03)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#F7CF9B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M2 17L12 22L22 17" stroke="#F7CF9B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
+                    <path d="M2 12L12 17L22 12" stroke="#F7CF9B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+                  </svg>
+                </div>
+              </div>
+
               <span style={{
-                color: 'white',
-                fontSize: '14px',
-                fontWeight: 500,
-                textShadow: '0 2px 10px rgba(0,0,0,0.5)',
-                letterSpacing: '0.5px'
+                color: '#FFFFFF',
+                fontSize: '13px',
+                fontWeight: 600,
+                letterSpacing: '0.15em',
+                textTransform: 'uppercase',
+                textShadow: '0 2px 10px rgba(0,0,0,0.3)',
+                fontFamily: "'Inter', sans-serif",
               }}>
-                Syncing Data...
+                Syncing New Data...
               </span>
+
+              {/* Shimmer Line */}
+              <div style={{
+                marginTop: '12px',
+                height: '2px',
+                width: '120px',
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: '1px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, transparent, #F7CF9B, transparent)',
+                  animation: 'shimmer 1.5s infinite linear'
+                }} />
+              </div>
+
               <style>{`
-                    @keyframes spin { to { transform: rotate(360deg); } }
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
                  `}</style>
             </div>
           )}
@@ -296,7 +350,6 @@ const App = () => {
                 controlsRef={controlsRef}
                 onReady={handleSceneReady}
               />
-              <SwapConnectionLines />
               <GhostContainer />
               <RestackConnectionLine />
             </EffectsWrapper>
@@ -344,6 +397,8 @@ const App = () => {
             overflowY: 'auto',
             overflowX: 'hidden',
             pointerEvents: activeNav === 'Dashboard' ? 'auto' : 'none', // DISABLE interactions when hidden
+            visibility: activeNav === 'Dashboard' ? 'visible' : 'hidden', // HIDE from keyboard focus
+            transition: activeNav === 'Dashboard' ? 'visibility 0s' : 'visibility 0s linear 0.8s', // Delay hide to allow slide animation
           }}
         >
 
@@ -351,11 +406,11 @@ const App = () => {
         </section>
       </div>
 
-      {/* View Navigation Panel */}
-      {activeNav === '3D View' && !showLoadingScreen && activePanel !== 'accessControl' && <ViewNavigationPanel />}
+      {/* View Navigation Panel - Always Mounted (Hidden by CSS if needed, but we want it ready) */}
+      {activeNav === '3D View' && activePanel !== 'accessControl' && <ViewNavigationPanel />}
 
-      {/* Quick Actions Button */}
-      {activeNav === '3D View' && !showLoadingScreen && activePanel !== 'accessControl' && <QuickActionsButton />}
+      {/* Quick Actions Button - Always Mounted */}
+      {activeNav === '3D View' && activePanel !== 'accessControl' && <QuickActionsButton />}
 
       {/* Global Drilldown Modal - Portal powered */}
       <DashboardDrilldownModal />
@@ -366,6 +421,7 @@ const App = () => {
           <div style={{ pointerEvents: 'auto' }}>
             <ContainerDetailsPanel />
             <BlockDetailsPanel />
+            <CustomerDetailsPanel />
             <CFSDetailsPanel />
             <InvalidContainersPanel />
             <PositionContainerPanel isOpen={activePanel === 'position'} onClose={closePanel} />
@@ -390,6 +446,14 @@ const App = () => {
           </div>
         </div>
       </div>
+
+      {/* Loading Screen - ROOT LEVEL (Highest Z-Index) */}
+      {showLoadingScreen && (
+        <LoadingScreen
+          isLoading={isDataLoading}
+          onComplete={() => setShowLoadingScreen(false)}
+        />
+      )}
     </div>
   );
 }

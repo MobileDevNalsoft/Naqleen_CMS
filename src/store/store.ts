@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { DynamicIcdLayout } from '../utils/layoutUtils';
-import type { ContainerPosition, CfsContainer } from '../api';
+import type { DynamicIcdLayout } from '../components/scene/infrastructure/utils/layoutUtils';
+import type { ContainerPosition, CfsContainer } from '../features/yard-planning/types/containerTypes';
 
 export type ContainerEntity = ContainerPosition;
 
