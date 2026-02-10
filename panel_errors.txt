@@ -1,0 +1,10 @@
+src/features/inventory/components/CustomerInventoryPanel.tsx(4,25): error TS2307: Cannot find module '../PanelLayout' or its corresponding type declarations.
+src/features/inventory/components/CustomerInventoryPanel.tsx(22,22): error TS2307: Cannot find module '../../ui/common/Dropdown' or its corresponding type declarations.
+src/features/inventory/components/CustomerInventoryPanel.tsx(840,64): error TS7006: Parameter 'val' implicitly has an 'any' type.
+src/features/inventory/components/CustomerInventoryPanel.tsx(876,68): error TS7006: Parameter 'val' implicitly has an 'any' type.
+src/features/inventory/components/CustomerInventoryPanel.tsx(909,68): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/features/views/components/CustomerInventoryPanel.tsx(4,25): error TS2307: Cannot find module '../PanelLayout' or its corresponding type declarations.
+src/features/views/components/CustomerInventoryPanel.tsx(22,22): error TS2307: Cannot find module '../../ui/common/Dropdown' or its corresponding type declarations.
+src/features/views/components/CustomerInventoryPanel.tsx(840,64): error TS7006: Parameter 'val' implicitly has an 'any' type.
+src/features/views/components/CustomerInventoryPanel.tsx(876,68): error TS7006: Parameter 'val' implicitly has an 'any' type.
+src/features/views/components/CustomerInventoryPanel.tsx(909,68): error TS7006: Parameter 'q' implicitly has an 'any' type.

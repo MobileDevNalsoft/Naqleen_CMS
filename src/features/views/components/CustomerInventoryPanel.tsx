@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import PanelLayout from '../PanelLayout';
+import PanelLayout from '../../shared/components/PanelLayout';
 import {
     Plus,
     Upload,
@@ -19,7 +19,7 @@ import {
     AlertTriangle
 } from 'lucide-react';
 import { useRef } from 'react';
-import Dropdown from '../../ui/common/Dropdown';
+import Dropdown from '../../../components/ui/inputs/Dropdown';
 import { createInventory, createBulkInventory, fetchCustomerLookup, fetchShipmentLookup, fetchCustomerStock, type CustomerStockItem } from '../../yard-planning/apis/inventoryApi';
 import { parseInventoryExcel } from '../../../services/excelImportService';
 import type { InventoryRecord, InventoryItem, InventoryImportRow } from '../../yard-planning/types/inventoryTypes';
@@ -837,7 +837,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                                     required
                                                     options={customerOptions}
                                                     value={customer}
-                                                    onChange={(val) => {
+                                                    onChange={(val: string) => {
                                                         setCustomer(val);
                                                         // Find ID from customersData
                                                         const selected = customersData.find(c => c.customer_name === val);
@@ -873,7 +873,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                                         required
                                                         options={shipmentOptions}
                                                         value={otmShipmentNumber}
-                                                        onChange={(val) => {
+                                                        onChange={(val: string) => {
                                                             setOtmShipmentNumber(val);
 
                                                             // Check if shipment has container_nbr
@@ -906,7 +906,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                                         }}
                                                         placeholder="Search Shipment"
                                                         searchable
-                                                        onSearch={(q) => {
+                                                        onSearch={(q: string) => {
                                                             // When user types (changes text), unlock container
                                                             setOtmShipmentNumber(q);
                                                             setIsContainerReadOnly(false);
