@@ -54,7 +54,7 @@ export default function CustomerDetailsPanel() {
             isOpen={isVisible}
             onClose={handleClose}
             title={selectedCustomer}
-            category="CUSTOMER INVENTORY"
+            category="CUSTOMER CONTAINERS"
             headerColor={theme.colors.primary}
             width="420px"
             top="90px"
