@@ -123,3 +123,25 @@ export interface ShipmentLookupData {
     shipment_nbr: string;
     container_nbr?: string;
 }
+
+// --- CFS History Types ---
+
+export interface CFSItem {
+    item_code: string;
+    item_description: string;
+    quantity: number;
+    weight: number;
+    package_uom: string;
+    weight_uom: string;
+}
+
+export interface CFSShipment {
+    shipment_nbr: string;
+    customer_name: string;
+    customer_number: string;
+    shipment_name: string;
+    operator: string;
+    items: CFSItem[];
+}
+
+export interface CFSHistoryResponse extends ApiResponse<CFSShipment[]> { }

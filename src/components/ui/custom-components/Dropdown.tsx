@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import { ChevronDown, Check, X } from 'lucide-react';
 
 interface DropdownOption {
@@ -18,6 +19,9 @@ interface DropdownProps {
     onSearch?: (query: string) => void;
     onFocus?: () => void;
     loading?: boolean;
+    borderless?: boolean;
+    filled?: boolean;
+    style?: React.CSSProperties; // Allow custom styles for the trigger
 }
 
 export default function Dropdown({
@@ -31,7 +35,10 @@ export default function Dropdown({
     disabled = false,
     onSearch,
     onFocus,
-    loading = false
+    loading = false,
+    borderless = false,
+    filled = false,
+    style
 }: DropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     // inputValue tracks what the user sees in the text box
@@ -162,19 +169,20 @@ export default function Dropdown({
                     style={{
                         width: '100%',
                         padding: '0',
-                        background: disabled ? '#f1f5f9' : '#f8fafc',
-                        border: isOpen ? '1px solid var(--primary-color)' : '1px solid #e2e8f0',
+                        background: disabled ? '#f1f5f9' : (filled ? 'var(--primary-color)' : (borderless ? 'transparent' : '#f8fafc')),
+                        border: borderless || filled ? 'none' : (isOpen ? '1px solid var(--primary-color)' : '1px solid #e2e8f0'),
                         borderRadius: '8px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         transition: 'all 0.2s',
-                        boxShadow: isOpen ? '0 0 0 3px rgba(75, 104, 108, 0.1)' : 'none',
+                        boxShadow: (isOpen && !borderless && !filled) ? '0 0 0 3px rgba(75, 104, 108, 0.1)' : 'none',
                         cursor: searchable ? 'text' : 'pointer',
                         opacity: disabled ? 0.7 : 1,
                         position: 'relative',
                         minHeight: '44px',
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box',
+                        ...style
                     }}
                 >
                     {searchable ? (
@@ -208,7 +216,8 @@ export default function Dropdown({
                             flex: 1,
                             fontSize: '14px',
                             lineHeight: '20px',
-                            color: value ? 'var(--text-color)' : '#94a3b8',
+                            color: filled ? 'white' : (value ? (borderless ? 'var(--primary-color)' : 'var(--text-color)') : '#94a3b8'),
+                            fontWeight: (value && (borderless || filled)) ? 600 : 400,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis'
@@ -236,7 +245,7 @@ export default function Dropdown({
                         )}
                         <ChevronDown
                             size={16}
-                            color={isOpen ? 'var(--primary-color)' : '#94a3b8'}
+                            color={filled ? 'white' : (isOpen ? 'var(--primary-color)' : '#94a3b8')}
                             style={{
                                 transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                                 transition: 'transform 0.2s',

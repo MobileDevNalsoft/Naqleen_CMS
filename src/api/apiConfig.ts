@@ -19,6 +19,7 @@ export const API_CONFIG = {
         GET_CONTAINER_DETAILS: '/getContainerDetails',
         CREATE_INVENTORY: '/customerInventory',
         GET_ICDS: '/dynamic_icds.json',
+        GET_SHIPMENT_INVENTORY: '/getShipmentInventory',
         // Gate In endpoints
         GATE_IN_TRUCKS: '/gateInTrucks',
         GATE_IN_TRUCK_DETAILS: '/gateInTruckDetails',

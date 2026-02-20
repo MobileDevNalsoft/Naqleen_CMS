@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import PanelLayout from '../PanelLayout';
 import {
@@ -16,7 +16,8 @@ import {
     Loader2,
     CheckCircle2,
     AlertCircle,
-    AlertTriangle
+    AlertTriangle,
+    Search
 } from 'lucide-react';
 import { useRef } from 'react';
 import Dropdown from '../../ui/custom-components/Dropdown';
@@ -33,8 +34,12 @@ interface CustomerInventoryPanelProps {
 // interface InventoryItem ...
 // interface InventoryRecord ...
 
+// Imports for CFS History
+import { fetchShipmentInventory } from '../../../api/handlers/inventoryApi';
+import type { CFSShipment } from '../../../api/types/inventoryTypes';
+
 export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInventoryPanelProps) {
-    const [activeTab, setActiveTab] = useState<'create' | 'view'>('create');
+    const [activeTab, setActiveTab] = useState<'create' | 'view' | 'cfs_history'>('create');
     const [createMode, setCreateMode] = useState<'manual' | 'import'>('manual');
     const [showAddItemModal, setShowAddItemModal] = useState(false);
     const [items, setItems] = useState<InventoryItem[]>([]);
@@ -54,6 +59,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
 
     // View Inventory State
     const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+    const [expandedCfsShipmentId, setExpandedCfsShipmentId] = useState<string | null>(null);
 
 
     // Form States
@@ -63,6 +69,67 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
 
     const [searchType, setSearchType] = useState<'customer' | 'item_code'>('customer');
     const [selectedCustomerId, setSelectedCustomerId] = useState<string>(''); // Payload needs Name, Lookup needs ID
+
+    // CFS History State
+    const [cfsSearchType, setCfsSearchType] = useState<'shipment' | 'customer' | 'item_code'>('shipment');
+    const [cfsSearchValue, setCfsSearchValue] = useState('');
+    const [cfsData, setCfsData] = useState<CFSShipment[]>([]);
+    const [isLoadingCfs, setIsLoadingCfs] = useState(false);
+
+
+    // Handler for CFS Search
+    const handleCfsSearch = async (value: string) => {
+        setCfsSearchValue(value);
+        if (!value.trim()) {
+            setCfsData([]);
+            return;
+        }
+
+        setIsLoadingCfs(true);
+        try {
+            // Debounce handled by useEffect or user interaction (e.g. Enter or button)
+            // For now, let's fetch on change with debounce or just call directly if triggered by UI
+            const results = await fetchShipmentInventory({ searchBy: cfsSearchType, searchValue: value });
+            setCfsData(results);
+        } catch (error) {
+            console.error("Failed to fetch CFS history", error);
+        } finally {
+            setIsLoadingCfs(false);
+        }
+    };
+
+    // Debounce for CFS search
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            if (activeTab === 'cfs_history' && cfsSearchValue.trim()) {
+                handleCfsSearch(cfsSearchValue);
+            }
+        }, 500);
+        return () => clearTimeout(timeoutId);
+    }, [cfsSearchValue, cfsSearchType, activeTab]);
+
+    // Initial fetch for CFS History tab
+    useEffect(() => {
+        if (activeTab === 'cfs_history') {
+            // Reset search to default
+            setCfsSearchType('shipment');
+            setCfsSearchValue('');
+
+            const fetchInitialCfsData = async () => {
+                setIsLoadingCfs(true);
+                try {
+                    const results = await fetchShipmentInventory({ searchBy: 'shipment', searchValue: '' });
+                    setCfsData(results);
+                } catch (error) {
+                    console.error("Failed to fetch initial CFS history", error);
+                } finally {
+                    setIsLoadingCfs(false);
+                }
+            };
+            fetchInitialCfsData();
+        }
+    }, [activeTab]);
+
 
     const terminals = ['Naqleen Jeddah'];
     const [terminal, setTerminal] = useState(terminals[0]);
@@ -235,16 +302,32 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     // New Stock Inventory State
     const [customerStock, setCustomerStock] = useState<CustomerStockItem[]>([]);
     const [isLoadingStock, setIsLoadingStock] = useState(false);
+    const [expandedGroups, setExpandedGroups] = useState<{ [key: string]: boolean }>({});
+
+    const groupedStock = useMemo(() => {
+        return customerStock.reduce((acc, item) => {
+            const key = item.cust_name || 'Unknown Customer';
+            if (!acc[key]) acc[key] = [];
+            acc[key].push(item);
+            return acc;
+        }, {} as Record<string, CustomerStockItem[]>);
+    }, [customerStock]);
 
     // --- Stock Search Handler ---
     const handleStockSearch = async (custName: string, itemCode: string = '') => {
-        // Allow empty search to fetch all (or let backend handle it)
-
-
         setIsLoadingStock(true);
         try {
             const data = await fetchCustomerStock(custName, itemCode);
             setCustomerStock(data);
+
+            // Default expand all
+            const allGroups = data.reduce((acc, item) => {
+                const key = item.cust_name || 'Unknown Customer';
+                acc[key] = true;
+                return acc;
+            }, {} as Record<string, boolean>);
+            setExpandedGroups(allGroups);
+
         } catch (error) {
             console.error("Failed to load customer stock:", error);
             showNotification("Failed to load customer stock", 'error');
@@ -628,7 +711,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                 {/* Main Tabs */}
                 <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #e2e8f0', marginBottom: '24px' }}>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        {['create', 'view'].map((tab) => (
+                        {['create', 'view', 'cfs_history'].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab as any)}
@@ -646,7 +729,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                     boxShadow: 'none'
                                 }}
                             >
-                                {tab === 'create' ? 'Create Inventory' : 'View Inventory'}
+                                {tab === 'create' ? 'Create Inventory' : tab === 'view' ? 'View Inventory' : 'CFS History'}
                             </button>
                         ))}
                     </div>
@@ -1196,51 +1279,388 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                             </div>
                         </div>
 
-                        {/* Table */}
-                        <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', background: 'white', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                            {/* Table Header */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, 1fr) minmax(120px, 1fr) 2fr minmax(100px, 1fr) minmax(100px, 1fr)', gap: '8px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', padding: '16px', alignItems: 'center' }}>
-                                <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Customer</div>
-                                <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Item Code</div>
-                                <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Description</div>
-                                <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Avail Qty</div>
-                                <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px', textTransform: 'uppercase' }}>Weight</div>
-                            </div>
-
-                            {/* Table Body */}
-                            <div style={{ overflowY: 'auto', flex: 1 }}>
-                                {isLoadingStock ? (
-                                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', color: '#94a3b8' }}>
-                                        <Loader2 size={24} className="animate-spin" style={{ marginRight: '8px' }} />
-                                        Loading customer stock...
-                                    </div>
-                                ) : customerStock.length === 0 ? (
-                                    <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                                        No inventory records found.
-                                    </div>
-                                ) : (
-                                    customerStock.map((item, idx) => (
-                                        <div key={idx} style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: 'minmax(150px, 1fr) minmax(120px, 1fr) 2fr minmax(100px, 1fr) minmax(100px, 1fr)',
-                                            gap: '8px',
-                                            padding: '16px',
-                                            borderBottom: '1px solid #f1f5f9',
-                                            alignItems: 'center',
-                                            fontSize: '13px'
+                        <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
+                            {isLoadingStock ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '300px', color: 'var(--text-color)', opacity: 0.7 }}>
+                                    <Loader2 size={40} className="animate-spin" style={{ marginBottom: '16px', color: 'var(--primary-color)' }} />
+                                    <div style={{ fontWeight: 500 }}>Loading customer inventory...</div>
+                                </div>
+                            ) : customerStock.length === 0 ? (
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    height: '300px',
+                                    color: 'var(--text-color)',
+                                    opacity: 0.6
+                                }}>
+                                    <Package size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                                    <div>No inventory records found</div>
+                                </div>
+                            ) : (
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    background: 'white',
+                                    borderRadius: '16px',
+                                    border: '1px solid rgba(75, 104, 108, 0.1)',
+                                    overflow: 'hidden',
+                                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)'
+                                }}>
+                                    {Object.entries(groupedStock).map(([customerName, items], groupIndex) => (
+                                        <div key={groupIndex} style={{
+                                            background: 'white',
+                                            borderBottom: '1px solid rgba(75, 104, 108, 0.1)',
+                                            transition: 'all 0.2s ease-in-out'
                                         }}>
-                                            <div style={{ fontWeight: 500, color: 'var(--text-color)' }}>{item.cust_name}</div>
-                                            <div style={{ color: '#64748b', fontFamily: 'monospace' }}>{item.item_code}</div>
-                                            <div style={{ color: 'var(--text-color)', fontWeight: 500 }}>{item.item_description}</div>
-                                            <div style={{ color: '#64748b' }}>{item.available_qty} {item.qty_uom}</div>
-                                            <div style={{ color: '#64748b' }}>{item.net_weight ? `${item.net_weight} ${item.weight_uom}` : '-'}</div>
+                                            <div
+                                                onClick={() => {
+                                                    // Toggle logic: close if open, open if closed
+                                                    const isExpanded = expandedGroups[customerName];
+
+                                                    // Close all others and toggle this one
+                                                    // Here we reset expandedGroups to ONLY contain the current one if it wasn't expanded,
+                                                    // or clear it if it was.
+                                                    setExpandedGroups(isExpanded ? {} : { [customerName]: true });
+                                                }}
+                                                style={{
+                                                    padding: '16px 20px',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    background: expandedGroups[customerName] ? 'rgba(75, 104, 108, 0.015)' : 'white',
+                                                    transition: 'background 0.2s',
+                                                    userSelect: 'none'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    if (!expandedGroups[customerName]) e.currentTarget.style.background = 'rgba(75, 104, 108, 0.02)';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    if (!expandedGroups[customerName]) e.currentTarget.style.background = 'white';
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                                    <div style={{
+                                                        width: '28px',
+                                                        height: '28px',
+                                                        borderRadius: '8px',
+                                                        background: expandedGroups[customerName] ? 'var(--primary-color)' : 'rgba(75, 104, 108, 0.08)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                        flexShrink: 0,
+                                                        transform: expandedGroups[customerName] ? 'rotate(180deg)' : 'rotate(0deg)'
+                                                    }}>
+                                                        <ChevronDown size={16} color={expandedGroups[customerName] ? "white" : "var(--primary-color)"} />
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                        <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>Customer</span>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <span style={{ fontSize: '15px', fontWeight: 600, color: '#334155' }}>{customerName}</span>
+                                                            <span style={{
+                                                                fontSize: '12px',
+                                                                fontWeight: 600,
+                                                                color: 'white',
+                                                                background: '#4B686C',
+                                                                padding: '2px 10px',
+                                                                borderRadius: '12px',
+                                                            }}>
+                                                                {items.length} items
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div style={{
+                                                maxHeight: expandedGroups[customerName] ? '1000px' : '0',
+                                                opacity: expandedGroups[customerName] ? 1 : 0,
+                                                overflow: 'hidden',
+                                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                padding: expandedGroups[customerName] ? '0 20px 20px 20px' : '0 20px 0 20px', // Add padding for the "floating" table look
+                                            }}>
+                                                <div style={{
+                                                    background: '#f8fafc',
+                                                    borderRadius: '12px',
+                                                    border: '1px solid rgba(75, 104, 108, 0.12)',
+                                                    overflow: 'hidden' // Clip content to rounded corners
+                                                }}>
+                                                    <div style={{
+                                                        display: 'grid',
+                                                        gridTemplateColumns: 'minmax(120px, 1fr) 2fr minmax(100px, 1fr) minmax(100px, 1fr)',
+                                                        gap: '16px',
+                                                        padding: '12px 24px 12px 64px',
+                                                        background: 'linear-gradient(90deg, rgba(75, 104, 108, 0.12) 0%, rgba(75, 104, 108, 0.02) 100%)',
+                                                        borderBottom: '1px solid rgba(75, 104, 108, 0.15)'
+                                                    }}>
+                                                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Item Code</div>
+                                                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</div>
+                                                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Avail Qty</div>
+                                                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Weight</div>
+                                                    </div>
+                                                    <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                                        {items.map((item, idx) => (
+                                                            <div key={idx} style={{
+                                                                display: 'grid',
+                                                                gridTemplateColumns: 'minmax(120px, 1fr) 2fr minmax(100px, 1fr) minmax(100px, 1fr)',
+                                                                gap: '16px',
+                                                                padding: '14px 24px 14px 64px',
+                                                                borderBottom: idx < items.length - 1 ? '1px solid rgba(75, 104, 108, 0.06)' : 'none',
+                                                                alignItems: 'center',
+                                                                fontSize: '13px',
+                                                                transition: 'background 0.2s',
+                                                                background: 'white' // Ensure items have white background against the gray container if needed, or keep transparent
+                                                            }}
+                                                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(75, 104, 108, 0.02)'}
+                                                                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                                            >
+                                                                <div style={{ color: '#334155', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace', fontSize: '12px', fontWeight: 500 }}>{item.item_code}</div>
+                                                                <div style={{ color: '#475569', lineHeight: '1.4' }}>{item.item_description}</div>
+                                                                <div style={{ color: '#64748b', textAlign: 'right' }}>
+                                                                    <span style={{ fontWeight: 600, color: '#334155' }}>{item.available_qty}</span> {item.qty_uom}
+                                                                </div>
+                                                                <div style={{ color: '#64748b', textAlign: 'right' }}>
+                                                                    {item.net_weight ? (
+                                                                        <>{item.net_weight} <span style={{ fontSize: '11px' }}>{item.weight_uom}</span></>
+                                                                    ) : '-'}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                    ))
-                                )}
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
+                {activeTab === 'cfs_history' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%' }}>
+                        {/* CFS Search Bar - Integrated Pill Design */}
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            background: 'white',
+                            height: '48px',
+                            padding: '0 4px 0 12px',
+                            borderRadius: '50px', // Pill shape
+                            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                            border: '1px solid #e2e8f0',
+                            transition: 'all 0.3s ease',
+                        }}
+                            onFocus={(e) => e.currentTarget.style.borderColor = 'var(--primary-color)'}
+                            onBlur={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
+                        >
+                            <Search style={{ color: 'var(--primary-color)', opacity: 0.8, padding: '10px', flexShrink: 0 }} size={18} />
+
+                            <input
+                                type="text"
+                                placeholder={`Search...`}
+                                value={cfsSearchValue}
+                                onChange={(e) => setCfsSearchValue(e.target.value)}
+                                style={{
+                                    flex: 1,
+                                    height: '100%',
+                                    padding: '0 12px',
+                                    border: 'none',
+                                    fontSize: '14px',
+                                    outline: 'none',
+                                    background: 'transparent',
+                                    color: '#334155',
+                                    fontWeight: 500,
+                                    width: '100%'
+                                }}
+                            />
+
+                            {/* Vertical Divider */}
+                            <div style={{ width: '1px', height: '16px', background: '#e2e8f0', margin: '0 8px' }} />
+
+                            <div style={{ width: '150px' }}>
+                                <Dropdown
+                                    borderless
+                                    required={true}
+                                    style={{
+                                        background: '#f1f5f9',
+                                        borderRadius: '50px',
+                                        padding: '0px 10px',
+                                        height: '42px',
+                                        minHeight: '26px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        border: '1px solid #e2e8f0',
+                                        fontSize: '13px'
+                                    }}
+                                    options={[
+                                        { label: 'Shipment', value: 'shipment' },
+                                        { label: 'Customer', value: 'customer' },
+                                        { label: 'Item Code', value: 'item_code' }
+                                    ]}
+                                    value={cfsSearchType}
+                                    onChange={(val) => setCfsSearchType(val as any)}
+                                    placeholder="Type"
+                                />
+                            </div>
+                        </div>
+
+                        {/* CFS Content Area */}
+                        <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
+                            {isLoadingCfs ? (
+                                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px', color: 'var(--primary-color)' }}>
+                                    <Loader2 className="animate-spin" size={24} />
+                                </div>
+                            ) : cfsData.length === 0 ? (
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    height: '300px',
+                                    color: '#94a3b8',
+                                    gap: '12px'
+                                }}>
+                                    <Package size={48} style={{ opacity: 0.5 }} />
+                                    <div>No shipment history found</div>
+                                </div>
+                            ) : (
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    background: 'white',
+                                    borderRadius: '16px',
+                                    border: '1px solid rgba(75, 104, 108, 0.1)',
+                                    overflow: 'hidden',
+                                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)'
+                                }}>
+                                    {cfsData.map((shipment, index) => (
+                                        <div key={index} style={{
+                                            background: 'white',
+                                            borderBottom: '1px solid rgba(75, 104, 108, 0.1)',
+                                            transition: 'all 0.2s ease-in-out'
+                                        }}>
+
+                                            <div
+                                                onClick={() => {
+                                                    setExpandedCfsShipmentId(prev => prev === shipment.shipment_nbr ? null : shipment.shipment_nbr);
+                                                }}
+                                                style={{
+                                                    padding: '16px 20px',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    background: expandedCfsShipmentId === shipment.shipment_nbr ? 'rgba(75, 104, 108, 0.015)' : 'white',
+                                                    transition: 'background 0.2s',
+                                                    userSelect: 'none'
+                                                }}
+                                                onMouseEnter={(e) => expandedCfsShipmentId !== shipment.shipment_nbr && (e.currentTarget.style.background = 'rgba(75, 104, 108, 0.02)')}
+                                                onMouseLeave={(e) => expandedCfsShipmentId !== shipment.shipment_nbr && (e.currentTarget.style.background = 'white')}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
+                                                    <div style={{
+                                                        width: '28px', height: '28px', borderRadius: '8px',
+                                                        background: expandedCfsShipmentId === shipment.shipment_nbr ? 'var(--primary-color)' : 'rgba(75, 104, 108, 0.08)',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', flexShrink: 0,
+                                                        transform: expandedCfsShipmentId === shipment.shipment_nbr ? 'rotate(180deg)' : 'rotate(0deg)'
+                                                    }}>
+                                                        <ChevronDown size={16} color={expandedCfsShipmentId === shipment.shipment_nbr ? "white" : "var(--primary-color)"} />
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shipment</span>
+                                                                {shipment.shipment_name && (
+                                                                    <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--primary-color)', background: 'rgba(75, 104, 108, 0.08)', padding: '2px 6px', borderRadius: '4px' }}>
+                                                                        {shipment.shipment_name}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>Op: {shipment.operator}</span>
+                                                        </div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <span style={{ fontSize: '15px', fontWeight: 600, color: '#334155' }}>{shipment.shipment_nbr}</span>
+                                                                <span style={{ fontSize: '12px', color: '#64748b' }}>• {shipment.customer_name}</span>
+                                                            </div>
+                                                            <span style={{ fontSize: '11px', fontWeight: 600, color: 'white', background: '#4B686C', padding: '2px 8px', borderRadius: '4px', marginTop: '4px' }}>{shipment.items.length} Items</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Expanded Items Table */}
+                                            < div style={{
+                                                maxHeight: expandedCfsShipmentId === shipment.shipment_nbr ? '1000px' : '0',
+                                                opacity: expandedCfsShipmentId === shipment.shipment_nbr ? 1 : 0,
+                                                overflow: 'hidden',
+                                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                padding: expandedCfsShipmentId === shipment.shipment_nbr ? '0 20px 20px 20px' : '0 20px 0 20px'
+                                            }}>
+                                                <div style={{
+                                                    background: '#f8fafc',
+                                                    borderRadius: '12px',
+                                                    border: '1px solid rgba(75, 104, 108, 0.12)',
+                                                    overflow: 'hidden'
+                                                }}>
+                                                    <div style={{
+                                                        display: 'grid',
+                                                        gridTemplateColumns: 'minmax(120px, 1fr) 2fr minmax(100px, 1fr) minmax(100px, 1fr)',
+                                                        gap: '16px',
+                                                        padding: '12px 24px 12px 64px',
+                                                        background: 'linear-gradient(90deg, rgba(75, 104, 108, 0.12) 0%, rgba(75, 104, 108, 0.02) 100%)',
+                                                        borderBottom: '1px solid rgba(75, 104, 108, 0.15)'
+                                                    }}>
+                                                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Item Code</div>
+                                                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</div>
+                                                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Quantity</div>
+                                                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Weight</div>
+                                                    </div>
+                                                    <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                                        {shipment.items.map((item, idx) => (
+                                                            <div key={idx} style={{
+                                                                display: 'grid',
+                                                                gridTemplateColumns: 'minmax(120px, 1fr) 2fr minmax(100px, 1fr) minmax(100px, 1fr)',
+                                                                gap: '16px',
+                                                                padding: '14px 24px 14px 64px',
+                                                                borderBottom: idx < shipment.items.length - 1 ? '1px solid rgba(75, 104, 108, 0.06)' : 'none',
+                                                                alignItems: 'center',
+                                                                fontSize: '13px',
+                                                                transition: 'background 0.2s',
+                                                                background: 'white'
+                                                            }}
+                                                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(75, 104, 108, 0.02)'}
+                                                                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                                            >
+                                                                <div style={{ color: '#334155', fontFamily: 'monospace', fontSize: '12px', fontWeight: 500 }}>{item.item_code}</div>
+                                                                <div style={{ color: '#475569', lineHeight: '1.4' }}>{item.item_description}</div>
+                                                                <div style={{ color: '#64748b', textAlign: 'right' }}>
+                                                                    <span style={{ fontWeight: 600, color: '#334155' }}>{item.quantity}</span> {String(item.package_uom) !== String(item.quantity) && item.package_uom}
+                                                                </div>
+                                                                <div style={{ color: '#64748b', textAlign: 'right' }}>
+                                                                    {Number(item.weight) === 0 ? '-' : (
+                                                                        <>{item.weight} <span style={{ fontSize: '11px' }}>{String(item.weight_uom) !== String(item.weight) && item.weight_uom}</span></>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div >
+                )
+                }
+
+
             </PanelLayout >
 
             {/* Add Item Modal */}
@@ -1326,131 +1746,133 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                 )
             }
 
-            {showBulkConflictModal && createPortal(
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 }}>
-                    <div style={{
-                        background: 'var(--card-bg)',
-                        borderRadius: '20px',
-                        width: '500px',
-                        maxWidth: '90%',
-                        maxHeight: '80vh',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                        border: '1px solid var(--border-color, #e2e8f0)'
-                    }}>
-                        <div style={{ padding: '24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h3 style={{ margin: 0, color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '18px', fontWeight: 700 }}>
-                                <div style={{ background: '#fef2f2', padding: '8px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <AlertTriangle size={20} color="#ef4444" />
-                                </div>
-                                Duplicate Records Found
-                            </h3>
-                            <button
-                                onClick={handleCancelImport}
-                                style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    color: '#94a3b8',
-                                    padding: '4px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    borderRadius: '50%',
-                                    transition: 'background 0.2s'
-                                }}
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div style={{ padding: '24px', overflowY: 'auto' }}>
-                            <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: '14px', lineHeight: '1.5' }}>
-                                The following records already exist in the system. Continuing will result in duplicates.
-                            </p>
-                            <div style={{
-                                background: '#fff1f2',
-                                padding: '16px',
-                                borderRadius: '12px',
-                                border: '1px solid #fecdd3',
-                                maxHeight: '200px',
-                                overflowY: 'auto'
-                            }}>
-                                <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                                    {(conflictDetails?.conflicts || []).map((c: any, i: number) => (
-                                        <li key={i} style={{
-                                            marginBottom: '12px',
-                                            fontSize: '13px',
-                                            color: '#be123c',
-                                            borderBottom: i < (conflictDetails?.conflicts?.length || 0) - 1 ? '1px dashed #fda4af' : 'none',
-                                            paddingBottom: '12px',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            gap: '4px'
-                                        }}>
-                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                <span style={{ fontWeight: 600 }}>Container:</span>
-                                                <span style={{ fontFamily: 'monospace' }}>{c.container_nbr}</span>
-                                            </div>
-                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                <span style={{ fontWeight: 600 }}>Shipment:</span>
-                                                <span style={{ fontFamily: 'monospace' }}>{c.shipment_nbr}</span>
-                                            </div>
-                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                <span style={{ fontWeight: 600 }}>Item Code:</span>
-                                                <span style={{ fontFamily: 'monospace' }}>{c.hs_code}</span>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
+            {
+                showBulkConflictModal && createPortal(
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 }}>
+                        <div style={{
+                            background: 'var(--card-bg)',
+                            borderRadius: '20px',
+                            width: '500px',
+                            maxWidth: '90%',
+                            maxHeight: '80vh',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                            border: '1px solid var(--border-color, #e2e8f0)'
+                        }}>
+                            <div style={{ padding: '24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h3 style={{ margin: 0, color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '18px', fontWeight: 700 }}>
+                                    <div style={{ background: '#fef2f2', padding: '8px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <AlertTriangle size={20} color="#ef4444" />
+                                    </div>
+                                    Duplicate Records Found
+                                </h3>
+                                <button
+                                    onClick={handleCancelImport}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        color: '#94a3b8',
+                                        padding: '4px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        borderRadius: '50%',
+                                        transition: 'background 0.2s'
+                                    }}
+                                >
+                                    <X size={20} />
+                                </button>
                             </div>
-                            <p style={{ margin: '20px 0 0', fontWeight: 600, color: 'var(--text-color)', fontSize: '14px' }}>
-                                Do you want to proceed and import these items anyway?
-                            </p>
+                            <div style={{ padding: '24px', overflowY: 'auto' }}>
+                                <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: '14px', lineHeight: '1.5' }}>
+                                    The following records already exist in the system. Continuing will result in duplicates.
+                                </p>
+                                <div style={{
+                                    background: '#fff1f2',
+                                    padding: '16px',
+                                    borderRadius: '12px',
+                                    border: '1px solid #fecdd3',
+                                    maxHeight: '200px',
+                                    overflowY: 'auto'
+                                }}>
+                                    <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                                        {(conflictDetails?.conflicts || []).map((c: any, i: number) => (
+                                            <li key={i} style={{
+                                                marginBottom: '12px',
+                                                fontSize: '13px',
+                                                color: '#be123c',
+                                                borderBottom: i < (conflictDetails?.conflicts?.length || 0) - 1 ? '1px dashed #fda4af' : 'none',
+                                                paddingBottom: '12px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '4px'
+                                            }}>
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                    <span style={{ fontWeight: 600 }}>Container:</span>
+                                                    <span style={{ fontFamily: 'monospace' }}>{c.container_nbr}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                    <span style={{ fontWeight: 600 }}>Shipment:</span>
+                                                    <span style={{ fontFamily: 'monospace' }}>{c.shipment_nbr}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                    <span style={{ fontWeight: 600 }}>Item Code:</span>
+                                                    <span style={{ fontFamily: 'monospace' }}>{c.hs_code}</span>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                <p style={{ margin: '20px 0 0', fontWeight: 600, color: 'var(--text-color)', fontSize: '14px' }}>
+                                    Do you want to proceed and import these items anyway?
+                                </p>
+                            </div>
+                            <div style={{ padding: '20px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '12px', background: '#f8fafc', borderRadius: '0 0 20px 20px' }}>
+                                <button
+                                    onClick={handleCancelImport}
+                                    style={{
+                                        padding: '10px 24px',
+                                        border: '1px solid var(--border-color)',
+                                        background: 'var(--button-bg)',
+                                        borderRadius: '10px',
+                                        fontWeight: 600,
+                                        color: 'var(--text-color)',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        transition: 'all 0.2s',
+                                        boxShadow: 'var(--shadow-sm)'
+                                    }}
+                                >
+                                    Cancel Import
+                                </button>
+                                <button
+                                    onClick={handleForceImport}
+                                    style={{
+                                        padding: '10px 24px',
+                                        background: 'var(--primary-gradient)',
+                                        border: 'none',
+                                        borderRadius: '10px',
+                                        fontWeight: 600,
+                                        color: 'white',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        boxShadow: 'var(--shadow-md)',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    Import Anyway
+                                </button>
+                            </div>
                         </div>
-                        <div style={{ padding: '20px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '12px', background: '#f8fafc', borderRadius: '0 0 20px 20px' }}>
-                            <button
-                                onClick={handleCancelImport}
-                                style={{
-                                    padding: '10px 24px',
-                                    border: '1px solid var(--border-color)',
-                                    background: 'var(--button-bg)',
-                                    borderRadius: '10px',
-                                    fontWeight: 600,
-                                    color: 'var(--text-color)',
-                                    cursor: 'pointer',
-                                    fontSize: '14px',
-                                    transition: 'all 0.2s',
-                                    boxShadow: 'var(--shadow-sm)'
-                                }}
-                            >
-                                Cancel Import
-                            </button>
-                            <button
-                                onClick={handleForceImport}
-                                style={{
-                                    padding: '10px 24px',
-                                    background: 'var(--primary-gradient)',
-                                    border: 'none',
-                                    borderRadius: '10px',
-                                    fontWeight: 600,
-                                    color: 'white',
-                                    cursor: 'pointer',
-                                    fontSize: '14px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    boxShadow: 'var(--shadow-md)',
-                                    transition: 'all 0.2s'
-                                }}
-                            >
-                                Import Anyway
-                            </button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
+                    </div>,
+                    document.body
+                )
+            }
         </>
     );
 }

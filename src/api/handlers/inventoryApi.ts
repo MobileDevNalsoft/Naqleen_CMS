@@ -11,8 +11,37 @@ import type {
     InventoryItemPayload,
 
     CustomerLookupData,
-    ShipmentLookupData
+    ShipmentLookupData,
+    CFSShipment,
+    CFSHistoryResponse
 } from '../types/inventoryTypes';
+
+// Function to fetch shipment inventory (CFS History)
+export const fetchShipmentInventory = async (params: { searchBy: 'shipment' | 'customer' | 'item_code', searchValue: string }): Promise<CFSShipment[]> => {
+    try {
+        const response = await mobileApiClient.get<CFSHistoryResponse>(API_CONFIG.ENDPOINTS.GET_SHIPMENT_INVENTORY, {
+            params: {
+                // Map frontend searchBy to backend expected params if needed, or send as is
+                // Based on user request "search by shipment number, customer or item code"
+                // Assuming backend takes generic search params or specific ones. 
+                // Let's assume generic 'search_by' and 'search_value' or specific keys.
+                // Given the context of OTM, it's often specific keys. 
+                // Let's try sending all three as optional params based on selection.
+                shipmentNbr: params.searchBy === 'shipment' ? params.searchValue : undefined,
+                customerName: params.searchBy === 'customer' ? params.searchValue : undefined,
+                itemCode: params.searchBy === 'item_code' ? params.searchValue : undefined
+            }
+        });
+
+        if (response.data && Array.isArray(response.data.data)) {
+            return response.data.data;
+        }
+        return [];
+    } catch (error) {
+        console.error("Error fetching shipment inventory:", error);
+        throw error;
+    }
+};
 
 // Function to fetch inventory with search params
 export const fetchInventory = async (params: { searchCust?: string, searchCont?: string, searchShip?: string, pageNum?: number } = {}): Promise<InventoryRecord[]> => {
