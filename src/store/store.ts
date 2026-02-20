@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { DynamicIcdLayout } from '../utils/layoutUtils';
-import type { ContainerPosition, CfsContainer } from '../api';
+import type { DynamicIcdLayout } from '../components/scene/infrastructure/utils/layoutUtils';
+import type { ContainerPosition, CfsContainer } from '../features/yard-planning/types/containerTypes';
 
 export type ContainerEntity = ContainerPosition;
 
@@ -55,6 +55,7 @@ interface StoreState {
   cfsContainers: CfsContainer[]; // Containers in CFS area (no 3D position)
   customerByContainer: Record<string, string>; // Reverse lookup: container_nbr -> customer_name
   setEntitiesBatch: (updates: (Partial<ContainerEntity> & { id: string })[]) => void;
+  removeEntitiesBatch: (ids: string[]) => void; // [NEW]
   setCfsContainers: (containers: CfsContainer[]) => void;
   removeCfsContainer: (containerId: string) => void;
   patchPositions: (posUpdates: { id: string; x: number; y: number; z: number }[]) => void;
@@ -109,6 +110,19 @@ export const useStore = create<StoreState>((set) => ({
       entities[u.id] = { ...(entities[u.id] || { id: u.id, x: 0, y: 0, z: 0 }), ...u };
       ids.add(u.id);
     });
+    return { entities, ids: Array.from(ids) };
+  }),
+
+  // [NEW] Remove Specific Entities (For differential updates)
+  removeEntitiesBatch: (removeIds: string[]) => set((state) => {
+    const entities = { ...state.entities };
+    const ids = new Set(state.ids);
+
+    removeIds.forEach((id) => {
+      delete entities[id];
+      ids.delete(id);
+    });
+
     return { entities, ids: Array.from(ids) };
   }),
 

@@ -1,51 +1,55 @@
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
-import { MapControls, Environment as DreiEnvironment, ContactShadows } from '@react-three/drei';
-import { useRef, useState, useEffect } from 'react';
-import LayoutEnvironment from './components/layout/Environment';
-import LoadingScreen from './components/ui/animations/LoadingScreen';
-import LoginScreen from './components/ui/LoginScreen';
-import SubscriptionExpiredScreen from './components/ui/SubscriptionExpiredScreen';
-import ContainerDetailsPanel from './components/panels/details/ContainerDetailsPanel';
-import BlockDetailsPanel from './components/panels/details/BlockDetailsPanel';
-import CFSDetailsPanel from './components/panels/details/CFSDetailsPanel';
-import InvalidContainersPanel from './components/panels/details/InvalidContainersPanel';
-import ModernHeader from './components/ui/ModernHeader';
-import HoverInfoPanel from './components/ui/HoverInfoPanel';
-import { CameraTransition } from './components/camera/CameraTransition';
-import { useLayoutQuery, useContainersQuery } from './api';
-import { KeyboardNavigation } from './components/camera/KeyboardNavigation';
-import DynamicLayoutEngine from './components/layout/dynamic/DynamicLayoutEngine';
-import Fencing from './components/layout/Fencing';
-import Gates from './components/layout/Gates';
-import QuickActionsButton from './components/ui/QuickActionsButton';
-import IcdMarkings from './components/layout/IcdMarkings';
+import { MapControls, Environment as DreiEnvironment } from '@react-three/drei';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import LayoutEnvironment from './components/scene/core/Environment';
+import LoadingScreen from './components/ui/feedback/scene/SceneLoader';
+import ContainerDetailsPanel from './features/yard-planning/components/ContainerDetailsPanel';
+import BlockDetailsPanel from './features/yard-planning/components/BlockDetailsPanel';
+import CFSDetailsPanel from './features/yard-planning/components/CFSContainersPanel';
+import InvalidContainersPanel from './features/yard-planning/components/InvalidContainersPanel';
+import CustomerDetailsPanel from './features/yard-planning/components/CustomerDetailsPanel';
+import ModernHeader from './components/layout/ModernHeader';
+import HoverInfoPanel from './components/layout/HoverInfoPanel';
+import { CameraTransition } from './components/scene/core/CameraTransition';
+import { KeyboardNavigation } from './components/scene/core/KeyboardNavigation';
+import { CameraBounds } from './components/scene/core/CameraBounds';
+import DynamicLayoutEngine from './components/scene/infrastructure/dynamic/DynamicLayoutEngine';
+import Fencing from './components/scene/infrastructure/Fencing';
+import QuickActionsButton from './features/shared/components/QuickActionsButton';
 import { useUIStore } from './store/uiStore';
 import { useStore } from './store/store';
-import GateInPanel from './components/panels/actions/GateInPanel';
-import GateOutPanel from './components/panels/actions/GateOutPanel';
-import StuffingPanel from './components/panels/actions/StuffingPanel';
-import DestuffingPanel from './components/panels/actions/DestuffingPanel';
-import PlugInOutPanel from './components/panels/actions/PlugInOutPanel';
-import CFSTaskAssignmentPanel from './components/panels/actions/CFSTaskAssignmentPanel';
-import PositionContainerPanel from './components/panels/actions/PositionContainerPanel';
-import RestackContainersPanel from './components/panels/actions/RestackContainersPanel';
-import Dashboard from './components/ui/Dashboard';
-import { DashboardDrilldownModal } from './components/ui/DashboardDrilldownModal';
-import Containers from './components/layout/Containers';
-import CustomerInventoryPanel from './components/panels/actions/CustomerInventoryPanel';
-import { ReserveContainersPanelNew } from './components/panels/actions/ReserveContainersPanelNew';
-import ReleaseContainerPanel from './components/panels/actions/ReleaseContainerPanel';
-import SettingsPanel from './components/panels/settings/SettingsPanel'; // [NEW] Import
-import SwapConnectionLines from './components/layout/SwapConnectionLines';
-import RestackConnectionLine from './components/layout/RestackConnectionLine';
-import GhostContainer from './components/layout/GhostContainer';
-import ToastContainer from './components/ui/custom-components/Toast';
-import { EffectsWrapper } from './components/effects/EffectsWrapper';
-import ViewNavigationPanel from './components/ui/ViewNavigationPanel';
+import GateInPanel from './features/operations/components/GateInPanel';
+import GateOutPanel from './features/operations/components/GateOutPanel';
+import StuffingPanel from './features/operations/components/StuffingPanel';
+import DestuffingPanel from './features/operations/components/DestuffingPanel';
+import PlugInOutPanel from './features/operations/components/PlugInOutPanel';
+import CFSTaskAssignmentPanel from './features/operations/components/CFSTaskAssignmentPanel';
+import PositionContainerPanel from './features/yard-planning/components/PositionContainerPanel';
+import RestackContainersPanel from './features/yard-planning/components/RestackContainersPanel';
+import Dashboard from './features/dashboard/Dashboard';
+import { DashboardDrilldownModal } from './features/dashboard/components/fleet-intelligence/drilldowns/DashboardDrilldownModal';
+import Containers from './components/scene/objects/Containers';
+import { ReserveContainersPanelNew } from './features/yard-planning/components/ReserveContainersPanelNew';
+import ReleaseContainerPanel from './features/yard-planning/components/ReleaseContainerPanel';
+import SettingsPanel from './features/settings/components/SettingsPanel';
+import GhostContainer from './components/scene/objects/GhostContainer';
+import ToastContainer from './components/ui/feedback/common/Toast';
+import { EffectsWrapper } from './components/scene/effects/EffectsWrapper';
+import { Lighting } from './components/scene/core/Lighting';
+import ViewNavigationPanel from './features/yard-planning/components/ViewNavigationPanel';
 
-import { useAuthStore } from './store/authStore';
 import { useScreenAccess } from './hooks/useScreenAccess';
+import LoginScreen from './features/auth/components/LoginScreen';
+import IcdMarkings from './components/scene/infrastructure/IcdMarkings';
+import Gates from './components/scene/infrastructure/Gates';
+import RestackConnectionLine from './components/scene/effects/RestackConnectionLine';
+import SubscriptionExpiredScreen from './features/auth/components/SubscriptionExpiredScreen';
+import { InactivityManager } from './features/auth/components/InactivityManager';
+import CustomerInventoryPanel from './features/yard-planning/components/CustomerInventoryPanel';
+import { useLayoutQuery } from './components/scene/infrastructure/apis/layoutApi';
+import { useContainersQuery } from './features/yard-planning/apis/containerApi';
+import { useAuthStore } from './features/auth/store/authStore';
 
 const App = () => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -81,34 +85,26 @@ const App = () => {
   const dashboardSectionRef = useRef<HTMLElement>(null);
   const controlsRef = useRef<any>(null);
 
+  // Stable callback for Containers to preventing re-renders
+  const handleSceneReady = useCallback(() => {
+    setSceneReady(true);
+  }, []);
+
   const handleNavChange = (nav: string) => {
     setActiveNav(nav);
   };
 
-  // Prevent panning outside environment boundaries
-  const handleControlsChange = () => {
-    if (controlsRef.current) {
-      const target = controlsRef.current.target;
-
-      // Clamp target Y position to stay above ground (y = -1 is the yard base)
-      if (target.y < -1) {
-        target.y = -1;
-      }
-
-      // Clamp target X and Z positions to stay within expanded yard bounds
-      // Much larger bounds to allow free navigation across entire ICD
-      const minX = -900;
-      const maxX = 900;
-      const minZ = -900;
-      const maxZ = 900;
-
-      target.x = Math.max(minX, Math.min(maxX, target.x));
-      target.z = Math.max(minZ, Math.min(maxZ, target.z));
+  // Force enable controls when returning to 3D View (Fix for freeze issue)
+  useEffect(() => {
+    if (activeNav === '3D View' && controlsRef.current) {
+      console.log('[App] Force allowing controls');
+      controlsRef.current.enabled = true;
     }
+  }, [activeNav]);
 
-    // Dispatch event to notify about camera controls change
-    window.dispatchEvent(new CustomEvent('controlsChanged'));
-  };
+
+
+
 
   const isDataLoading = layoutLoading || containersLoading || !sceneReady;
   const [showLoadingScreen, setShowLoadingScreen] = useState(true);
@@ -116,11 +112,18 @@ const App = () => {
   const activePanel = useUIStore((state) => state.activePanel);
   const panelData = useUIStore((state) => state.panelData);
   const closePanel = useUIStore((state) => state.closePanel);
+  const isSyncing = useUIStore((state) => state.isSyncing); // [NEW] Sync State
 
   const selectId = useStore((state) => state.selectId);
   const selectedBlock = useStore((state) => state.selectedBlock);
   const setSelectId = useStore((state) => state.setSelectId);
   const setSelectedBlock = useStore((state) => state.setSelectedBlock);
+
+  // REMOVED: Post-Sync Control Reset
+  // This was causing a "fake" interaction start event because controls.update()
+  // fires 'change' events which might be interpreted as start of interaction.
+  // Since user hand't moved mouse, 'end' never fired.
+  // Removing this allows camera to stay where it is (better UX anyway).
 
   // Exclusive panel logic
   useEffect(() => {
@@ -140,6 +143,16 @@ const App = () => {
       closePanel();
     }
   }, [selectId, selectedBlock, closePanel]);
+
+  // [NEW] Reset loading state on logout
+  // This ensures that when the user logs back in, they see the loading screen
+  // instead of a black/empty 3D scene while it initializes.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setShowLoadingScreen(true);
+      setSceneReady(false);
+    }
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     // Authentication state is handled solely by the store
@@ -167,12 +180,12 @@ const App = () => {
     >
       {/* Modern Branding Header - Fixed Overlay */}
       {activePanel !== 'accessControl' && (
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000, height: 0 }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: activePanel === 'settings' ? 10005 : 1000, height: 0 }}>
           <ModernHeader
             activeNav={activeNav}
             onNavChange={handleNavChange}
             isSearchVisible={true}
-            isUIVisible={!showLoadingScreen}
+            isUIVisible={true}
             selectedIcdId={selectedIcdId}
             onIcdChange={setSelectedIcdId}
             onLogout={() => {
@@ -188,6 +201,7 @@ const App = () => {
 
       {/* Global Toast Notifications */}
       <ToastContainer />
+      <InactivityManager />
 
       {/* Sliding Viewport Container */}
       <div
@@ -205,66 +219,126 @@ const App = () => {
             width: '100%',
             height: '50%', // 50% of 200% = 100vh
             position: 'relative',
+            pointerEvents: isSyncing ? 'none' : 'auto', // CSS-BASED LOCKING (Safer than disabling controls)
           }}
         >
-          {/* Loading Screen */}
-          {showLoadingScreen &&
-            (
-              <LoadingScreen
-                isLoading={isDataLoading}
-                onComplete={() => setShowLoadingScreen(false)}
-              />
-            )}
+
+
+          {/* Sync Overlay - Premium Slate & Gold */}
+          {isSyncing && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              zIndex: 2000,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(17, 24, 39, 0.6)', // Darker slate overlay with transparency
+              backdropFilter: 'blur(8px)', // Glass effect
+              pointerEvents: 'all', // Block interactions
+              animation: 'fadeIn 0.3s ease-out'
+            }}>
+              {/* Premium Gold Spinner */}
+              <div style={{ position: 'relative', width: '64px', height: '64px', marginBottom: '24px' }}>
+                <svg style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  animation: 'spin 2s linear infinite',
+                }} viewBox="0 0 100 100">
+                  <defs>
+                    <linearGradient id="syncRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#F7CF9B" />
+                      <stop offset="100%" stopColor="#E5B070" stopOpacity="0.3" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="50" cy="50" r="46" fill="none" stroke="url(#syncRingGrad)" strokeWidth="3" strokeDasharray="70 220" strokeLinecap="round" />
+                </svg>
+
+                {/* Inner Logo Icon */}
+                <div style={{
+                  position: 'absolute',
+                  inset: '16px',
+                  borderRadius: '50%',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(255,255,255,0.03)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#F7CF9B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M2 17L12 22L22 17" stroke="#F7CF9B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
+                    <path d="M2 12L12 17L22 12" stroke="#F7CF9B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+                  </svg>
+                </div>
+              </div>
+
+              <span style={{
+                color: '#FFFFFF',
+                fontSize: '13px',
+                fontWeight: 600,
+                letterSpacing: '0.15em',
+                textTransform: 'uppercase',
+                textShadow: '0 2px 10px rgba(0,0,0,0.3)',
+                fontFamily: "'Inter', sans-serif",
+              }}>
+                Syncing New Data...
+              </span>
+
+              {/* Shimmer Line */}
+              <div style={{
+                marginTop: '12px',
+                height: '2px',
+                width: '120px',
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: '1px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, transparent, #F7CF9B, transparent)',
+                  animation: 'shimmer 1.5s infinite linear'
+                }} />
+              </div>
+
+              <style>{`
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+                 `}</style>
+            </div>
+          )}
 
           <Canvas
+            frameloop="always"
             style={{ width: '100%', height: '100%', display: 'block' }}
             camera={{ position: [0, 150, 300], fov: 45, near: 0.1, far: 5000 }} // Increased far clip
             shadows
             dpr={[1, 1.25]} // Reduced max DPR to save render buffer memory
             gl={{
-              toneMapping: THREE.ACESFilmicToneMapping,
-              toneMappingExposure: 1.6,
+              toneMapping: THREE.ACESFilmicToneMapping, // Cinenmatic Tone Mapping
+              toneMappingExposure: 1.2, // Slightly increased exposure for brightness
               antialias: true,
-              powerPreference: 'high-performance'
+              powerPreference: 'high-performance',
+              stencil: false,
+              depth: true
             }}
           >
             <color attach="background" args={['#BCE6FF']} />
-            <fog attach="fog" args={['#BCE6FF', 800, 4000]} /> {/* Clean yard, far horizon fog */}
+            <fog attach="fog" args={['#BCE6FF', 800, 4000]} /> {/* Match fog to background */}
 
-            {/* Professional Lighting Rig - High Key, Warm & Bright */}
-            <ambientLight intensity={1.0} color="#fffaf0" /> {/* Warm white, full fill */}
-            <hemisphereLight
-              intensity={0.9}
-              color="#b0e0e6" // Powder Blue sky
-              groundColor="#c3ebc3" // Light Green ground reflection
-              position={[0, 50, 0]}
-            />
-            <directionalLight
-              position={[100, 150, 50]} // Higher sun position for softer shadows
-              intensity={0.8} // Reduced for softer contrast
-              castShadow
-              shadow-mapSize={[1024, 1024]} // Optimized Shadow Map (1024)
-              shadow-camera-near={0.5}
-              shadow-camera-far={500}
-              shadow-camera-left={-200}
-              shadow-camera-right={200}
-              shadow-camera-top={200}
-              shadow-camera-bottom={-200}
-              shadow-bias={-0.0001}
-            />
+            {/* Centralized Studio Lighting */}
+            <Lighting />
 
-            {/* Cinematic Environment */}
+            {/* Cinematic Environment Map */}
             <DreiEnvironment preset="city" blur={0.8} background={false} />
-
-            <ContactShadows
-              position={[0, -0.01, 0]}
-              opacity={0.45}
-              scale={2000}
-              blur={2.0}
-              far={10}
-              resolution={512} // Optimized Contact Shadow Resolution
-              color="#000000"
-            />
 
             <EffectsWrapper>
               <LayoutEnvironment />
@@ -274,31 +348,35 @@ const App = () => {
               <Gates />
               <Containers
                 controlsRef={controlsRef}
-                onReady={() => setSceneReady(true)}
+                onReady={handleSceneReady}
               />
-              <SwapConnectionLines />
               <GhostContainer />
               <RestackConnectionLine />
             </EffectsWrapper>
 
             <CameraTransition isLoading={showLoadingScreen} controlsRef={controlsRef} />
             <KeyboardNavigation controlsRef={controlsRef} />
+            <CameraBounds controlsRef={controlsRef} />
 
             {/* MapControls for better large-scale navigation */}
             <MapControls
               ref={controlsRef}
               makeDefault
-              enabled={true}
+              // enabled={!isSyncing} <--- REMOVED: Caused state desync. Using pointer-events on wrapper instead.
               enableDamping={false}
-              screenSpacePanning={false}
-              minDistance={1}
+              screenSpacePanning={true} // Revert to screen space panning for "normal" feel
+              minDistance={0.1}
               maxDistance={1000}
               maxPolarAngle={Math.PI / 2 - 0.05}
               rotateSpeed={0.5}
               panSpeed={1}
               zoomSpeed={3}
               zoomToCursor={true}
-              onChange={handleControlsChange}
+              mouseButtons={{
+                LEFT: THREE.MOUSE.PAN,
+                MIDDLE: THREE.MOUSE.DOLLY,
+                RIGHT: THREE.MOUSE.ROTATE
+              }}
             />
           </Canvas>
 
@@ -317,18 +395,22 @@ const App = () => {
             background: '#F5F7F7',
             zIndex: 10,
             overflowY: 'auto',
-            overflowX: 'hidden'
+            overflowX: 'hidden',
+            pointerEvents: activeNav === 'Dashboard' ? 'auto' : 'none', // DISABLE interactions when hidden
+            visibility: activeNav === 'Dashboard' ? 'visible' : 'hidden', // HIDE from keyboard focus
+            transition: activeNav === 'Dashboard' ? 'visibility 0s' : 'visibility 0s linear 0.8s', // Delay hide to allow slide animation
           }}
         >
+
           <Dashboard />
         </section>
       </div>
 
-      {/* View Navigation Panel */}
-      {activeNav === '3D View' && !showLoadingScreen && activePanel !== 'accessControl' && <ViewNavigationPanel />}
+      {/* View Navigation Panel - Always Mounted (Hidden by CSS if needed, but we want it ready) */}
+      {activeNav === '3D View' && activePanel !== 'accessControl' && <ViewNavigationPanel />}
 
-      {/* Quick Actions Button */}
-      {activeNav === '3D View' && !showLoadingScreen && activePanel !== 'accessControl' && <QuickActionsButton />}
+      {/* Quick Actions Button - Always Mounted */}
+      {activeNav === '3D View' && activePanel !== 'accessControl' && <QuickActionsButton />}
 
       {/* Global Drilldown Modal - Portal powered */}
       <DashboardDrilldownModal />
@@ -339,6 +421,7 @@ const App = () => {
           <div style={{ pointerEvents: 'auto' }}>
             <ContainerDetailsPanel />
             <BlockDetailsPanel />
+            <CustomerDetailsPanel />
             <CFSDetailsPanel />
             <InvalidContainersPanel />
             <PositionContainerPanel isOpen={activePanel === 'position'} onClose={closePanel} />
@@ -363,6 +446,14 @@ const App = () => {
           </div>
         </div>
       </div>
+
+      {/* Loading Screen - ROOT LEVEL (Highest Z-Index) */}
+      {showLoadingScreen && (
+        <LoadingScreen
+          isLoading={isDataLoading}
+          onComplete={() => setShowLoadingScreen(false)}
+        />
+      )}
     </div>
   );
 }

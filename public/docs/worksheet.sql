@@ -1,4 +1,4 @@
-select URL, count(*) from apex_webservice_log where trunc(request_date) = trunc(sysdate-1) group by URL order by 2 desc;
+select count(*) from apex_webservice_log where trunc(request_date) = trunc(sysdate);
 
 
 select container_type,
@@ -129,5 +129,37 @@ select * from xxotm_container_inventory_t where container_nbr = 'MSNU7425389';
 
 
 
+select event_date,
+                   vehicle_xid,
+                   truck_daily_status,
+                   driver_xid,
+                   equipment
+              from xxotm_vehicle_history_t
+             where truck_daily_status is not null
+               and to_date(substr(
+               event_date,
+               1,
+               10
+            ),
+        'YYYY-MM-DD') between to_date(
+               '2026-02-01',
+               'YYYY-MM-DD') and to_date(
+               '2026-02-28',
+               'YYYY-MM-DD')
+             order by to_date(substr(
+               event_date,
+               1,
+               10
+            ),
+        'YYYY-MM-DD') desc,
+                      vehicle_xid;
 
 
+
+delete from xxotm_container_inventory_t where container_nbr = 'JANN1234574';
+commit;
+
+select * from xxotm_container_inventory_t where container_nbr = 'JANN1234574';
+
+insert into xxotm_container_inventory_t (container_nbr, cust_nbr, cust_name, inbound_order_nbr, inbound_shipment_nbr, position, container_type, booking_id, container_stored_time, shipment_name, order_type) values ('JANN1234574', 'C50', 'JAS FREIGHT FORWARDER', '20260102-0003-002', 'SH20260102-0039', 'TRS-A-3-D-1', '22RT', 'BKJAN0203', '2026-01-06T04:32:42Z', 'DESTUFFING', 'DESTUFFING');
+commit;

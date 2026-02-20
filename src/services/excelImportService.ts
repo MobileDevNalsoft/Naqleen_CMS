@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 
-import type { InventoryImportRow } from '../api/types/inventoryTypes';
+import type { InventoryImportRow } from '../features/yard-planning/types/inventoryTypes';
 
 export interface ExcelImportRow {
     // Define expected columns from Excel based on "Customer Inventory CSV.xlsx"

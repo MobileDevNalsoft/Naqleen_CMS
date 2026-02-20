@@ -1,6 +1,6 @@
 // Custom hook for screen-based access control
-import { useAuthStore } from '../store/authStore';
-import type { UserScreen } from '../api/types/authTypes';
+import { useAuthStore } from '../features/auth/store/authStore';
+import type { UserScreen } from '../features/auth/types/authTypes';
 
 // Define a stable empty array constant outside the hook to prevent infinite loops
 const EMPTY_SCREENS: UserScreen[] = [];
