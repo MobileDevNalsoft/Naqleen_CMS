@@ -18,6 +18,8 @@ interface DateFilterDropdownProps {
     onChange: (value: DateFilterValue) => void;
     title?: string;
     minDate?: string;  // Earliest selectable date (YYYY-MM-DD)
+    allowedPresets?: PresetType[]; // Optional subset of presets to display
+    maxDays?: number; // Optional restriction for maximum custom date range span
 }
 
 // Preset configurations
@@ -77,10 +79,13 @@ function getDisplayLabel(value: DateFilterValue): string {
     return 'Today';
 }
 
-export default function DateFilterDropdown({ value, onChange, title, minDate }: DateFilterDropdownProps) {
+export default function DateFilterDropdown({ value, onChange, title, minDate, allowedPresets, maxDays }: DateFilterDropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const activePresets = allowedPresets
+        ? PRESETS.filter(p => allowedPresets.includes(p.key))
+        : PRESETS;
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -168,7 +173,7 @@ export default function DateFilterDropdown({ value, onChange, title, minDate }: 
                     border: '1px solid rgba(0,0,0,0.05)'
                 }}>
                     {/* Preset Options */}
-                    {PRESETS.map(({ key, label }) => {
+                    {activePresets.map(({ key, label }) => {
                         const isSelected = value.type === 'preset' && value.preset === key;
                         return (
                             <button
@@ -257,6 +262,7 @@ export default function DateFilterDropdown({ value, onChange, title, minDate }: 
                     onApply={handleModalApply}
                     onCancel={() => setShowModal(false)}
                     minDate={minDate}
+                    maxDays={maxDays}
                 />
             )}
 

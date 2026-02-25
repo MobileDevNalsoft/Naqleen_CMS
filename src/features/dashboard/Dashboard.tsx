@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Truck, Users, Activity, TrendingUp } from 'lucide-react';
+import { Truck, Users, Activity, TrendingUp, Package } from 'lucide-react';
 import { getPresetDates, type DateFilterValue } from './components/fleet-intelligence/metrics/shared/DateFilterDropdown';
-import { getMetadata } from './apis/dashboardApi';
-import type { TrendViewMode, MetadataResponse } from './types/dashboardTypes';
+import { getMetadata, getOperationalMetrics } from './apis/dashboardApi';
+import type { TrendViewMode, MetadataResponse, OperationalMetricsResponse } from './types/dashboardTypes';
 import { theme } from '../../themes/theme';
 import MetricCard from './components/fleet-intelligence/MetricCard';
 import DriverUtilizationContent from './components/fleet-intelligence/metrics/content/DriverUtilizationContent';
 import FleetEfficiencyContent from './components/fleet-intelligence/metrics/content/FleetEfficiencyContent';
 import OperationalMetricsRow from './components/terminal-intelligence/metrics/OperationalMetricsRow';
+import ContainersByCustomerChart from './components/terminal-intelligence/charts/ContainersByCustomerChart';
+import ContainersByTypeChart from './components/terminal-intelligence/charts/ContainersByTypeChart';
+import TerminalTrendsSection from './components/terminal-intelligence/TerminalTrendsSection';
 import DriversTrendContent from './components/fleet-intelligence/trends/content/DriversTrendContent';
 import TrendsFilter from './components/fleet-intelligence/trends/shared/TrendsFilter';
 import TrucksTrendContent from './components/fleet-intelligence/trends/content/TrucksTrendContent';
@@ -53,10 +56,36 @@ export default function Dashboard() {
     // Metadata for min dates
     const [metadata, setMetadata] = useState<MetadataResponse | null>(null);
 
+    // Operational metrics (shared between chips + pie charts)
+    const [opMetrics, setOpMetrics] = useState<OperationalMetricsResponse['data'] | null>(null);
+    const [opLoading, setOpLoading] = useState(true);
+    const [opError, setOpError] = useState(false);
+
     // Fetch metadata on mount
     useEffect(() => {
         getMetadata().then(setMetadata).catch(console.error);
     }, []);
+
+    // Fetch operational metrics on mount
+    useEffect(() => {
+        setOpLoading(true);
+        setOpError(false);
+        getOperationalMetrics()
+            .then(response => {
+                if (response) {
+                    setOpMetrics(response);
+                } else {
+                    setOpError(true);
+                }
+            })
+            .catch((err) => {
+                console.error(err);
+                setOpError(true);
+            })
+            .finally(() => setOpLoading(false));
+    }, []);
+
+    const opState = opLoading ? 'loading' : opError ? 'error' : 'default' as const;
 
     // Get dates for each card
     const trucksDates = getDatesFromFilter(trucksFilter);
@@ -87,7 +116,45 @@ export default function Dashboard() {
             </div>
 
             {/* Terminal Intelligence Content */}
-            <OperationalMetricsRow />
+            <OperationalMetricsRow metrics={opMetrics} state={opState} />
+
+            {/* Pie Charts — 2-column grid */}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '24px',
+                width: '100%'
+            }}>
+                <MetricCard
+                    title="Containers by Customer"
+                    icon={Users}
+                    width="100%"
+                    contentPadding="24px 20px"
+                    action={null}
+                >
+                    <ContainersByCustomerChart
+                        data={opMetrics?.containers_by_customer}
+                        state={opState}
+                    />
+                </MetricCard>
+                <MetricCard
+                    title="Containers by Type"
+                    icon={Package}
+                    width="100%"
+                    contentPadding="24px 20px"
+                    action={null}
+                >
+                    <ContainersByTypeChart
+                        data={opMetrics?.containers_by_type}
+                        state={opState}
+                    />
+                </MetricCard>
+
+                {/* Terminal Transactions & Trends (Spans both columns to match width) */}
+                <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center' }}>
+                    <TerminalTrendsSection />
+                </div>
+            </div>
 
             {/* Fleet Intelligence Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', width: '100%' }}>

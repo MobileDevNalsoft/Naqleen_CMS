@@ -1,7 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Truck, LogOut, Package, Grid } from 'lucide-react';
+import { Truck, LogOut, Package, Grid, PackageX, Warehouse } from 'lucide-react';
 import OperationalMetricChip from './OperationalMetricChip';
-import { getOperationalMetrics } from '../../../apis/dashboardApi';
 import type { OperationalMetricsResponse } from '../../../types/dashboardTypes';
 import { theme } from '../../../../../themes/theme';
 
@@ -36,48 +34,40 @@ const METRIC_CONFIG = [
         icon: Grid,
         iconBgColor: `${theme.colors.purple}1a`,
         iconColor: theme.colors.purple
+    },
+    {
+        id: 'invalid_containers',
+        title: "Invalid Containers",
+        icon: PackageX,
+        iconBgColor: `rgba(196, 133, 26, 0.1)`, // Manually convert #c4851a to rgba so transparency works
+        iconColor: theme.colors.warning
+    },
+    {
+        id: 'cfs_containers',
+        title: "CFS Containers",
+        icon: Warehouse,
+        iconBgColor: '#6366f11a',
+        iconColor: '#6366F1'
     }
 ] as const;
 
-export default function OperationalMetricsRow() {
-    const [metrics, setMetrics] = useState<OperationalMetricsResponse['data'] | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<boolean>(false);
+interface OperationalMetricsRowProps {
+    metrics: OperationalMetricsResponse['data'] | null;
+    state: 'loading' | 'error' | 'default';
+}
 
-    useEffect(() => {
-        setLoading(true);
-        setError(false);
-        getOperationalMetrics()
-            .then(response => {
-                if (response) {
-                    setMetrics(response);
-                } else {
-                    setError(true);
-                }
-            })
-            .catch((err) => {
-                console.error(err);
-                setError(true);
-            })
-            .finally(() => {
-                setLoading(false);
-            });
-    }, []);
-
-    // Determine the state to pass to chips
-    const chipState = loading ? 'loading' : error ? 'error' : 'default';
-
+export default function OperationalMetricsRow({ metrics, state }: OperationalMetricsRowProps) {
     return (
         <div className={styles.container}>
             {METRIC_CONFIG.map((config) => (
                 <OperationalMetricChip
                     key={config.id}
                     title={config.title}
-                    count={metrics ? metrics[config.id as keyof typeof metrics] : 0}
+                    count={metrics ? (metrics[config.id as keyof typeof metrics] as number) : 0}
                     icon={config.icon}
                     iconBgColor={config.iconBgColor}
                     iconColor={config.iconColor}
-                    state={chipState}
+                    state={state}
                 />
             ))}
         </div>

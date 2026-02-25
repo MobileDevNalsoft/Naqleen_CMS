@@ -155,14 +155,25 @@ export async function getMetadata(): Promise<MetadataResponse | null> {
     return null;
 }
 
+export interface OperationalMetricsParams {
+    startDate?: string;
+    endDate?: string;
+    year?: string;
+    fetch_mode?: 'DAILY_TRANSACTIONS' | 'MONTHLY_TRANSACTIONS';
+}
+
 /**
  * Fetch operational metrics (Trucks in Yard, Awaiting Gate Out, etc.)
  * Uses mobile API endpoint
  */
-export async function getOperationalMetrics(): Promise<OperationalMetricsResponse['data'] | null> {
+export async function getOperationalMetrics(
+    params?: OperationalMetricsParams
+): Promise<OperationalMetricsResponse['data'] | null> {
     try {
+        const queryParams = { isWeb: 'Y', ...params };
         const response = await mobileApiClient.get<OperationalMetricsResponse>(
-            API_CONFIG.ENDPOINTS.GET_OPERATIONAL_METRICS
+            API_CONFIG.ENDPOINTS.GET_OPERATIONAL_METRICS,
+            { params: queryParams }
         );
 
         if (response.data.response_code === 200 && response.data.data) {

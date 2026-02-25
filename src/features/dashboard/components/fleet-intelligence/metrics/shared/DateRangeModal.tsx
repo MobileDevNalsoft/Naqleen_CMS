@@ -10,18 +10,20 @@ interface DateRangeModalProps {
     onCancel: () => void;
     title?: string;
     minDate?: string;  // Earliest selectable date (YYYY-MM-DD)
+    maxDays?: number;  // Maximum number of days allowed in custom range
 }
 
 const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
 
-export default function DateRangeModal({ initialStart, initialEnd, onApply, onCancel, title, minDate }: DateRangeModalProps) {
+export default function DateRangeModal({ initialStart, initialEnd, onApply, onCancel, title, minDate, maxDays }: DateRangeModalProps) {
     const [startDate, setStartDate] = useState(initialStart);
     const [endDate, setEndDate] = useState(initialEnd);
     const [viewDate, setViewDate] = useState(new Date(initialStart || new Date()));
     const [selectingStart, setSelectingStart] = useState(true);
     const [mounted, setMounted] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
 
     useEffect(() => {
         setMounted(true);
@@ -69,13 +71,32 @@ export default function DateRangeModal({ initialStart, initialEnd, onApply, onCa
             setStartDate(dateStr);
             setEndDate('');
             setSelectingStart(false);
+            setErrorMsg('');
         } else {
+            let actualStart = startDate;
+            let actualEnd = dateStr;
+
             if (dateStr < startDate) {
-                setStartDate(dateStr);
-                setEndDate(startDate);
-            } else {
-                setEndDate(dateStr);
+                actualStart = dateStr;
+                actualEnd = startDate;
             }
+
+            // Check max days constraint
+            if (maxDays && actualStart && actualEnd) {
+                const startObj = new Date(actualStart);
+                const endObj = new Date(actualEnd);
+                const diffTime = Math.abs(endObj.getTime() - startObj.getTime());
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // inclusive
+
+                if (diffDays > maxDays) {
+                    setErrorMsg(`Maximum range allowed is ${maxDays} days.`);
+                    return; // Reject selection
+                }
+            }
+
+            setStartDate(actualStart);
+            setEndDate(actualEnd);
+            setErrorMsg('');
             setSelectingStart(true);
         }
     };
@@ -279,47 +300,56 @@ export default function DateRangeModal({ initialStart, initialEnd, onApply, onCa
                 {/* Selected Range Display */}
                 <div style={{
                     display: 'flex',
-                    gap: '16px',
+                    flexDirection: 'column',
+                    gap: '12px',
                     padding: '20px 24px',
                     background: '#F8FAFC',
                     borderTop: '1px solid #E2E8F0'
                 }}>
-                    <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '12px', color: '#64748B', marginBottom: '6px' }}>Start Date</div>
-                        <div style={{
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            color: startDate ? '#1E293B' : '#94A3B8',
-                            padding: '10px 14px',
-                            background: selectingStart ? 'rgba(75, 104, 108, 0.1)' : '#FFFFFF',
-                            border: selectingStart ? '2px solid var(--primary-color, #4B686C)' : '1px solid #E2E8F0',
-                            borderRadius: '10px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease'
-                        }}
-                            onClick={() => setSelectingStart(true)}
-                        >
-                            {formatDisplay(startDate)}
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '12px', color: '#64748B', marginBottom: '6px' }}>Start Date</div>
+                            <div style={{
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                color: startDate ? '#1E293B' : '#94A3B8',
+                                padding: '10px 14px',
+                                background: selectingStart ? 'rgba(75, 104, 108, 0.1)' : '#FFFFFF',
+                                border: selectingStart ? '2px solid var(--primary-color, #4B686C)' : '1px solid #E2E8F0',
+                                borderRadius: '10px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease'
+                            }}
+                                onClick={() => setSelectingStart(true)}
+                            >
+                                {formatDisplay(startDate)}
+                            </div>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '12px', color: '#64748B', marginBottom: '6px' }}>End Date</div>
+                            <div style={{
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                color: endDate ? '#1E293B' : '#94A3B8',
+                                padding: '10px 14px',
+                                background: !selectingStart ? 'rgba(75, 104, 108, 0.1)' : '#FFFFFF',
+                                border: !selectingStart ? '2px solid var(--primary-color, #4B686C)' : '1px solid #E2E8F0',
+                                borderRadius: '10px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease'
+                            }}
+                                onClick={() => setSelectingStart(false)}
+                            >
+                                {formatDisplay(endDate)}
+                            </div>
                         </div>
                     </div>
-                    <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '12px', color: '#64748B', marginBottom: '6px' }}>End Date</div>
-                        <div style={{
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            color: endDate ? '#1E293B' : '#94A3B8',
-                            padding: '10px 14px',
-                            background: !selectingStart ? 'rgba(75, 104, 108, 0.1)' : '#FFFFFF',
-                            border: !selectingStart ? '2px solid var(--primary-color, #4B686C)' : '1px solid #E2E8F0',
-                            borderRadius: '10px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease'
-                        }}
-                            onClick={() => setSelectingStart(false)}
-                        >
-                            {formatDisplay(endDate)}
+
+                    {errorMsg && (
+                        <div style={{ color: '#EF4444', fontSize: '12px', fontWeight: 500 }}>
+                            {errorMsg}
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* Actions */}

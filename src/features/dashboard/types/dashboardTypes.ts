@@ -122,15 +122,48 @@ export interface MetadataResponse {
     driverMinDate: string | null;
 }
 
+/** Customer container breakdown item */
+export interface ContainerByCustomer {
+    customer_name: string;
+    count: number;
+}
+
+/** Container type breakdown item */
+export interface ContainerByType {
+    container_type: string;
+    count: number;
+}
+
+export interface DailyTransaction {
+    date: string;
+    stored_count: number;
+    released_count: number;
+}
+
+export interface MonthlyTransaction {
+    month: string;
+    stored_count: number;
+    released_count: number;
+}
+
 /** Operational Metrics Response (from mobile API) */
 export interface OperationalMetricsResponse {
     response_code: number;
     response_message: string;
     data: {
+        start_date_used?: string;
+        end_date_used?: string;
+        daily_transactions?: DailyTransaction[];
+        year_used?: string;
+        monthly_transactions?: MonthlyTransaction[];
         trucks_in_yard: number;
         gate_in_no_gate_out: number; // "Awaiting Gate Out"
         containers_in_terminal: number;
         empty_slots: number;
+        invalid_containers: number;
+        cfs_containers: number;
+        containers_by_customer: ContainerByCustomer[];
+        containers_by_type: ContainerByType[];
     };
 }
 
