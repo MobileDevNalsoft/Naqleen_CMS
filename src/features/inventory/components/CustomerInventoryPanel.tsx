@@ -21,9 +21,9 @@ import {
 } from 'lucide-react';
 import { useRef } from 'react';
 import Dropdown from '../../../components/ui/inputs/Dropdown';
-import { createInventory, createBulkInventory, fetchCustomerLookup, fetchShipmentLookup, fetchCustomerStock, type CustomerStockItem } from '../../yard-planning/apis/inventoryApi';
+import { createInventory, createBulkInventory, fetchCustomerLookup, fetchShipmentLookup, fetchCustomerStock, type CustomerStockItem, fetchShipmentInventory } from '../../yard-planning/apis/inventoryApi';
 import { parseInventoryExcel } from '../../../services/excelImportService';
-import type { InventoryRecord, InventoryItem, InventoryImportRow } from '../../yard-planning/types/inventoryTypes';
+import type { InventoryRecord, InventoryItem, InventoryImportRow, CFSShipment } from '../../yard-planning/types/inventoryTypes';
 
 interface CustomerInventoryPanelProps {
     isOpen: boolean;
@@ -35,9 +35,6 @@ interface CustomerInventoryPanelProps {
 // interface InventoryRecord ...
 
 // Imports for CFS History
-import { fetchShipmentInventory } from '../../../api/handlers/inventoryApi';
-import type { CFSShipment } from '../../../api/types/inventoryTypes';
-
 export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInventoryPanelProps) {
     const [activeTab, setActiveTab] = useState<'create' | 'view' | 'cfs_history'>('create');
     const [createMode, setCreateMode] = useState<'manual' | 'import'>('manual');
