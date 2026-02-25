@@ -78,6 +78,7 @@ export default function Fencing() {
 
     // Calculate Matrices
     useLayoutEffect(() => {
+        const isDammam = layout?.id === 'naqleen-dammam';
         const posts = postsRef.current;
         const panels = panelsRef.current;
         if (!posts || !panels) return;
@@ -125,7 +126,11 @@ export default function Fencing() {
                     const pz = p1.z + dz * t;
 
                     if (isWestEdge) {
-                        if ((pz > -50 && pz < -34) || (pz > -30 && pz < -14)) continue;
+                        if (isDammam) {
+                            if ((pz > -36 && pz < -20) || (pz > 22 && pz < 38)) continue;
+                        } else {
+                            if ((pz > -50 && pz < -34) || (pz > -30 && pz < -14)) continue;
+                        }
                     }
                     addPost(px, pz);
                 }
@@ -136,7 +141,10 @@ export default function Fencing() {
                     // Gate Splits
                     const minZ = Math.min(p1.z, p2.z);
                     const maxZ = Math.max(p1.z, p2.z);
-                    const gaps = [
+                    const gaps = isDammam ? [
+                        { start: -36, end: -20 },
+                        { start: 22, end: 38 }
+                    ].sort((a, b) => a.start - b.start) : [
                         { start: -50, end: -34 },
                         { start: -30, end: -14 }
                     ].sort((a, b) => a.start - b.start);
@@ -191,8 +199,14 @@ export default function Fencing() {
                     if (i > 0 && i < numVerticalPosts - 1) addPost(eastFenceX, z); // Avoid corners
 
                     // West (with gaps)
-                    if (!((z > -43 && z < -27) || (z > -13 && z < 3))) {
-                        addPost(westFenceX, z);
+                    if (isDammam) {
+                        if (!((z > -36 && z < -20) || (z > 22 && z < 38))) {
+                            addPost(westFenceX, z);
+                        }
+                    } else {
+                        if (!((z > -43 && z < -27) || (z > -13 && z < 3))) {
+                            addPost(westFenceX, z);
+                        }
                     }
                 }
             }
@@ -206,12 +220,23 @@ export default function Fencing() {
             addPanel(eastFenceX, 0, totalDepth, Math.PI / 2);
 
             // West (Split)
-            // Seg 1: Top (2.5 to southFenceZ)
-            addPanel(westFenceX, (2.5 + southFenceZ) / 2, southFenceZ - 2.5, Math.PI / 2);
-            // Seg 2: Middle (-27.9 to -12.5 -> length 15.4, center -20.2)
-            addPanel(westFenceX, -20.2, 15.4, Math.PI / 2);
-            // Seg 3: Bottom (northFenceZ to -42.9)
-            addPanel(westFenceX, (northFenceZ + -42.9) / 2, -42.9 - northFenceZ, Math.PI / 2);
+            if (isDammam) {
+                // Seg 1: Bottom (South edge up to z=38)
+                addPanel(westFenceX, (38 + southFenceZ) / 2, southFenceZ - 38, Math.PI / 2);
+                // Seg 2: Middle (22 to -20 -> length 42, center 1)
+                addPanel(westFenceX, 1, 42, Math.PI / 2);
+                // Seg 3: Top (North edge down to z=-36)
+                if (-36 > northFenceZ) {
+                    addPanel(westFenceX, (northFenceZ + -36) / 2, -36 - northFenceZ, Math.PI / 2);
+                }
+            } else {
+                // Seg 1: Top (2.5 to southFenceZ)
+                addPanel(westFenceX, (2.5 + southFenceZ) / 2, southFenceZ - 2.5, Math.PI / 2);
+                // Seg 2: Middle (-27.9 to -12.5 -> length 15.4, center -20.2)
+                addPanel(westFenceX, -20.2, 15.4, Math.PI / 2);
+                // Seg 3: Bottom (northFenceZ to -42.9)
+                addPanel(westFenceX, (northFenceZ + -42.9) / 2, -42.9 - northFenceZ, Math.PI / 2);
+            }
         }
 
         posts.instanceMatrix.needsUpdate = true;

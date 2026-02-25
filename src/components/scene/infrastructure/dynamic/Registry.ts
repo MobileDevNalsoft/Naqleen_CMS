@@ -6,7 +6,8 @@ import {
     RestingRoomWrapper,
     GeneratorRoomWrapper,
     TerminalDispatchOfficeWrapper,
-    TerminalOfficeWrapper
+    TerminalOfficeWrapper,
+    CabinOfficeWrapper
 } from './components/InfrastructureWrappers';
 
 // Silent component for entities handled by other systems (like IcdMarkings)
@@ -39,6 +40,7 @@ export const ComponentRegistry: Record<string, React.FC<any>> = {
     'generator_room': GeneratorRoomWrapper,
     'terminal_office': TerminalOfficeWrapper,
     'terminal_dispatch_office': TerminalDispatchOfficeWrapper,
+    'cabin_office': CabinOfficeWrapper,
 
     // Ignored Types (Handled separately but registered to silence warnings)
     'container_block_a': NullComponent,

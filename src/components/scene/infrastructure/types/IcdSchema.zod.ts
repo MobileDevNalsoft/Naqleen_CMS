@@ -133,6 +133,7 @@ export const SpecialtyBuildingEntitySchema = BaseEntitySchema.extend({
         'generator_room',
         'terminal_dispatch_office',
         'terminal_office',
+        'cabin_office',
     ]),
     props: BaseEntityPropsSchema.optional(),
 });

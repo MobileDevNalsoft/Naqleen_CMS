@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
 import { useStore } from '../../../store/store';
 import CityModel from '../surroundings/CityModel';
-import { ComponentRegistry } from '../infrastructure/dynamic/Registry';
+
 
 // --- Shared Geometries ---
 
@@ -151,26 +151,7 @@ export default function Environment() {
             {/* Surroundings Overhaul - City Model */}
             <CityModel />
 
-            {/* Specialty Buildings (Dynamic via Registry) */}
-            {layout?.entities.map((entity) => {
-                const [x, y, z] = [entity.position.x, entity.position.y, entity.position.z];
-                const rotation = entity.rotation || 0;
-
-                const Component = ComponentRegistry[entity.type];
-
-                if (Component) {
-                    return (
-                        <Component
-                            key={entity.id}
-                            {...entity}
-                            position={[x, y, z]}
-                            rotation={rotation}
-                        />
-                    );
-                }
-
-                return null;
-            })}
+            {/* Specialty Buildings are handled by DynamicLayoutEngine, removing duplicate loop */}
 
             <mesh
                 rotation={[-Math.PI / 2, 0, 0]}

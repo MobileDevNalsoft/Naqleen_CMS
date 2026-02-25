@@ -57,7 +57,7 @@ const App = () => {
   const { hasOnlyDashboard } = useScreenAccess();
   const isSubscriptionValid = useAuthStore(state => state.user?.isSubscriptionValid);
 
-  const [selectedIcdId, setSelectedIcdId] = useState('naqleen-jeddah');
+  const [selectedIcdId, setSelectedIcdId] = useState('naqleen-dammam');
   const { data: layout, isLoading: layoutLoading } = useLayoutQuery(selectedIcdId);
   const { isLoading: containersLoading } = useContainersQuery(layout || null);
   const [sceneReady, setSceneReady] = useState(false);
