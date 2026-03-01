@@ -7,8 +7,8 @@ export const API_CONFIG = {
         'Accept': 'application/json',
     },
     AUTH: {
-        BASIC_AUTH_USERNAME: 'ADMIN',
-        BASIC_AUTH_PASSWORD: 'otm@2025'
+        BASIC_AUTH_USERNAME: 'OTM.INTEGRATION',
+        BASIC_AUTH_PASSWORD: 'Naqleen@123'
     },
     ENDPOINTS: {
         // Inventory endpoints

@@ -46,7 +46,7 @@ import Gates from './components/scene/infrastructure/Gates';
 import RestackConnectionLine from './components/scene/effects/RestackConnectionLine';
 import SubscriptionExpiredScreen from './features/auth/components/SubscriptionExpiredScreen';
 import { InactivityManager } from './features/auth/components/InactivityManager';
-import CustomerInventoryPanel from './features/yard-planning/components/CustomerInventoryPanel';
+import CustomerInventoryPanel from './features/inventory/components/CustomerInventoryPanel';
 import { useLayoutQuery } from './components/scene/infrastructure/apis/layoutApi';
 import { useContainersQuery } from './features/yard-planning/apis/containerApi';
 import { useAuthStore } from './features/auth/store/authStore';

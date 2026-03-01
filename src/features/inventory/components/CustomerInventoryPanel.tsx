@@ -21,9 +21,9 @@ import {
 } from 'lucide-react';
 import { useRef } from 'react';
 import Dropdown from '../../../components/ui/inputs/Dropdown';
-import { createInventory, createBulkInventory, fetchCustomerLookup, fetchShipmentLookup, fetchCustomerStock, type CustomerStockItem } from '../../yard-planning/apis/inventoryApi';
+import { createInventory, createBulkInventory, fetchCustomerLookup, fetchShipmentLookup, fetchCustomerStock, type CustomerStockItem, fetchShipmentInventory } from '../../yard-planning/apis/inventoryApi';
 import { parseInventoryExcel } from '../../../services/excelImportService';
-import type { InventoryRecord, InventoryItem, InventoryImportRow } from '../../yard-planning/types/inventoryTypes';
+import type { InventoryRecord, InventoryItem, InventoryImportRow, CFSShipment } from '../../yard-planning/types/inventoryTypes';
 
 interface CustomerInventoryPanelProps {
     isOpen: boolean;
@@ -35,9 +35,6 @@ interface CustomerInventoryPanelProps {
 // interface InventoryRecord ...
 
 // Imports for CFS History
-import { fetchShipmentInventory } from '../../../api/handlers/inventoryApi';
-import type { CFSShipment } from '../../../api/types/inventoryTypes';
-
 export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInventoryPanelProps) {
     const [activeTab, setActiveTab] = useState<'create' | 'view' | 'cfs_history'>('create');
     const [createMode, setCreateMode] = useState<'manual' | 'import'>('manual');
@@ -267,34 +264,37 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
 
 
     // Load inventory on mount and tab change
-    // Effect to reset search when tab opens - triggers the debounce effect below because stockSearchTerm changes (or is set to empty)
-    // Load inventory on mount and tab change
-    // Effect to reset search when tab opens
     useEffect(() => {
         if (activeTab === 'view' && isOpen) {
-            handleStockSearch(viewCustomer, viewItemCode);
+            if (searchType === 'customer') {
+                handleStockSearch(viewCustomer, '');
+            } else {
+                handleStockSearch('', viewItemCode);
+            }
         }
-    }, [activeTab, isOpen]);
+    }, [activeTab, isOpen, searchType]);
 
     // specific debounce for item code search
     useEffect(() => {
+        if (activeTab !== 'view') return;
         if (searchType === 'item_code') {
             const timer = setTimeout(() => {
                 handleStockSearch('', viewItemCode);
             }, 200);
             return () => clearTimeout(timer);
         }
-    }, [viewItemCode, searchType]);
+    }, [viewItemCode, searchType, activeTab]);
 
     // specific debounce for customer search
     useEffect(() => {
+        if (activeTab !== 'view') return;
         if (searchType === 'customer') {
             const timer = setTimeout(() => {
                 handleStockSearch(viewCustomer, '');
             }, 200);
             return () => clearTimeout(timer);
         }
-    }, [viewCustomer, searchType]);
+    }, [viewCustomer, searchType, activeTab]);
 
 
 
@@ -316,8 +316,10 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
     // --- Stock Search Handler ---
     const handleStockSearch = async (custName: string, itemCode: string = '') => {
         setIsLoadingStock(true);
+        console.log("handleStockSearch triggering with:", { custName, itemCode });
         try {
             const data = await fetchCustomerStock(custName, itemCode);
+            console.log("handleStockSearch received data:", data);
             setCustomerStock(data);
 
             // Default expand all

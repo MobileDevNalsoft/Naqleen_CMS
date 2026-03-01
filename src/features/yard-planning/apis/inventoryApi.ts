@@ -262,18 +262,15 @@ export interface CustomerStockItem {
     weight_uom: string;
 }
 
-export const fetchCustomerStock = async (customerName?: string, itemCode?: string): Promise<CustomerStockItem[]> => {
+export const fetchCustomerStock = async (customerName: string = '', itemCode: string = ''): Promise<CustomerStockItem[]> => {
     try {
-        const params: any = {};
-        if (customerName) {
-            params.customerName = customerName;
-        }
-        if (itemCode) {
-            params.itemCode = itemCode;
-        }
-
         const response = await mobileApiClient.get<ApiResponse<CustomerStockItem[]>>('/getCustomerStock', {
-            params: params
+            params: {
+                // If the string is empty, we MUST omit it or pass null to prevent an Oracle PL/SQL 500 error
+                // The Oracle procedure requires missing parameters to fallback to default '' which acts as NULL
+                customerName: customerName || undefined,
+                itemCode: itemCode || undefined
+            }
         });
 
         if (response.data.response_code === 200 && response.data.data) {
