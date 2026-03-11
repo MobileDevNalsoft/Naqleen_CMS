@@ -33,9 +33,9 @@ export const HeaderIcdSelector: React.FC<HeaderIcdSelectorProps> = ({
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    // Auto-select first location if none selected (safety)
+    // Auto-select first valid location if none selected or current is not in the filtered list
     useEffect(() => {
-        if (locations.length > 0 && !selectedIcdId) {
+        if (locations.length > 0 && !locations.find(l => l.id === selectedIcdId)) {
             onIcdChange(locations[0].id);
         }
     }, [locations, selectedIcdId, onIcdChange]);
