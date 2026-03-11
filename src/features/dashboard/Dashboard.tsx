@@ -11,6 +11,7 @@ import OperationalMetricsRow from './components/terminal-intelligence/metrics/Op
 import ContainersByCustomerChart from './components/terminal-intelligence/charts/ContainersByCustomerChart';
 import ContainersByTypeChart from './components/terminal-intelligence/charts/ContainersByTypeChart';
 import TerminalTrendsSection from './components/terminal-intelligence/TerminalTrendsSection';
+import { useScreenAccess } from '../../hooks/useScreenAccess';
 import DriversTrendContent from './components/fleet-intelligence/trends/content/DriversTrendContent';
 import TrendsFilter from './components/fleet-intelligence/trends/shared/TrendsFilter';
 import TrucksTrendContent from './components/fleet-intelligence/trends/content/TrucksTrendContent';
@@ -44,6 +45,9 @@ function getDatesFromFilter(filter: DateFilterValue): { date?: string; startDate
 }
 
 export default function Dashboard() {
+    // Access Control
+    const { hasTerminalDashboard, hasFleetDashboard } = useScreenAccess();
+
     // Date filter states using new component
     const [trucksFilter, setTrucksFilter] = useState<DateFilterValue>(getDefaultFilter());
     const [driversFilter, setDriversFilter] = useState<DateFilterValue>(getDefaultFilter());
@@ -108,171 +112,180 @@ export default function Dashboard() {
             flexDirection: 'column',
             gap: '40px'
         }}>
-            {/* Terminal Intelligence Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', width: '100%' }}>
-                <div style={{ flex: 1, height: '2px', borderBottom: `2px dotted ${theme.colors.primary}`, opacity: 0.3 }} />
-                <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: theme.colors.primary }}>Terminal Intelligence</h2>
-                <div style={{ flex: 1, height: '2px', borderBottom: `2px dotted ${theme.colors.primary}`, opacity: 0.3 }} />
-            </div>
-
             {/* Terminal Intelligence Content */}
-            <OperationalMetricsRow metrics={opMetrics} state={opState} />
+            {hasTerminalDashboard && (
+                <>
+                    {/* Terminal Intelligence Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', width: '100%' }}>
+                        <div style={{ flex: 1, height: '2px', borderBottom: `2px dotted ${theme.colors.primary}`, opacity: 0.3 }} />
+                        <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: theme.colors.primary }}>Terminal Intelligence</h2>
+                        <div style={{ flex: 1, height: '2px', borderBottom: `2px dotted ${theme.colors.primary}`, opacity: 0.3 }} />
+                    </div>
 
-            {/* Pie Charts — 2-column grid */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '24px',
-                width: '100%'
-            }}>
-                <MetricCard
-                    title="Containers by Customer"
-                    icon={Users}
-                    width="100%"
-                    contentPadding="24px 20px"
-                    action={null}
-                >
-                    <ContainersByCustomerChart
-                        data={opMetrics?.containers_by_customer}
-                        state={opState}
-                    />
-                </MetricCard>
-                <MetricCard
-                    title="Containers by Type"
-                    icon={Package}
-                    width="100%"
-                    contentPadding="24px 20px"
-                    action={null}
-                >
-                    <ContainersByTypeChart
-                        data={opMetrics?.containers_by_type}
-                        state={opState}
-                    />
-                </MetricCard>
+                    <OperationalMetricsRow metrics={opMetrics} state={opState} />
 
-                {/* Terminal Transactions & Trends (Spans both columns to match width) */}
-                <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center' }}>
-                    <TerminalTrendsSection />
-                </div>
-            </div>
+                    {/* Pie Charts — 2-column grid */}
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: '24px',
+                        width: '100%'
+                    }}>
+                        <MetricCard
+                            title="Containers by Customer"
+                            icon={Users}
+                            width="100%"
+                            contentPadding="24px 20px"
+                            action={null}
+                        >
+                            <ContainersByCustomerChart
+                                data={opMetrics?.containers_by_customer}
+                                state={opState}
+                            />
+                        </MetricCard>
+                        <MetricCard
+                            title="Containers by Type"
+                            icon={Package}
+                            width="100%"
+                            contentPadding="24px 20px"
+                            action={null}
+                        >
+                            <ContainersByTypeChart
+                                data={opMetrics?.containers_by_type}
+                                state={opState}
+                            />
+                        </MetricCard>
 
-            {/* Fleet Intelligence Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', width: '100%' }}>
-                <div style={{ flex: 1, height: '2px', borderBottom: `2px dotted ${theme.colors.primary}`, opacity: 0.3 }} />
-                <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: theme.colors.primary }}>Fleet Intelligence</h2>
-                <div style={{ flex: 1, height: '2px', borderBottom: `2px dotted ${theme.colors.primary}`, opacity: 0.3 }} />
-            </div>
+                        {/* Terminal Transactions & Trends (Spans both columns to match width) */}
+                        <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center' }}>
+                            <TerminalTrendsSection />
+                        </div>
+                    </div>
+                </>
+            )}
 
-            {/* Top Row: Summary Cards */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-                gap: '24px',
-                width: '100%'
-            }}>
-                {/* Truck Summary Card */}
-                <MetricCard
-                    title="Truck Summary"
-                    icon={Truck}
-                    width="100%"
-                    action={
-                        <DateFilterDropdown
+            {/* Fleet Intelligence Content */}
+            {hasFleetDashboard && (
+                <>
+                    {/* Fleet Intelligence Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', width: '100%' }}>
+                        <div style={{ flex: 1, height: '2px', borderBottom: `2px dotted ${theme.colors.primary}`, opacity: 0.3 }} />
+                        <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: theme.colors.primary }}>Fleet Intelligence</h2>
+                        <div style={{ flex: 1, height: '2px', borderBottom: `2px dotted ${theme.colors.primary}`, opacity: 0.3 }} />
+                    </div>
+
+                    {/* Top Row: Summary Cards */}
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+                        gap: '24px',
+                        width: '100%'
+                    }}>
+                        {/* Truck Summary Card */}
+                        <MetricCard
                             title="Truck Summary"
-                            value={trucksFilter}
-                            onChange={setTrucksFilter}
-                            minDate={metadata?.vehicleMinDate || undefined}
-                        />
-                    }
-                >
-                    <TruckUtilizationContent
-                        date={trucksDates.date}
-                        startDate={trucksDates.startDate}
-                        endDate={trucksDates.endDate}
-                    />
-                </MetricCard>
+                            icon={Truck}
+                            width="100%"
+                            action={
+                                <DateFilterDropdown
+                                    title="Truck Summary"
+                                    value={trucksFilter}
+                                    onChange={setTrucksFilter}
+                                    minDate={metadata?.vehicleMinDate || undefined}
+                                />
+                            }
+                        >
+                            <TruckUtilizationContent
+                                date={trucksDates.date}
+                                startDate={trucksDates.startDate}
+                                endDate={trucksDates.endDate}
+                            />
+                        </MetricCard>
 
-                {/* Driver Summary Card */}
-                <MetricCard
-                    title="Drivers Summary"
-                    icon={Users}
-                    width="100%"
-                    action={
-                        <DateFilterDropdown
+                        {/* Driver Summary Card */}
+                        <MetricCard
                             title="Drivers Summary"
-                            value={driversFilter}
-                            onChange={setDriversFilter}
-                            minDate={metadata?.driverMinDate || undefined}
-                        />
-                    }
-                >
-                    <DriverUtilizationContent
-                        date={driversDates.date}
-                        startDate={driversDates.startDate}
-                        endDate={driversDates.endDate}
-                    />
-                </MetricCard>
+                            icon={Users}
+                            width="100%"
+                            action={
+                                <DateFilterDropdown
+                                    title="Drivers Summary"
+                                    value={driversFilter}
+                                    onChange={setDriversFilter}
+                                    minDate={metadata?.driverMinDate || undefined}
+                                />
+                            }
+                        >
+                            <DriverUtilizationContent
+                                date={driversDates.date}
+                                startDate={driversDates.startDate}
+                                endDate={driversDates.endDate}
+                            />
+                        </MetricCard>
 
-                {/* Fleet Efficiency Card */}
-                <MetricCard
-                    title="Fleet Efficiency"
-                    icon={Activity}
-                    width="100%"
-                    action={
-                        <DateFilterDropdown
+                        {/* Fleet Efficiency Card */}
+                        <MetricCard
                             title="Fleet Efficiency"
-                            value={efficiencyFilter}
-                            onChange={setEfficiencyFilter}
-                            minDate={efficiencyMinDate}
-                        />
-                    }
-                >
-                    <FleetEfficiencyContent
-                        date={efficiencyDates.date}
-                        startDate={efficiencyDates.startDate}
-                        endDate={efficiencyDates.endDate}
-                    />
-                </MetricCard>
-            </div>
+                            icon={Activity}
+                            width="100%"
+                            action={
+                                <DateFilterDropdown
+                                    title="Fleet Efficiency"
+                                    value={efficiencyFilter}
+                                    onChange={setEfficiencyFilter}
+                                    minDate={efficiencyMinDate}
+                                />
+                            }
+                        >
+                            <FleetEfficiencyContent
+                                date={efficiencyDates.date}
+                                startDate={efficiencyDates.startDate}
+                                endDate={efficiencyDates.endDate}
+                            />
+                        </MetricCard>
+                    </div>
 
-            {/* Bottom Row: Trend Charts - Full width, 2 columns */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '24px',
-                width: '100%'
-            }}>
-                {/* Trucks Trend */}
-                <MetricCard
-                    title="Trucks Trend"
-                    icon={TrendingUp}
-                    width="100%"
-                    contentPadding="32px 20px"
-                    action={
-                        <TrendsFilter
-                            viewMode={trucksTrendView}
-                            onViewModeChange={setTrucksTrendView}
-                        />
-                    }
-                >
-                    <TrucksTrendContent viewMode={trucksTrendView} />
-                </MetricCard>
+                    {/* Bottom Row: Trend Charts - Full width, 2 columns */}
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: '24px',
+                        width: '100%'
+                    }}>
+                        {/* Trucks Trend */}
+                        <MetricCard
+                            title="Trucks Trend"
+                            icon={TrendingUp}
+                            width="100%"
+                            contentPadding="32px 20px"
+                            action={
+                                <TrendsFilter
+                                    viewMode={trucksTrendView}
+                                    onViewModeChange={setTrucksTrendView}
+                                />
+                            }
+                        >
+                            <TrucksTrendContent viewMode={trucksTrendView} />
+                        </MetricCard>
 
-                {/* Drivers Trend */}
-                <MetricCard
-                    title="Drivers Trend"
-                    icon={TrendingUp}
-                    width="100%"
-                    contentPadding="32px 20px"
-                    action={
-                        <TrendsFilter
-                            viewMode={driversTrendView}
-                            onViewModeChange={setDriversTrendView}
-                        />
-                    }
-                >
-                    <DriversTrendContent viewMode={driversTrendView} />
-                </MetricCard>
-            </div>
+                        {/* Drivers Trend */}
+                        <MetricCard
+                            title="Drivers Trend"
+                            icon={TrendingUp}
+                            width="100%"
+                            contentPadding="32px 20px"
+                            action={
+                                <TrendsFilter
+                                    viewMode={driversTrendView}
+                                    onViewModeChange={setDriversTrendView}
+                                />
+                            }
+                        >
+                            <DriversTrendContent viewMode={driversTrendView} />
+                        </MetricCard>
+                    </div>
+                </>
+            )}
         </div>
     );
 }

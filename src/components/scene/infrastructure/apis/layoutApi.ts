@@ -44,7 +44,7 @@ export const useIcdsQuery = () => {
     });
 };
 
-export const useLayoutQuery = (icdId: string = 'naqleen-jeddah') => {
+export const useLayoutQuery = (icdId: string = 'naqleen-dammam') => {
     const setLayout = useStore((state) => state.setLayout);
 
     const query = useQuery({

@@ -28,16 +28,23 @@ export async function loginUser(credentials: LoginCredentials): Promise<LoginRes
             // Ensure screens array exists (default to empty if missing)
             const screens: UserScreen[] = user.screens || [];
 
-            // Path-Based Access Check - Must have /3d-view OR /dashboards
+            // Path-Based Access Check - Must have /3d-view OR any /dashboards path
             const hasViewAccess = screens.some(
                 (s: UserScreen) =>
-                    s.is_active && (s.screen_path === '/3d-view' || s.screen_path === '/dashboards')
+                    s.is_active && (s.screen_path === '/3d-view' || s.screen_path.startsWith('/dashboards'))
             );
+
+            if (!user.accessible_locations || user.accessible_locations.length === 0) {
+                return {
+                    success: false,
+                    message: 'Access Denied: You do not have access to any locations.'
+                };
+            }
 
             if (!hasViewAccess) {
                 return {
                     success: false,
-                    message: 'Access Denied: You do not have access to any views. Please contact support.'
+                    message: 'Access Denied: You do not have access to any views.'
                 };
             }
 

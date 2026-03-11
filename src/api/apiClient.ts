@@ -3,7 +3,9 @@ import type { AxiosInstance } from 'axios';
 import { API_CONFIG } from './apiConfig';
 
 /**
- * Creates an Axios instance with common configuration
+ * Creates an Axios instance with common configuration.
+ * The request interceptor automatically injects `userId` (from the logged-in
+ * user's session) as a query param on every outgoing request.
  */
 const createApiClient = (baseURL: string): AxiosInstance => {
     const client = axios.create({
@@ -16,29 +18,41 @@ const createApiClient = (baseURL: string): AxiosInstance => {
         }
     });
 
-    // Request interceptor
+    // Request interceptor — subscription guard + userId injection
     client.interceptors.request.use(
         (config) => {
-            // [NEW] Subscription Check
-            // Circular import: safely import store dynamically or access via window if absolutely needed,
-            // but standard pattern is importing the store directly.
-            // Note: We need to handle potential circular dependency if authStore imports apiClient.
-            // Ideally, authStore imports handlers, not the client instance directly for logic, 
-            // but handlers import client. This is standard and usually fine in Zustand.
-
-            // However, to be safe and avoid "cannot access before initialization":
-            const user = localStorage.getItem('auth-storage')
-                ? JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.user
+            // Read auth state from sessionStorage (persisted by authStore)
+            const authRaw = sessionStorage.getItem('auth-storage');
+            const user = authRaw
+                ? JSON.parse(authRaw)?.state?.user
                 : null;
 
+            // Block requests if subscription has expired
             if (user && user.isSubscriptionValid === false) {
-                // Block request
                 const controller = new AbortController();
                 config.signal = controller.signal;
                 controller.abort('Subscription Expired');
-
-                // Alternatively throw error immediately
                 throw new axios.Cancel('Subscription Expired');
+            }
+
+            // Inject userId into every request as a query param
+            if (user?.user_id) {
+                config.params = {
+                    ...(config.params || {}),
+                    userId: user.user_id,
+                };
+            }
+
+            // Inject req_location_id into every request as a query param
+            const currentLocation = authRaw
+                ? JSON.parse(authRaw)?.state?.currentLocation
+                : null;
+
+            if (currentLocation?.id) {
+                config.params = {
+                    ...(config.params || {}),
+                    req_location_id: currentLocation.id,
+                };
             }
 
             console.log(`[API Request] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
@@ -79,4 +93,3 @@ export const mobileApiClient = createApiClient(API_CONFIG.MOBILE_BASE_URL);
 
 // Default export for backward compatibility
 export default webApiClient;
-

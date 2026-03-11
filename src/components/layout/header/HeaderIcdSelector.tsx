@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MapPin, ChevronDown, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuthStore } from '../../../features/auth/store/authStore';
 import { useIcdsQuery } from '../../scene/infrastructure/apis/layoutApi';
 
 interface HeaderIcdSelectorProps {
@@ -18,18 +19,26 @@ export const HeaderIcdSelector: React.FC<HeaderIcdSelectorProps> = ({
     isSettings,
     isDashboard
 }) => {
-    const { data: icds, isLoading } = useIcdsQuery();
+    const user = useAuthStore((state) => state.user);
+    const { data: availableIcds } = useIcdsQuery();
+
+    // Only show locations that have a matching layout in dynamic_icds.json
+    const availableIcdIds = new Set((availableIcds || []).map(icd => icd.id));
+    const toIcdId = (name: string) => `naqleen-${name.toLowerCase().replace(/\s+/g, '-')}`;
+    const locations = (user?.accessible_locations || []).filter(
+        loc => availableIcdIds.has(toIcdId(loc.name))
+    );
+    const currentLocation = locations.find(t => t.id === selectedIcdId);
+
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const currentIcd = icds?.find(t => t.id === selectedIcdId);
-
-    // Auto-select first ICD if none selected (safety)
+    // Auto-select first location if none selected (safety)
     useEffect(() => {
-        if (icds && icds.length > 0 && !selectedIcdId) {
-            onIcdChange(icds[0].id);
+        if (locations.length > 0 && !selectedIcdId) {
+            onIcdChange(locations[0].id);
         }
-    }, [icds, selectedIcdId, onIcdChange]);
+    }, [locations, selectedIcdId, onIcdChange]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -83,7 +92,7 @@ export const HeaderIcdSelector: React.FC<HeaderIcdSelectorProps> = ({
                 >
                     <MapPin size={16} color="var(--secondary-color)" />
                     <div style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
-                        {isLoading ? 'Loading...' : currentIcd?.name || 'Select Icd'}
+                        {currentLocation?.name || 'Select Location'}
                     </div>
                     <ChevronDown
                         size={16}
@@ -96,7 +105,7 @@ export const HeaderIcdSelector: React.FC<HeaderIcdSelectorProps> = ({
 
                 {/* Dropdown Menu */}
                 <AnimatePresence>
-                    {isDropdownOpen && icds && (
+                    {isDropdownOpen && locations.length > 0 && (
                         <motion.div
                             initial={{ opacity: 0, y: -8, scaleY: 0.95 }}
                             animate={{ opacity: 1, y: 0, scaleY: 1 }}
@@ -117,24 +126,24 @@ export const HeaderIcdSelector: React.FC<HeaderIcdSelectorProps> = ({
                                 transformOrigin: 'top',
                             }}
                         >
-                            {icds.map((icd) => (
+                            {locations.map((loc) => (
                                 <div
-                                    key={icd.id}
-                                    onClick={() => handleIcdSelect(icd.id)}
+                                    key={loc.id}
+                                    onClick={() => handleIcdSelect(loc.id)}
                                     style={{
                                         padding: '12px 16px',
                                         cursor: 'pointer',
-                                        background: icd.id === selectedIcdId ? 'rgba(247, 207, 155, 0.1)' : 'transparent',
-                                        borderLeft: icd.id === selectedIcdId ? '3px solid var(--secondary-color)' : '3px solid transparent',
+                                        background: loc.id === selectedIcdId ? 'rgba(247, 207, 155, 0.1)' : 'transparent',
+                                        borderLeft: loc.id === selectedIcdId ? '3px solid var(--secondary-color)' : '3px solid transparent',
                                         transition: 'all 0.2s',
                                     }}
                                     onMouseEnter={e => {
-                                        if (icd.id !== selectedIcdId) {
+                                        if (loc.id !== selectedIcdId) {
                                             e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
                                         }
                                     }}
                                     onMouseLeave={e => {
-                                        if (icd.id !== selectedIcdId) {
+                                        if (loc.id !== selectedIcdId) {
                                             e.currentTarget.style.background = 'transparent';
                                         }
                                     }}
@@ -145,17 +154,7 @@ export const HeaderIcdSelector: React.FC<HeaderIcdSelectorProps> = ({
                                         color: 'white',
                                         marginBottom: '4px'
                                     }}>
-                                        {icd.name}
-                                    </div>
-                                    <div style={{
-                                        fontSize: '12px',
-                                        color: 'rgba(255, 255, 255, 0.6)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
-                                    }}>
-                                        <MapPin size={12} />
-                                        {icd.location}
+                                        {loc.name}
                                     </div>
                                 </div>
                             ))}

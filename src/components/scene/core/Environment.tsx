@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
 import { useStore } from '../../../store/store';
 import CityModel from '../surroundings/CityModel';
-import { ComponentRegistry } from '../infrastructure/dynamic/Registry';
+import DammamCityModel from '../surroundings/DammamCityModel';
+
 
 // --- Shared Geometries ---
 
@@ -134,7 +135,7 @@ export default function Environment() {
             <mesh
                 ref={terrainRef}
                 rotation={[-Math.PI / 2, 0, 0]}
-                position={[0, -10.0, 0]} // Deeply lowered to guarantee NO Z-fighting with ICD base (Horizon only)
+                position={[0, -3, 0]} // Pushed deeper to increase Y gap vs yard base
                 receiveShadow
             >
                 {/* Optimized Ground Plane: 1x1 segments since it is flat. 
@@ -149,32 +150,14 @@ export default function Environment() {
             </mesh>
 
             {/* Surroundings Overhaul - City Model */}
-            <CityModel />
+            {layout?.id === 'naqleen-jeddah' && <CityModel />}
+            {layout?.id === 'naqleen-dammam' && <DammamCityModel />}
 
-            {/* Specialty Buildings (Dynamic via Registry) */}
-            {layout?.entities.map((entity) => {
-                const [x, y, z] = [entity.position.x, entity.position.y, entity.position.z];
-                const rotation = entity.rotation || 0;
-
-                const Component = ComponentRegistry[entity.type];
-
-                if (Component) {
-                    return (
-                        <Component
-                            key={entity.id}
-                            {...entity}
-                            position={[x, y, z]}
-                            rotation={rotation}
-                        />
-                    );
-                }
-
-                return null;
-            })}
+            {/* Specialty Buildings are handled by DynamicLayoutEngine, removing duplicate loop */}
 
             <mesh
                 rotation={[-Math.PI / 2, 0, 0]}
-                position={[0, -0.4, 0]}
+                position={[0, -0.05, 0]} // Safely pulled back under 0 so objects don't clip through
                 receiveShadow
                 onPointerDown={handlePointerDown}
                 onClick={(e) => {
@@ -196,31 +179,32 @@ export default function Environment() {
                     color="#1e2730" // Reverted to Deep Slate for contrast
                     roughness={0.8}
                     metalness={0.05}
+                    {...(layout?.id === 'naqleen-dammam' ? { polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 4 } : {})}
                 />
             </mesh>
 
             <group visible={false}>
                 {yardGeometries && yardBounds.cornerPoints ? (
                     <Line
-                        points={[...yardBounds.cornerPoints.map(pt => [pt.x, -0.3, pt.z] as [number, number, number]), [yardBounds.cornerPoints[0].x, -0.3, yardBounds.cornerPoints[0].z]]}
+                        points={[...yardBounds.cornerPoints.map(pt => [pt.x, 0.0, pt.z] as [number, number, number]), [yardBounds.cornerPoints[0].x, 0.0, yardBounds.cornerPoints[0].z]]}
                         color="#F7CF9B"
                         lineWidth={3}
                     />
                 ) : (
                     <>
-                        <mesh position={[0, -0.35, yardBounds.minZ]} rotation={[-Math.PI / 2, 0, 0]}>
+                        <mesh position={[0, 0, yardBounds.minZ]} rotation={[-Math.PI / 2, 0, 0]}>
                             <planeGeometry args={[yardBounds.width, 0.5]} />
                             <meshBasicMaterial color="#F7CF9B" />
                         </mesh>
-                        <mesh position={[0, -0.35, yardBounds.maxZ]} rotation={[-Math.PI / 2, 0, 0]}>
+                        <mesh position={[0, 0, yardBounds.maxZ]} rotation={[-Math.PI / 2, 0, 0]}>
                             <planeGeometry args={[yardBounds.width, 0.5]} />
                             <meshBasicMaterial color="#F7CF9B" />
                         </mesh>
-                        <mesh position={[yardBounds.minX, -0.35, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                        <mesh position={[yardBounds.minX, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
                             <planeGeometry args={[0.5, yardBounds.height]} />
                             <meshBasicMaterial color="#F7CF9B" />
                         </mesh>
-                        <mesh position={[yardBounds.maxX, -0.35, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                        <mesh position={[yardBounds.maxX, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
                             <planeGeometry args={[0.5, yardBounds.height]} />
                             <meshBasicMaterial color="#F7CF9B" />
                         </mesh>

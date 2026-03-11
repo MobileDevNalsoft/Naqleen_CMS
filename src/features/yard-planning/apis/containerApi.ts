@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useStore } from '../../../store/store';
 import { useUIStore } from '../../../store/uiStore';
+import { useAuthStore } from '../../auth/store/authStore';
 import { useEffect, useRef } from 'react';
 import type { DynamicIcdLayout } from '../../../components/scene/infrastructure/utils/layoutUtils';
 import apiClient from '../../../api/apiClient';
@@ -40,9 +41,17 @@ let lastProcessedResult: GetContainersResponse | null = null;
  * Uses marking positions for O(1) position lookup
  * [OPTIMIZED] Caches result if raw API response is identical to avoid re-renders
  */
-export async function getContainers(): Promise<GetContainersResponse> {
+export async function getContainers(layoutId?: string): Promise<GetContainersResponse> {
+    // Derive locationId from the passed layoutId (avoids race condition with store)
+    const locationId = layoutId
+        ? API_CONFIG.LOCATION_IDS[layoutId]
+        : undefined;
+
     // Fetch from ORDS API (returns grouped structure)
-    const response = await apiClient.get<ApiResponse<CustomerContainerGroup[]>>(API_CONFIG.ENDPOINTS.GET_CONTAINERS);
+    const response = await apiClient.get<ApiResponse<CustomerContainerGroup[]>>(
+        API_CONFIG.ENDPOINTS.GET_CONTAINERS,
+        { params: { ...(locationId !== undefined && { locationId }) } }
+    );
     const apiResponse = response.data;
 
     // Validate response structure
@@ -51,17 +60,23 @@ export async function getContainers(): Promise<GetContainersResponse> {
         return { positions: [], cfsContainers: [], customerByContainer: {} };
     }
 
-    // 1. FAST CHECK: Compare Raw Data Hash (Stringify is fast enough for ~1MB JSON < 5ms)
+    // Get marking positions from store for O(1) lookup
+    const markingPositions = useStore.getState().markingPositions;
+    const markingPositionsCount = Object.keys(markingPositions).length;
+
+    // 1. FAST CHECK: Compare Raw Data Hash + Marking Positions Count
     // This prevents the expensive mapping loop AND returns the SAME object reference
     // so React Query's structural equality check passes instantly.
-    const currentHash = JSON.stringify(apiResponse.data);
+    // If marking positions change (e.g. initial load where API finishes before 3D scene), 
+    // we MUST re-evaluate so we append the count to the hash.
+    const currentHash = JSON.stringify(apiResponse.data) + `_mp_${markingPositionsCount}`;
 
     // Count total containers for accurate logging
     const totalContainers = apiResponse.data.reduce((acc, group) => acc + (group.containers?.length || 0), 0);
     console.log(`[getContainers] Fetched ${apiResponse.data.length} groups containing ${totalContainers} total containers.`);
 
     if (currentHash === lastRawDataHash && lastProcessedResult) {
-        console.log('[getContainers] Data identical (Hash Match), returning cached result');
+        // console.log('[getContainers] Data identical (Hash Match), returning cached result');
         return lastProcessedResult;
     }
 
@@ -95,9 +110,6 @@ export async function getContainers(): Promise<GetContainersResponse> {
         });
     });
 
-    // Get marking positions from store for O(1) lookup
-    const markingPositions = useStore.getState().markingPositions;
-
     // Build container positions using marking positions
     const positions = yardContainers.map(({ container, position }) => {
         // Position format: "TRS-A-2-D-1" = markingKey + level
@@ -126,7 +138,15 @@ export async function getContainers(): Promise<GetContainersResponse> {
         const block = keyParts[1] || '';
         const lot = parseInt(keyParts[2], 10) || 1;
         const row = keyParts[3] || 'A';
-        const blockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
+
+        // Fix Dammam blockId format. Jeddah IDs: "trm_block_a". Dammam IDs: "block_a".
+        let blockId = '';
+        if (terminal.toUpperCase() === 'TRD') {
+            blockId = `block_${block.toLowerCase()}`;
+        } else {
+            blockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
+        }
+
 
         return {
             id: container.container_nbr,
@@ -178,7 +198,7 @@ export async function getContainerDetails(containerNbr: string): Promise<Contain
 
 // --- Hooks ---
 
-export const useContainersQuery = (layout: DynamicIcdLayout | null) => {
+export const useContainersQuery = (layout: DynamicIcdLayout | null, isPaused = false) => {
     // Store actions
     const removeEntitiesBatch = useStore((state) => state.removeEntitiesBatch);
     const setEntitiesBatch = useStore((state) => state.setEntitiesBatch);
@@ -189,21 +209,23 @@ export const useContainersQuery = (layout: DynamicIcdLayout | null) => {
     const setSyncing = useUIStore((state) => state.setSyncing);
     const addNotification = useUIStore((state) => state.addNotification);
     const is3dInteracting = useUIStore((state) => state.is3dInteracting);
+    const activeNav = useUIStore((state) => state.activeNav);
 
     // [NEW] Track initial load
     const isFirstLoad = useRef(true);
 
-    // Query depends on layout being loaded and marking positions being populated
-    const markingPositions = useStore((state) => state.markingPositions);
-    const hasMarkingPositions = Object.keys(markingPositions).length > 0;
+    // Subscribed to trigger re-render when positions change (value is consumed inside getContainers via getState)
+    void useStore((state) => state.markingPositions);
+
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
     const query = useQuery({
-        queryKey: ['containers', layout?.name || 'no-layout', hasMarkingPositions],
+        queryKey: ['containers', layout?.id || 'no-layout'], // Use id (stable) — no marking-position gate
         queryFn: async () => {
-            if (!layout || !hasMarkingPositions) return { positions: [], cfsContainers: [], customerByContainer: {} };
-            return getContainers();
+            if (!layout) return { positions: [], cfsContainers: [], customerByContainer: {} };
+            return getContainers(layout.id); // Always call; positions computed from store at exec time
         },
-        enabled: !!layout && hasMarkingPositions,
+        enabled: isAuthenticated && !isPaused && !!layout && activeNav === '3D View',  // Pause during location switch; resume only after new layout is ready
         staleTime: 5000,
         refetchInterval: 5000, // [CHANGED] 5 Second Polling
         refetchIntervalInBackground: true,

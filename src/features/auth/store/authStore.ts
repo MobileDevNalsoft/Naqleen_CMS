@@ -2,18 +2,20 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { API_CONFIG } from '../../../api';
 import { loginUser } from '../apis/authApi';
-import type { User, LoginCredentials } from '../types/authTypes';
+import type { User, LoginCredentials, Location } from '../types/authTypes';
 
 interface AuthState {
     user: User | null;
     isAuthenticated: boolean;
     isLoading: boolean;
     error: string | null;
+    currentLocation: Location | null;
 
     // Actions
     login: (credentials: LoginCredentials) => Promise<boolean>;
     logout: () => void;
     updateUser: (user: User) => void;
+    setLocation: (location: Location) => void;
     validateSubscription: () => Promise<void>;
 }
 
@@ -24,6 +26,7 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             isLoading: false,
             error: null,
+            currentLocation: null,
 
             login: async (credentials) => {
                 set({ isLoading: true, error: null });
@@ -31,9 +34,14 @@ export const useAuthStore = create<AuthState>()(
                     const response = await loginUser(credentials);
 
                     if (response.success && response.user) {
+                        const defaultLocation = response.user.accessible_locations?.length
+                            ? response.user.accessible_locations[0]
+                            : null;
+
                         set({
                             isAuthenticated: true,
                             user: response.user,
+                            currentLocation: defaultLocation,
                             isLoading: false,
                             error: null
                         });
@@ -59,12 +67,15 @@ export const useAuthStore = create<AuthState>()(
             },
 
             logout: () => {
-                set({ user: null, isAuthenticated: false, error: null });
+                set({ user: null, currentLocation: null, isAuthenticated: false, error: null });
                 // Optional: Clear storage/cookies if needed
             },
 
             updateUser: (user) => {
                 set({ user });
+            },
+            setLocation: (location) => {
+                set({ currentLocation: location });
             },
             validateSubscription: async () => {
                 const user = get().user;
@@ -107,8 +118,9 @@ export const useAuthStore = create<AuthState>()(
             storage: createJSONStorage(() => sessionStorage), // Use sessionStorage for tab-close logout
             partialize: (state) => ({
                 user: state.user,
+                currentLocation: state.currentLocation,
                 isAuthenticated: state.isAuthenticated
-            }), // Only persist user and auth status
+            }), // Only persist user, location, and auth status
         }
     )
 );

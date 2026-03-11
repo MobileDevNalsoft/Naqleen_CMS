@@ -26,9 +26,14 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
     // Track selection change time to prevent spring-back from overwriting initial animation
     const lastSelectionChangeTime = useRef<number>(0);
 
-    // Target positions
-    const standardPos = new THREE.Vector3(0, 250, 500);
-    const topViewPos = new THREE.Vector3(0, 465, 1);
+    // Target positions — Dammam is much smaller so use closer defaults
+    const isDammamLayout = layout?.id === 'naqleen-dammam';
+    const standardPos = isDammamLayout
+        ? new THREE.Vector3(0, 120, 200)   // Closer for Dammam
+        : new THREE.Vector3(0, 250, 500);  // Wide for Jeddah
+    const topViewPos = isDammamLayout
+        ? new THREE.Vector3(0, 200, 1)     // Closer top for Dammam
+        : new THREE.Vector3(0, 465, 1);    // Wide top for Jeddah
     const center = new THREE.Vector3(0, 0, 0);
     const startPos = new THREE.Vector3(0, 500, 10);
 
@@ -215,8 +220,15 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
                         block.position.z
                     );
 
-                    const cameraOffset = new THREE.Vector3(-25, 120, 160);
-                    const viewShiftOffset = new THREE.Vector3(40, 16, 0);
+                    // Dynamic Camera Zoom based on Layout Size
+                    const isDammam = layout.id === 'naqleen-dammam';
+                    const cameraOffset = isDammam
+                        ? new THREE.Vector3(-10, 70, 100) // Slightly back for Dammam block view
+                        : new THREE.Vector3(-25, 120, 160); // Wide zoom for massive Jeddah layout
+
+                    const viewShiftOffset = isDammam
+                        ? new THREE.Vector3(20, 8, 0)
+                        : new THREE.Vector3(40, 16, 0);
 
                     const targetLookAt = blockCenter.clone().add(viewShiftOffset);
                     const targetPos = targetLookAt.clone().add(cameraOffset);

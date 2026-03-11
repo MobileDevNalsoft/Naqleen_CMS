@@ -167,18 +167,50 @@ export default function Gates() {
 
     // Calculate gate X position from layout (at padded west fence)
     const YARD_PADDING = 20;
+    const isDammam = layout?.id === 'naqleen-dammam';
     const gateX = useMemo(() => {
         if (layout?.total_dimensions) {
+            const corner_points = layout.total_dimensions.corner_points;
+            if (corner_points && corner_points.length > 0) {
+                const paddedCornerPoints = corner_points.map((pt, i) => {
+                    const prev = corner_points[(i - 1 + corner_points.length) % corner_points.length];
+                    const next = corner_points[(i + 1) % corner_points.length];
+
+                    const prevDx = pt.x - prev.x;
+                    const prevDz = pt.z - prev.z;
+                    const nextDx = next.x - pt.x;
+                    const nextDz = next.z - pt.z;
+
+                    const prevLen = Math.sqrt(prevDx * prevDx + prevDz * prevDz) || 1;
+                    const prevNx = -prevDz / prevLen;
+                    const prevNz = prevDx / prevLen;
+
+                    const nextLen = Math.sqrt(nextDx * nextDx + nextDz * nextDz) || 1;
+                    const nextNx = -nextDz / nextLen;
+                    const nextNz = nextDx / nextLen;
+
+                    let avgNx = (prevNx + nextNx) / 2;
+                    let avgNz = (prevNz + nextNz) / 2;
+                    const avgLen = Math.sqrt(avgNx * avgNx + avgNz * avgNz) || 1;
+                    avgNx /= avgLen;
+                    avgNz /= avgLen;
+
+                    return { x: pt.x + avgNx * YARD_PADDING };
+                });
+                return Math.min(...paddedCornerPoints.map(p => p.x));
+            }
             return -layout.total_dimensions.width / 2 - YARD_PADDING + 6;
         }
         return -380 - YARD_PADDING; // Default
     }, [layout]);
 
     // Outer Gates at the west fence edge - positions match fence gaps
-    // ENTRY gate: fence gap z: -40 to -24 (center: -32)
-    // EXIT gate: fence gap z: -60 to -44 (center: -52)
-    const outerGateInPos: [number, number, number] = [gateX, 0, -22];
-    const outerGateOutPos: [number, number, number] = [gateX, 0, -42];
+    // Dammam custom ENTRY gate: fence gap z: -36 to -20 (center: -28)
+    // Dammam custom EXIT gate: fence gap z: 22 to 38 (center: 30)
+    // Default ENTRY gate: fence gap z: -40 to -24 (center: -32)
+    // Default EXIT gate: fence gap z: -60 to -44 (center: -52)
+    const outerGateInPos: [number, number, number] = [gateX, 0, isDammam ? -28 : -22];
+    const outerGateOutPos: [number, number, number] = [gateX, 0, isDammam ? 30 : -42];
 
     return (
         <group>

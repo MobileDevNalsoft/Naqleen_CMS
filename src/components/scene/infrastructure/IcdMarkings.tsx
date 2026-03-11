@@ -268,6 +268,7 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
     const dummy = useMemo(() => new THREE.Object3D(), []);
     const selectedBlock = useStore((state) => state.selectedBlock);
     const setMarkingPositions = useStore((state) => state.setMarkingPositions);
+    const layoutSwitchVersion = useStore((state) => state.layoutSwitchVersion);
 
     const [meshReady, setMeshReady] = useState(false);
 
@@ -378,8 +379,14 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
                 const excludedSlots: { lot: number; row: string | number }[] = props.excluded_slots || [];
                 const rowLabels: string[] = props.row_labels || [];
 
-                // Same conditional reversal as BlockLabels
-                const blockLetter = block.id.match(/block_([a-z])/i)?.[1]?.toUpperCase() || '';
+                // Determine block letter for conditional reversal
+                let blockLetter = '';
+                const nameMatch = block.name?.match(/^([A-Z0-9]+)\s+BLOCK\s+([A-Z])$/i);
+                if (nameMatch) {
+                    blockLetter = nameMatch[2].toUpperCase();
+                } else {
+                    blockLetter = block.id.split('_block_')?.[1]?.toUpperCase() || block.id.match(/block_([a-z])/i)?.[1]?.toUpperCase() || '';
+                }
                 const shouldReverse = blockLetter === 'B' || blockLetter === 'D';
 
                 for (let b = 0; b < lots; b++) {
@@ -405,10 +412,16 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
                 const excludedSlots: { lot: number; row: string | number }[] = props.excluded_slots || [];
                 const rowLabels: string[] = props.row_labels || [];
 
-                // Extract block letter for conditional reversal (same logic as BlockLabels)
+                // Determine block letter for conditional reversal
                 // Block A/C: no reversal (r=0 → 'A')
                 // Block B/D: reversed (r=0 → last label)
-                const blockLetter = block.id.match(/block_([a-z])/i)?.[1]?.toUpperCase() || '';
+                let blockLetter = '';
+                const nameMatch = block.name?.match(/^([A-Z0-9]+)\s+BLOCK\s+([A-Z])$/i);
+                if (nameMatch) {
+                    blockLetter = nameMatch[2].toUpperCase();
+                } else {
+                    blockLetter = block.id.split('_block_')?.[1]?.toUpperCase() || block.id.match(/block_([a-z])/i)?.[1]?.toUpperCase() || '';
+                }
                 const shouldReverse = blockLetter === 'B' || blockLetter === 'D';
 
                 for (let b = 0; b < lots; b++) {
@@ -442,12 +455,24 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
                         count++;
 
                         // Build unique position key: Terminal-Block-Lot-Row
-                        const parts = block.id.split('_block_');
-                        if (parts.length === 2) {
-                            const terminal = parts[0].toUpperCase();
-                            const blockLetterKey = parts[1].toUpperCase();
-                            // currentLotNumber is the actual lot number (e.g., 1, 3, 5)
-                            // currentRowLabel is the row letter (e.g., 'A', 'B', 'K')
+                        let terminal = '';
+                        let blockLetterKey = '';
+
+                        // 1. Try parsing from name first (e.g., "TRD BLOCK C" -> "TRD", "C")
+                        const nameMatch = block.name?.match(/^([A-Z0-9]+)\s+BLOCK\s+([A-Z])$/i);
+                        if (nameMatch) {
+                            terminal = nameMatch[1].toUpperCase();
+                            blockLetterKey = nameMatch[2].toUpperCase();
+                        } else {
+                            // 2. Fallback to id parsing (e.g., "trm_block_c" -> "TRM", "C")
+                            const parts = block.id.split('_block_');
+                            if (parts.length === 2) {
+                                terminal = parts[0].toUpperCase();
+                                blockLetterKey = parts[1].toUpperCase();
+                            }
+                        }
+
+                        if (terminal && blockLetterKey) {
                             const posKey = `${terminal}-${blockLetterKey}-${currentLotNumber}-${currentRowLabel}`;
                             markingPositions[posKey] = {
                                 x: pos.x,
@@ -477,7 +502,7 @@ const SlotMarkings = ({ blocks }: { blocks: DynamicEntity[] }) => {
         // Debug: show total slots set vs expected
         const totalSet = Object.values(states).reduce((acc, s) => acc + s.count, 0);
         console.log(`[useEffect] Total matrices set: ${totalSet}, mesh.count: ${mesh.count}`);
-    }, [blocks, dummy, meshReady, setMarkingPositions]); // Re-run when blocks change or mesh becomes ready
+    }, [blocks, dummy, meshReady, setMarkingPositions, layoutSwitchVersion]); // layoutSwitchVersion forces re-run on layout switch even if blocks ref is unchanged
 
     // PERF FIX: Reusable objects for matrix operations (prevents GC pressure)
     const tempMatrix = useMemo(() => new THREE.Matrix4(), []);
@@ -647,8 +672,14 @@ const BlockLabels = ({ block }: BlockLabelsProps) => {
     const rowLabels = [];
     const rowCount = props.rows || 1;
 
-    // Extract block letter from block ID (e.g., 'trs_block_a' -> 'A', 'trm_block_d' -> 'D')
-    const blockLetter = block.id.match(/block_([a-d])/i)?.[1]?.toUpperCase() || '';
+    // Extract block letter for conditional reversal
+    let blockLetter = '';
+    const nameMatch = block.name?.match(/^([A-Z0-9]+)\s+BLOCK\s+([A-Z])$/i);
+    if (nameMatch) {
+        blockLetter = nameMatch[2].toUpperCase();
+    } else {
+        blockLetter = block.id.split('_block_')?.[1]?.toUpperCase() || block.id.match(/block_([a-z])/i)?.[1]?.toUpperCase() || '';
+    }
 
     // Block A: A-K from top to bottom (no reversal - first physical row gets A)
     // Block B: A-K from bottom to top (reverse - first physical row gets last label)

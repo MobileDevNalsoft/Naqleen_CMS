@@ -4,6 +4,7 @@ import WarehouseComponent from '../../Warehouse';
 import TruckComponent from '../../../objects/Truck';
 import { RestingRoom, GeneratorRoom } from '../../RestingRoom';
 import { TerminalDispatchOffice, TerminalOffice } from '../../TerminalOffice';
+import { CabinOffice } from '../../CabinOffice';
 
 // Wrapper props interface matching what DynamicLayoutEngine passes
 interface DynamicComponentProps {
@@ -156,6 +157,30 @@ export const TerminalOfficeWrapper: React.FC<DynamicComponentProps> = ({
         <TerminalOffice
             position={position}
             rotation={rotation}
+        />
+    );
+};
+
+/**
+ * Wrapper for CabinOffice
+ */
+export const CabinOfficeWrapper: React.FC<DynamicComponentProps> = ({
+    position,
+    rotation,
+    name,
+    dimensions,
+    props,
+    height
+}) => {
+    return (
+        <CabinOffice
+            position={position}
+            rotation={rotation}
+            label={name}
+            width={dimensions?.width}
+            depth={dimensions?.height}
+            height={height}
+            doorPosition={props?.doorPosition}
         />
     );
 };
