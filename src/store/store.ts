@@ -79,6 +79,10 @@ interface StoreState {
   // Marking positions for O(1) container placement lookup
   markingPositions: Record<string, MarkingPosition>;
   setMarkingPositions: (positions: Record<string, MarkingPosition>) => void;
+  // Increments each layout switch to force SlotMarkings useEffect to re-run
+  layoutSwitchVersion: number;
+  // Resets all layout-specific data when switching yards
+  resetForLayoutSwitch: () => void;
 }
 
 
@@ -102,6 +106,7 @@ export const useStore = create<StoreState>((set) => ({
   ghostContainer: null,
   hoveredMarker: null,
   markingPositions: {},
+  layoutSwitchVersion: 0,
 
   setEntitiesBatch: (updates) => set((state) => {
     const entities = { ...state.entities };
@@ -167,5 +172,22 @@ export const useStore = create<StoreState>((set) => ({
   setGhostContainer: (container) => set({ ghostContainer: container }),
   setHoveredMarker: (markerId) => set({ hoveredMarker: markerId }),
   setMarkingPositions: (positions) => set({ markingPositions: positions }),
+  resetForLayoutSwitch: () => set((state) => ({
+    entities: {},
+    ids: [],
+    cfsContainers: [],
+    customerByContainer: {},
+    markingPositions: {},
+    selectId: null,
+    selectedBlock: null,
+    selectedCustomer: null,
+    hoverId: null,
+    ghostContainer: null,
+    focusPosition: null,
+    reserveContainers: [],
+    releaseContainers: [],
+    restackLine: null,
+    layoutSwitchVersion: state.layoutSwitchVersion + 1,
+  })),
 }));
 

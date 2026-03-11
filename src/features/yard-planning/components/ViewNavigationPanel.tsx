@@ -105,16 +105,20 @@ const ViewNavigationPanel: React.FC = () => {
                     section: 'General',
                     event: 'moveCameraToTop',
                 },
-                {
-                    id: 'invalid-containers',
-                    title: 'Invalid Containers',
-                    description: 'Containers with missing or invalid positions',
-                    icon: <YardManagementIcon />,
-                    section: 'Yard Management',
-                    event: 'selectEntity',
-                    eventData: { id: 'invalid_containers' },
-                },
             ];
+
+        // Conditionally add Invalid Containers (hidden for Dammam layout)
+        if (layout?.id !== 'naqleen-dammam') {
+            items.push({
+                id: 'invalid-containers',
+                title: 'Invalid Containers',
+                description: 'Containers with missing or invalid positions',
+                icon: <YardManagementIcon />,
+                section: 'Yard Management',
+                event: 'selectEntity',
+                eventData: { id: 'invalid_containers' },
+            });
+        }
 
         // Add views from layout entities
         if (layout?.entities) {
@@ -124,7 +128,7 @@ const ViewNavigationPanel: React.FC = () => {
 
             layout.entities.forEach((entity) => {
                 // Check if it's a container block
-                if (entity.type.includes('container_block')) {
+                if (entity.type.includes('container_block') && entity.id !== 'cfs_area') {
                     // 1. Determine Terminal from ID prefix using Regex
                     // matches "trm_block", "trl-1-block", "trs-block", "trl_1_block"
                     let terminal = '';
@@ -153,7 +157,13 @@ const ViewNavigationPanel: React.FC = () => {
                         }
                     }
 
-                    // Only add if we have both letter and a valid terminal (skips generic "Blocks")
+                    // For simple "block_X" IDs (Dammam), use a generic terminal label 'Blocks'
+                    const isSimpleBlock = !terminal && /^block_[a-z0-9]+$/i.test(entity.id);
+                    if (isSimpleBlock && !terminal) {
+                        terminal = 'Blocks';
+                    }
+
+                    // Only add if we have both letter and a valid terminal
                     if (letter && terminal) {
                         const key = `${terminal}-${letter}`;
                         // Store if new, or overwrite if needed (Map ensures uniqueness keys)

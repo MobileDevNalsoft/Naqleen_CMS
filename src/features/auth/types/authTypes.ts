@@ -13,6 +13,11 @@ export interface UserScreen {
     role: string;
 }
 
+export interface Location {
+    id: string;
+    name: string;
+}
+
 export interface User {
     user_id: string | number;
     email: string;
@@ -20,6 +25,7 @@ export interface User {
     role: string;
     roles: string[]; // List of all assigned roles
     screens: UserScreen[]; // Screen-based permissions
+    accessible_locations?: Location[]; // Optional array of accessible locations
     avatar?: string;
     isSubscriptionValid?: boolean;
 }

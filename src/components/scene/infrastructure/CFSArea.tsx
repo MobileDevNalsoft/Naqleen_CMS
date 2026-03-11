@@ -306,10 +306,10 @@ const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rot
                 onPointerOver={() => setHoveredMarker(id)}
                 onPointerOut={() => setHoveredMarker(null)}
                 isOtherMarkerHovered={hoveredMarker !== null && hoveredMarker !== id}
-                // Enable marker for invalid_containers and cfs_area_1
-                disabled={id !== 'cfs_area_1' && id !== 'invalid_containers'}
+                // Enable marker for cfs_area, invalid_containers and cfs_area_1
+                disabled={id !== 'cfs_area_1' && id !== 'invalid_containers' && id !== 'cfs_area'}
             />
-            {id === 'cfs_area_1' ? (
+            {id === 'cfs_area' ? (
                 <CFSContainerGrid width={width} depth={depth} containerCount={cfsContainerCount} />
             ) : (
                 // Only render trucks for other areas

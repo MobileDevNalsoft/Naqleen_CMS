@@ -231,6 +231,7 @@ export const HeaderNotifications: React.FC<HeaderNotificationsProps> = ({ isUnif
                             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
                                 <PremiumStateView
                                     type="empty"
+                                    variant="dark"
                                     title="All Caught Up"
                                     description="You have no new notifications at the moment."
                                     height="auto"

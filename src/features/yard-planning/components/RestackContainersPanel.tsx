@@ -62,7 +62,11 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
                         const block = keyParts[1] || '';
                         const lot = parseInt(keyParts[2], 10) || 1;
                         const rowLabel = keyParts[3] || 'A';
-                        const blockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
+
+                        // Support Dammam blockId format
+                        const blockId = terminal.toUpperCase() === 'TRD'
+                            ? `block_${block.toLowerCase()}`
+                            : `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
 
                         // Update container entity with new position
                         setEntitiesBatch([{
@@ -74,7 +78,7 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
                             block,
                             blockId,
                             lot,
-                            row: rowLabel.charCodeAt(0) - 'A'.charCodeAt(0),
+                            row: rowLabel, // Pass string directly ('A', 'C', etc) matching containerApi.ts
                             level
                         } as any]);
 
@@ -137,7 +141,11 @@ export default function RestackContainersPanel({ isOpen, onClose }: RestackConta
             const keyParts = markingKey.split('-');
             const terminal = keyParts[0] || '';
             const block = keyParts[1] || '';
-            const blockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
+
+            // Support Dammam blockId format
+            const blockId = terminal.toUpperCase() === 'TRD'
+                ? `block_${block.toLowerCase()}`
+                : `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
 
             const destPos = { x: markingPos.x, y, z: markingPos.z };
 

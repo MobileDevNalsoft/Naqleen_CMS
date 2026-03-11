@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 
 interface PremiumStateViewProps {
     type?: 'default' | 'empty' | 'error' | 'loading';
+    variant?: 'light' | 'dark';
     graphic?: React.ReactNode; // The primary visual (Icon, Loader, Image). Overrides default icon.
     icon?: React.ComponentType<any>; // Overrides the icon SVG but keeps the color/bg of the type
     title?: string;
@@ -22,6 +23,7 @@ interface PremiumStateViewProps {
 
 export default function PremiumStateView({
     type = 'default',
+    variant = 'light',
     graphic,
     icon,
     title,
@@ -46,25 +48,27 @@ export default function PremiumStateView({
                 contentGraphic = (
                     <div className="animate-spin" style={{
                         width: '32px', height: '32px',
-                        border: '3px solid rgba(75, 104, 108, 0.1)',
-                        borderTopColor: 'var(--primary-color)',
+                        border: `3px solid ${variant === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(75, 104, 108, 0.1)'}`,
+                        borderTopColor: variant === 'dark' ? '#FFFFFF' : 'var(--primary-color)',
                         borderRadius: '50%'
                     }} />
                 );
                 break;
             case 'empty':
                 if (!icon) Icon = SearchX;
-                iconColor = '#94A3B8'; // Slate-400
-                bgColor = '#F1F5F9';   // Slate-100
+                iconColor = variant === 'dark' ? 'rgba(255, 255, 255, 0.6)' : '#94A3B8'; // Slate-400
+                bgColor = variant === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#F1F5F9';   // Slate-100
                 break;
             case 'error':
                 if (!icon) Icon = AlertTriangle;
                 iconColor = '#EF4444'; // Red-500
-                bgColor = '#FEE2E2';   // Red-100
+                bgColor = variant === 'dark' ? 'rgba(239, 68, 68, 0.1)' : '#FEE2E2';   // Red-100
                 break;
             default:
                 // Default 'info' state
                 if (!icon) Icon = HelpCircle;
+                iconColor = variant === 'dark' ? 'rgba(255, 255, 255, 0.6)' : '#94A3B8';
+                bgColor = variant === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#F1F5F9';
                 break;
         }
 
@@ -114,7 +118,7 @@ export default function PremiumStateView({
                 <h3 style={{
                     fontSize: '16px',
                     fontWeight: 600,
-                    color: type === 'error' ? '#EF4444' : 'var(--primary-color)',
+                    color: type === 'error' ? '#EF4444' : (variant === 'dark' ? '#FFFFFF' : 'var(--primary-color)'),
                     marginBottom: description ? '6px' : '0'
                 }}>
                     {title}
@@ -125,8 +129,8 @@ export default function PremiumStateView({
             {description && (
                 <p style={{
                     fontSize: '13px',
-                    color: 'var(--text-color)',
-                    opacity: 0.6,
+                    color: variant === 'dark' ? '#FFFFFF' : 'var(--text-color)',
+                    opacity: variant === 'dark' ? 0.7 : 0.6,
                     maxWidth: '280px',
                     lineHeight: '1.5',
                     margin: 0

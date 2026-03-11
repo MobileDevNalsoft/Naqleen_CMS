@@ -21,6 +21,13 @@ export function useScreenAccess() {
     };
 
     /**
+     * Check if user has access to any path starting with the given prefix
+     */
+    const hasPathStartsWith = (prefix: string): boolean => {
+        return screens.some((s: UserScreen) => s.screen_path.startsWith(prefix) && s.is_active);
+    };
+
+    /**
      * Check if user has access to ANY of the provided paths
      */
     const hasAnyPath = (...paths: string[]): boolean => {
@@ -36,7 +43,13 @@ export function useScreenAccess() {
 
     // Common access checks
     const has3DView = hasPath('/3d-view');
-    const hasDashboard = hasPath('/dashboards');
+    // Dashboard could be the root or specific sub-dashboards
+    const hasDashboard = hasPathStartsWith('/dashboards');
+
+    // Specific Dashboard Access
+    const hasFleetDashboard = hasPath('/dashboards/fleet');
+    const hasTerminalDashboard = hasPath('/dashboards/terminal');
+
     const hasAccessControl = hasPath('/access-control');
     const hasManageRole = hasPath('/manage-role');
 
@@ -48,11 +61,14 @@ export function useScreenAccess() {
     return {
         screens,
         hasPath,
+        hasPathStartsWith,
         hasAnyPath,
         hasAllPaths,
         // Common checks
         has3DView,
         hasDashboard,
+        hasFleetDashboard,
+        hasTerminalDashboard,
         hasAccessControl,
         hasManageRole,
         // Derived

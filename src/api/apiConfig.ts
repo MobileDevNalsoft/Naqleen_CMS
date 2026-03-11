@@ -7,9 +7,14 @@ export const API_CONFIG = {
         'Accept': 'application/json',
     },
     AUTH: {
-        BASIC_AUTH_USERNAME: 'ADMIN',
-        BASIC_AUTH_PASSWORD: 'otm@2025'
+        BASIC_AUTH_USERNAME: 'OTM.INTEGRATION',
+        BASIC_AUTH_PASSWORD: 'Naqleen@123'
     },
+    // Location IDs per yard layout
+    LOCATION_IDS: {
+        'naqleen-jeddah': 103,
+        'naqleen-dammam': 102,
+    } as Record<string, number>,
     ENDPOINTS: {
         // Inventory endpoints
         GET_CONTAINERS: '/getContainers',

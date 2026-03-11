@@ -193,7 +193,7 @@ export default function BlockDetailsPanel() {
         <PanelLayout
             isOpen={isVisible}
             onClose={() => handleClose()}
-            title={props.description || block.id}
+            title={block.name || props.description || block.id}
             category={containerTypeLabel}
             headerColor={theme.colors.primary}
             tabsContent={TabsHeader}

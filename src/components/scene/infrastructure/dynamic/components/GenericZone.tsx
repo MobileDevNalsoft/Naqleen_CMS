@@ -80,6 +80,9 @@ const GenericZone: React.FC<GenericZoneProps> = ({
                 side={THREE.DoubleSide}
                 roughness={0.9}
                 metalness={0.1}
+                polygonOffset={isYardBase}
+                polygonOffsetFactor={isYardBase ? -2 : 0}
+                polygonOffsetUnits={isYardBase ? -2 : 0}
             />
         </mesh>
     );

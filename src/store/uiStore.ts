@@ -34,6 +34,10 @@ interface UIState {
     openPanel: (panel: ActivePanel, data?: any) => void;
     closePanel: () => void;
 
+    // Main Navigation State
+    activeNav: string;
+    setActiveNav: (nav: string) => void;
+
     // View Navigation Panel State
     isViewPanelOpen: boolean;
     toggleViewPanel: () => void;
@@ -80,6 +84,10 @@ export const useUIStore = create<UIState>((set) => ({
     panelData: null,
     openPanel: (panel, data = null) => set({ activePanel: panel, panelData: data }),
     closePanel: () => set({ activePanel: null, panelData: null }),
+
+    // Main Navigation State
+    activeNav: '3D View',
+    setActiveNav: (nav) => set({ activeNav: nav }),
 
     // View Navigation Panel State
     isViewPanelOpen: false,
