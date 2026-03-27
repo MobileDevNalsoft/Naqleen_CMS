@@ -51,8 +51,12 @@ import { useLayoutQuery } from './components/scene/infrastructure/apis/layoutApi
 import { useContainersQuery } from './features/yard-planning/apis/containerApi';
 import { useAuthStore } from './features/auth/store/authStore';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuthSync } from './hooks/useAuthSync';
 
 const App = () => {
+  // Synchronize auth state across tabs
+  useAuthSync();
+
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const logout = useAuthStore(state => state.logout);
   const { hasOnlyDashboard } = useScreenAccess();

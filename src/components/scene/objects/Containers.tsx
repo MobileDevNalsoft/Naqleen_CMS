@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, type RefObject } from 'react';
+import React, { useRef, useEffect, useLayoutEffect, useMemo, type RefObject } from 'react';
 import * as THREE from 'three';
 import { useStore } from '../../../store/store';
 import { useTexture, Outlines } from '@react-three/drei';
@@ -148,7 +148,7 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
     }, [selectId, instanceData]);
 
     // Initial Setup & Static Updates
-    useEffect(() => {
+    useLayoutEffect(() => {
         // If we have no containers, we are technically "ready" (scene is empty)
         // This prevents the loading screen from getting stuck at 90% if the API returns []
         if (instanceData.length === 0) {
@@ -185,8 +185,26 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
 
         mesh.count = currentCount; // Ensure mesh count is updated
         mesh.instanceMatrix.needsUpdate = true;
-        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-        if (opacityAttribute.current) opacityAttribute.current.needsUpdate = true;
+        
+        if (mesh.instanceColor) {
+            mesh.instanceColor.needsUpdate = true;
+        }
+        
+        if (opacityAttribute.current) {
+            opacityAttribute.current.needsUpdate = true;
+        }
+
+        // CRITICAL FIX FOR GREY CONTAINERS: 
+        // Force material recompile when instanced mesh changes layout or size.
+        // React reuses the material instance but the internal shader 
+        // needs the USE_INSTANCING_COLOR flag re-evaluated for the new mesh instance.
+        if (mesh.material) {
+            if (Array.isArray(mesh.material)) {
+                mesh.material.forEach(m => { m.needsUpdate = true; });
+            } else {
+                mesh.material.needsUpdate = true;
+            }
+        }
 
         // CRITICAL FIX: Set bounding sphere to infinity to ensure raycasting works for all instances
         // regardless of position. By default, it uses the geometry's bounding sphere (at origin),
@@ -519,6 +537,7 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
             >
                 <boxGeometry ref={setBoundingSphereOnMount} args={[6.058, 2.591, 2.438]} />
                 <meshStandardMaterial
+                    key={layout?.id || 'default'}
                     map={texture}
                     metalness={0.4}
                     roughness={0.6}

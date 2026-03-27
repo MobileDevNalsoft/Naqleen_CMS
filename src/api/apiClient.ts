@@ -21,8 +21,8 @@ const createApiClient = (baseURL: string): AxiosInstance => {
     // Request interceptor — subscription guard + userId injection
     client.interceptors.request.use(
         (config) => {
-            // Read auth state from sessionStorage (persisted by authStore)
-            const authRaw = sessionStorage.getItem('auth-storage');
+            // Read auth state from localStorage (persisted by authStore)
+            const authRaw = localStorage.getItem('auth-storage');
             const user = authRaw
                 ? JSON.parse(authRaw)?.state?.user
                 : null;
@@ -43,7 +43,7 @@ const createApiClient = (baseURL: string): AxiosInstance => {
                 };
             }
 
-            // Inject req_location_id into every request as a query param
+            // Inject req_location_id into every request as a header
             const currentLocation = authRaw
                 ? JSON.parse(authRaw)?.state?.currentLocation
                 : null;

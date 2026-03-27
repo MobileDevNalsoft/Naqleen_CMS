@@ -115,7 +115,7 @@ export const useAuthStore = create<AuthState>()(
         }),
         {
             name: 'auth-storage', // unique name for storage key
-            storage: createJSONStorage(() => sessionStorage), // Use sessionStorage for tab-close logout
+            storage: createJSONStorage(() => localStorage), // Use localStorage for cross-tab sync and persistence
             partialize: (state) => ({
                 user: state.user,
                 currentLocation: state.currentLocation,

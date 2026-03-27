@@ -41,16 +41,10 @@ let lastProcessedResult: GetContainersResponse | null = null;
  * Uses marking positions for O(1) position lookup
  * [OPTIMIZED] Caches result if raw API response is identical to avoid re-renders
  */
-export async function getContainers(layoutId?: string): Promise<GetContainersResponse> {
-    // Derive locationId from the passed layoutId (avoids race condition with store)
-    const locationId = layoutId
-        ? API_CONFIG.LOCATION_IDS[layoutId]
-        : undefined;
-
+export async function getContainers(): Promise<GetContainersResponse> {
     // Fetch from ORDS API (returns grouped structure)
     const response = await apiClient.get<ApiResponse<CustomerContainerGroup[]>>(
-        API_CONFIG.ENDPOINTS.GET_CONTAINERS,
-        { params: { ...(locationId !== undefined && { locationId }) } }
+        API_CONFIG.ENDPOINTS.GET_CONTAINERS
     );
     const apiResponse = response.data;
 
@@ -64,12 +58,13 @@ export async function getContainers(layoutId?: string): Promise<GetContainersRes
     const markingPositions = useStore.getState().markingPositions;
     const markingPositionsCount = Object.keys(markingPositions).length;
 
-    // 1. FAST CHECK: Compare Raw Data Hash + Marking Positions Count
+    // 1. FAST CHECK: Compare Raw Data Hash + Layout ID + Marking Positions Count
     // This prevents the expensive mapping loop AND returns the SAME object reference
     // so React Query's structural equality check passes instantly.
-    // If marking positions change (e.g. initial load where API finishes before 3D scene), 
-    // we MUST re-evaluate so we append the count to the hash.
-    const currentHash = JSON.stringify(apiResponse.data) + `_mp_${markingPositionsCount}`;
+    // If layout or marking positions change (e.g. initial load where API finishes before 3D scene), 
+    // we MUST re-evaluate so we append the layout ID and count to the hash.
+    const currentLayoutId = useStore.getState().layout?.id || 'no-layout';
+    const currentHash = JSON.stringify(apiResponse.data) + `_l_${currentLayoutId}_mp_${markingPositionsCount}`;
 
     // Count total containers for accurate logging
     const totalContainers = apiResponse.data.reduce((acc, group) => acc + (group.containers?.length || 0), 0);
@@ -223,7 +218,7 @@ export const useContainersQuery = (layout: DynamicIcdLayout | null, isPaused = f
         queryKey: ['containers', layout?.id || 'no-layout'], // Use id (stable) — no marking-position gate
         queryFn: async () => {
             if (!layout) return { positions: [], cfsContainers: [], customerByContainer: {} };
-            return getContainers(layout.id); // Always call; positions computed from store at exec time
+            return getContainers(); // Always call; positions computed from store at exec time
         },
         enabled: isAuthenticated && !isPaused && !!layout && activeNav === '3D View',  // Pause during location switch; resume only after new layout is ready
         staleTime: 5000,
@@ -261,14 +256,20 @@ export const useContainersQuery = (layout: DynamicIcdLayout | null, isPaused = f
             const newIdsSet = new Set(query.data.positions.map(p => p.id));
 
             // 1. Identify Diff
-            // Actually, we need to know WHICH ones are added to notify specifically
             const currentIdSet = new Set(currentIds);
+            const currentEntities = useStore.getState().entities;
 
             const added = query.data.positions.filter(p => !currentIdSet.has(p.id));
             const removed = currentIds.filter(id => !newIdsSet.has(id));
+            const moved = query.data.positions.filter(p => {
+                const existing = currentEntities[p.id];
+                if (!existing) return false;
+                // Trigger sync if physical position changes
+                return existing.x !== p.x || existing.y !== p.y || existing.z !== p.z || existing.status !== p.status;
+            });
 
             // If nothing changed, do nothing.
-            if (added.length === 0 && removed.length === 0) {
+            if (added.length === 0 && removed.length === 0 && moved.length === 0) {
                 return;
             }
 

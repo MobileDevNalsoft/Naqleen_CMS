@@ -8,7 +8,7 @@ import { useUIStore } from '../../../store/uiStore';
 import { useStore } from '../../../store/store';
 
 interface RestackContainersPanelProps {
-    isOpen: boolean;
+    isOpen: boolean
     onClose: () => void;
 }
 
