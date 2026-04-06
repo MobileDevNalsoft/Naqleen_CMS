@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { X, ArrowLeft, FileText, Ship, MapPin, LogOut, Loader2, Search } from 'lucide-react';
+import { X, ArrowLeft, FileText, Ship, MapPin, Search } from 'lucide-react';
 import { useStore } from '../../../store/store';
 import { useUIStore } from '../../../store/uiStore';
 import { getContainerDetails } from '../apis/containerApi';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import ContainerLoader from '../../../components/ui/feedback/containers/ContainerLoader';
-import { submitReleaseContainer } from '../apis/releaseContainerApi';
-import { showToast } from '../../../components/ui/feedback/common/Toast';
+
+
 import PanelLayout from '../../shared/components/PanelLayout';
 import { theme } from '../../../themes/theme';
 import ContainerEmptyState from '../../../components/ui/feedback/containers/ContainerEmptyState';
@@ -252,47 +252,7 @@ const CFSDetailsPanel = () => {
         staleTime: 60000
     });
 
-    // Release CFS Container mutation
-    const removeCfsContainer = useStore(state => state.removeCfsContainer);
-    const { mutate: releaseContainer, isPending: isReleasing } = useMutation({
-        mutationFn: submitReleaseContainer,
-        onSuccess: (result) => {
-            if (result.success && selectedContainerId) {
-                showToast('success', 'Container released successfully');
-                removeCfsContainer(selectedContainerId);
-                setSelectedContainerId(null);
-            } else {
-                showToast('error', result.message || 'Failed to release container');
-            }
-        },
-        onError: (error: any) => {
-            showToast('error', error?.message || 'An error occurred while releasing container');
-        }
-    });
 
-    const handleRelease = () => {
-        if (!containerDetails || !selectedContainerId) return;
-
-        const request = {
-            truckNbr: '',
-            bookingNbr: containerDetails.booking_id || '',
-            orderType: 'RELEASE_CFS',
-            releaseType: 'CFS_CONTAINER',
-            customerNbr: '',
-            customerName: containerDetails.customer_name || '',
-            orderNbr: containerDetails.inbound_order_nbr || '',
-            containers: [{
-                containerNbr: selectedContainerId,
-                containerType: containerDetails.container_type || '',
-                shipmentNbr: containerDetails.inbound_shipment_nbr || '',
-                position: ''
-            }]
-        };
-
-        releaseContainer(request);
-    };
-
-    // Handle close
     const handleClose = () => {
         setSelectedBlock(null);
         setSelectedContainerId(null);
@@ -328,15 +288,7 @@ const CFSDetailsPanel = () => {
                     });
                 }}
             />
-            {!isCrossStuffing && (
-                <ActionButton
-                    icon={isReleasing ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} />}
-                    label={isReleasing ? "Releasing..." : "Release"}
-                    danger
-                    onClick={handleRelease}
-                    disabled={isReleasing}
-                />
-            )}
+
         </>
     ) : null;
 

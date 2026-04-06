@@ -15,7 +15,7 @@ interface TrackCar {
 }
 
 export default function CityTraffic({ trackWaypoints }: CityTrafficProps) {
-    const gltf = useGLTF('/assets/glbs/truck.glb');
+    const gltf = useGLTF(`${import.meta.env.BASE_URL}assets/glbs/truck.glb`);
     const truckScene = gltf.scene;
 
     // --- Create Smooth Curve ---

@@ -5,7 +5,7 @@ import CityTraffic from './CityTraffic';
 
 export default function CityModel() {
     // Enable Draco compression decoding
-    const { scene } = useGLTF('/assets/glbs/city_with_track.glb', true);
+    const { scene } = useGLTF(`${import.meta.env.BASE_URL}assets/glbs/city_with_track.glb`, true);
 
     const clonedScene = useMemo(() => scene.clone(), [scene]);
 
@@ -114,4 +114,4 @@ export default function CityModel() {
 }
 
 // Preload with Draco enabled
-useGLTF.preload('/assets/glbs/city_with_track.glb', true);
+useGLTF.preload(`${import.meta.env.BASE_URL}assets/glbs/city_with_track.glb`, true);

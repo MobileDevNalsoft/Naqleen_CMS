@@ -194,7 +194,7 @@ const BlockMarker: React.FC<BlockMarkerProps> = ({
     const { camera } = useThree();
 
     const hoverSound = useMemo(() => {
-        const audio = new Audio('/sounds/hover.mp3');
+        const audio = new Audio(`${import.meta.env.BASE_URL}sounds/hover.mp3`);
         audio.volume = 0.4;
         return audio;
     }, []);

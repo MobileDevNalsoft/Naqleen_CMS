@@ -57,7 +57,7 @@ const Truck: React.FC<TruckProps> = ({
     const cabHeight = 3.0;
 
     // Load container texture (same as yard containers)
-    const containerTexture = useTexture('/textures/container_side.png', (tex) => {
+    const containerTexture = useTexture(`${import.meta.env.BASE_URL}textures/container_side.png`, (tex) => {
         tex.wrapS = THREE.RepeatWrapping;
         tex.wrapT = THREE.RepeatWrapping;
         tex.anisotropy = 4;

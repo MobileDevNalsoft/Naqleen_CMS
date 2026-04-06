@@ -26,7 +26,7 @@ interface CFSAreaProps {
 }
 
 // Hover sound for marker
-const hoverSound = typeof Audio !== 'undefined' ? new Audio('/sounds/hover.mp3') : null;
+const hoverSound = typeof Audio !== 'undefined' ? new Audio(`${import.meta.env.BASE_URL}sounds/hover.mp3`) : null;
 if (hoverSound) {
     hoverSound.volume = 0.15;
 }
@@ -111,7 +111,7 @@ const CFSMarker: React.FC<{
 // 40ft Container Grid for CFS Area 1
 const CFSContainerGrid: React.FC<{ width: number; depth: number; containerCount: number }> = ({ width, depth, containerCount }) => {
     // Texture for "Exact Look"
-    const texture = useTexture('/textures/container_side.png');
+    const texture = useTexture(`${import.meta.env.BASE_URL}textures/container_side.png`);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.anisotropy = 4;

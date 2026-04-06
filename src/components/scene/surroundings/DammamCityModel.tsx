@@ -5,7 +5,7 @@ import CityTraffic from './CityTraffic';
 
 export default function DammamCityModel() {
     // Enable Draco compression decoding
-    const { scene } = useGLTF('/assets/glbs/dammam_layout.glb', true);
+    const { scene } = useGLTF(`${import.meta.env.BASE_URL}assets/glbs/dammam_layout.glb`, true);
 
     const clonedScene = useMemo(() => scene.clone(), [scene]);
 
@@ -116,4 +116,4 @@ export default function DammamCityModel() {
 }
 
 // Preload with Draco enabled
-useGLTF.preload('/assets/glbs/dammam_layout.glb', true);
+useGLTF.preload(`${import.meta.env.BASE_URL}assets/glbs/dammam_layout.glb`, true);

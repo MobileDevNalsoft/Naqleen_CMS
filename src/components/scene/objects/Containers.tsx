@@ -35,7 +35,7 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
     const { camera } = useThree();
 
     // Load texture once with optimization
-    const texture = useTexture('/textures/container_side.png', (tex) => {
+    const texture = useTexture(`${import.meta.env.BASE_URL}textures/container_side.png`, (tex) => {
         tex.wrapS = THREE.RepeatWrapping;
         tex.wrapT = THREE.RepeatWrapping;
         tex.anisotropy = 4;
@@ -185,11 +185,11 @@ export function Containers({ controlsRef, onReady }: ContainersProps) {
 
         mesh.count = currentCount; // Ensure mesh count is updated
         mesh.instanceMatrix.needsUpdate = true;
-        
+
         if (mesh.instanceColor) {
             mesh.instanceColor.needsUpdate = true;
         }
-        
+
         if (opacityAttribute.current) {
             opacityAttribute.current.needsUpdate = true;
         }

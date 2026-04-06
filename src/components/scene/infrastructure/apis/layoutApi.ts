@@ -12,7 +12,7 @@ import type { DynamicIcdLayout } from '../utils/layoutUtils';
 export async function getAllIcds(): Promise<any> {
     // Override baseURL to fetch from local public folder, ignoring the remote API configuration
     const response = await apiClient.get(API_CONFIG.ENDPOINTS.GET_ICDS, {
-        baseURL: '/',
+        baseURL: import.meta.env.BASE_URL,
         auth: undefined // Do not send credentials to local server
     });
     return response.data;
