@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { X, AlertTriangle, ArrowLeft, FileText, Ship, Loader2, MapPin, Search } from 'lucide-react';
+import { X, AlertTriangle, ArrowLeft, FileText, Ship, Loader2, MapPin, Search, CheckCircle } from 'lucide-react';
 import { useStore } from '../../../store/store';
 import { useUIStore } from '../../../store/uiStore';
 import { useQuery } from '@tanstack/react-query';
@@ -130,24 +130,42 @@ const InvalidContainerDetailView = ({
                 </div>
             </DetailSection>
 
-            {/* Warning Banner */}
+            {/* Position Information */}
             <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
                 padding: '16px',
                 borderRadius: '12px',
-                background: 'rgba(245, 158, 11, 0.1)',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
+                background: (containerDetails.position && containerDetails.position !== 'NA')
+                    ? 'rgba(34, 197, 94, 0.1)' 
+                    : 'rgba(245, 158, 11, 0.1)',
+                border: `1px solid ${(containerDetails.position && containerDetails.position !== 'NA')
+                    ? 'rgba(34, 197, 94, 0.3)' 
+                    : 'rgba(245, 158, 11, 0.3)'}`,
                 marginTop: '8px'
             }}>
-                <AlertTriangle size={20} color={theme.colors.warning} />
-                <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#92400e' }}>Invalid Position</div>
-                    <div style={{ fontSize: '12px', color: '#78350f', opacity: 0.8 }}>
-                        This container has no assigned position in the yard.
-                    </div>
-                </div>
+                {containerDetails.position && containerDetails.position !== 'NA' ? (
+                    <>
+                        <CheckCircle size={20} color={theme.colors.success} />
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#166534' }}>Container Positioned</div>
+                            <div style={{ fontSize: '12px', color: '#14532d', opacity: 0.8 }}>
+                                Current Position: <span style={{ fontWeight: 700, fontFamily: 'monospace' }}>{containerDetails.position}</span>
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <AlertTriangle size={20} color={theme.colors.warning} />
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#92400e' }}>Invalid Position</div>
+                            <div style={{ fontSize: '12px', color: '#78350f', opacity: 0.8 }}>
+                                This container has no assigned position in the yard.
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );
@@ -424,7 +442,7 @@ const InvalidContainersPanel = () => {
     );
 
     // Prepare footer action
-    const footerActions = selectedContainerId ? (
+    const footerActions = selectedContainerId && (!containerDetails?.position || containerDetails?.position === 'NA') ? (
         <ActionButton
             icon={<MapPin size={16} />}
             label="Assign Position"

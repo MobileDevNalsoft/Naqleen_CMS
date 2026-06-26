@@ -9,8 +9,10 @@ export interface GateTruckDetails {
     containerNumber: string;
     containerType: string;
     orderNumber: string;
+    orderType: string;
     customerName: string;
     customerList?: GateCustomer[];
+    lclOptions?: string[];
 }
 
 export interface GateCustomer {
@@ -23,6 +25,18 @@ export interface GateCustomerShipments {
     shipmentName?: string;
     containerType?: string;
     containerNbr?: string;
+}
+
+export interface GateLclShipment {
+    shipmentNbr: string;
+    shipmentName: string;
+    containerNbr: string;
+    containerType: string;
+    customerName: string;
+    orderNbr: string;
+    truckNbr: string;
+    driverName: string;
+    driverIqama: string;
 }
 
 export interface GateInRequest {
@@ -49,8 +63,9 @@ export interface GateDocument {
 export interface TruckDetailsApiResponse {
     truck_nbr: string;
     driver_name: string;
-    driver_iqama_nbr: string;
-    driver_iqama: string;
+    driver_nbr?: string;
+    driver_iqama_nbr?: string;
+    driver_iqama?: string;
     truck_type: string;
     shipment_name: string;
     shipment_nbr: string;
@@ -58,11 +73,13 @@ export interface TruckDetailsApiResponse {
     container_type: string;
     otm_order_nbr: string;
     order_nbr:string
+    order_type?: string;
     customer_name: string;
     customer_list?: Array<{
         customer_nbr: string;
         customer_name: string;
     }>;
+    lcl_options?: string[];
 }
 
 // Gate Out Types

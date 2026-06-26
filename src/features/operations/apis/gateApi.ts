@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { API_CONFIG, mobileApiClient, type ApiResponse } from '../../../api';
-import type { GateTruckDetails, TruckDetailsApiResponse, GateCustomerShipments, BookingShipmentsResponse, GateInRequest, GateOutRequest } from '../types/gateTypes';
+import type { GateTruckDetails, TruckDetailsApiResponse, GateCustomerShipments, BookingShipmentsResponse, GateInRequest, GateOutRequest, GateLclShipment } from '../types/gateTypes';
 
 /**
  * Fetch truck suggestions for Gate In
@@ -38,18 +38,20 @@ export async function getGateInTruckDetails(truckNbr: string): Promise<GateTruck
             return {
                 truckNumber: raw.truck_nbr || '',
                 driverName: raw.driver_name || '',
-                driverIqama: raw.driver_iqama_nbr || '',
+                driverIqama: raw.driver_nbr || raw.driver_iqama_nbr || raw.driver_iqama || '',
                 truckType: raw.truck_type || '',
                 shipmentName: raw.shipment_name || '',
                 shipmentNumber: raw.shipment_nbr || '',
                 containerNumber: raw.container_nbr || '',
                 containerType: raw.container_type || '',
-                orderNumber: raw.otm_order_nbr || '',
+                orderNumber: raw.otm_order_nbr || raw.order_nbr || '',
+                orderType: raw.order_type || '',
                 customerName: raw.customer_name || '',
                 customerList: raw.customer_list?.map((c: { customer_nbr: any; customer_name: any; }) => ({
                     customerNbr: c.customer_nbr,
                     customerName: c.customer_name
-                }))
+                })),
+                lclOptions: raw.lcl_options || []
             };
         }
 
@@ -184,6 +186,41 @@ export async function getBookingShipments(
 }
 
 /**
+ * Fetch LCL active shipments
+ */
+export async function getLclActiveShipments(
+    customerNbr: string,
+    bookingNumber: string,
+    lclOption: string
+): Promise<GateLclShipment[]> {
+    try {
+        const response = await mobileApiClient.get<ApiResponse<GateLclShipment[]>>(
+            API_CONFIG.ENDPOINTS.GET_LCL_ACTIVE_SHIPMENTS,
+            { params: { customerNbr, bookingNumber, lclOption } }
+        );
+
+        if (response.data.response_code === 200 && response.data.data) {
+            // Map the snake_case API response array to our camelCase interface
+            return response.data.data.map((item: any) => ({
+                shipmentNbr: item.shipment_nbr || '',
+                shipmentName: item.shipment_name || '',
+                containerNbr: item.container_nbr || '',
+                containerType: item.container_type || '',
+                customerName: item.customer_name || '',
+                orderNbr: item.order_nbr || '',
+                truckNbr: item.truck_nbr || '',
+                driverName: item.driver_name || '',
+                driverIqama: item.driver_iqama || ''
+            }));
+        }
+        return [];
+    } catch (error) {
+        console.error('Error fetching LCL shipments:', error);
+        return [];
+    }
+}
+
+/**
  * Fetch shipment details
  */
 export async function getShipmentDetails(shipmentNbr: string): Promise<Record<string, string> | null> {
@@ -247,40 +284,41 @@ export async function getGateOutTrucks(searchText: string): Promise<string[]> {
  * Fetch truck details for Gate Out
  * Reuses GateTruckDetails interface as structure is likely similar
  */
-export async function getGateOutTruckDetails(truckNbr: string): Promise<GateTruckDetails | null> {
+export async function getGateOutTruckDetails(truckNbr: string): Promise<GateTruckDetails[]> {
     try {
-        const response = await mobileApiClient.get<ApiResponse<TruckDetailsApiResponse>>(
+        const response = await mobileApiClient.get<ApiResponse<TruckDetailsApiResponse | TruckDetailsApiResponse[]>>(
             API_CONFIG.ENDPOINTS.GATE_OUT_TRUCK_DETAILS,
             { params: { truckNbr } }
         );
 
         if (response.data.response_code === 200 && response.data.data) {
-            const raw = response.data.data;
-            // Map raw response to clean interface
-            return {
+            const rawData = response.data.data;
+            const dataArray = Array.isArray(rawData) ? rawData : [rawData];
+
+            return dataArray.map(raw => ({
                 truckNumber: raw.truck_nbr || '',
                 driverName: raw.driver_name || '',
-                driverIqama: raw.driver_iqama_nbr || raw.driver_iqama || '',
+                driverIqama: raw.driver_nbr || raw.driver_iqama_nbr || raw.driver_iqama || '',
                 truckType: raw.truck_type || '',
                 shipmentName: raw.shipment_name || '',
                 shipmentNumber: raw.shipment_nbr || '',
                 containerNumber: raw.container_nbr || '',
                 containerType: raw.container_type || '',
                 orderNumber: raw.otm_order_nbr || raw.order_nbr || '',
+                orderType: raw.order_type || '',
                 customerName: raw.customer_name || '',
-                // Gate Out likely doesn't have ambiguity list, but we keep structure consistent
                 customerList: raw.customer_list?.map((c: { customer_nbr: any; customer_name: any; }) => ({
                     customerNbr: c.customer_nbr,
                     customerName: c.customer_name
                 }))
-            };
+            }));
         }
 
         console.warn('Gate Out truck details not found:', truckNbr);
-        return null;
+        return [];
     } catch (error) {
         console.error('Error fetching gate out truck details:', error);
-        return null;
+        return [];
     }
 }
 
@@ -362,6 +400,20 @@ export function useBookingShipmentsQuery(
     });
 }
 
+export function useLclActiveShipmentsQuery(
+    customerNbr: string,
+    bookingNumber: string,
+    lclOption: string,
+    enabled: boolean = true
+) {
+    return useQuery({
+        queryKey: ['lcl-shipments', customerNbr, bookingNumber, lclOption],
+        queryFn: () => getLclActiveShipments(customerNbr, bookingNumber, lclOption),
+        enabled: enabled && !!customerNbr && !!bookingNumber && !!lclOption,
+        staleTime: 30000
+    });
+}
+
 // Restore useSubmitGateInMutation
 export function useSubmitGateInMutation() {
     const queryClient = useQueryClient();
@@ -403,7 +455,7 @@ export function useSubmitGateOutMutation() {
         mutationFn: submitGateOut,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['gate-out-trucks'] });
-            queryClient.invalidateQueries({ queryKey: ['gate-out-truck-details'] });
+            // Intentionally not invalidating 'gate-out-truck-details' here so local tab details don't vanish immediately.
         }
     });
 }

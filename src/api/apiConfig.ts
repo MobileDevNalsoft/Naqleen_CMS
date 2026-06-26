@@ -32,6 +32,7 @@ export const API_CONFIG = {
         CUSTOMER_BOOKINGS: '/getCustomerBookings',
         GET_BOOKINGS: '/getBookings',
         GET_AVAILABLE_RESERVED: '/getAvailableReservedContainers',
+        GET_LCL_ACTIVE_SHIPMENTS: '/getLclActiveShipments',
         BOOKING_SHIPMENTS: '/getBookingShipments',
         SHIPMENT_DETAILS: '/shipmentDetails',
         SUBMIT_GATE_IN: '/submitGateIn',

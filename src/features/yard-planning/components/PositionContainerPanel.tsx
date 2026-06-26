@@ -11,7 +11,7 @@ import type {
 
 import { useMemo } from 'react';
 import TruckLoader from '../../../components/ui/feedback/trucks/TruckLoader';
-import ContainerLoader from '../../../components/ui/feedback/containers/ContainerLoader';
+
 import PremiumStateView from '../../../components/ui/feedback/PremiumStateView';
 import { useStore } from '../../../store/store';
 
@@ -36,25 +36,37 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
 
     // Search state
     const [searchText, setSearchText] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
 
     // Selected Truck State
     const [selectedTruck, setSelectedTruck] = useState<PositionTruckDetails | null>(null);
 
-    // Position State
-    const [selectedPosition, setSelectedPosition] = useState('');
+    // Batch Position State
+    const [activeContainerIndex, setActiveContainerIndex] = useState(0);
+    const [draftPositions, setDraftPositions] = useState<Record<number, string>>({});
+    const [selectionOrder, setSelectionOrder] = useState<number[]>([]);
+
+    // Debounce search effect
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchText);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchText]);
 
     // Query client for cache updates
     const queryClient = useQueryClient();
 
     // --- API Queries ---
 
-    // 1. Fetch All Trucks (Initial Load)
-    const { data: allTrucks = [], isLoading: isLoadingTrucks, isError: isTrucksError, refetch: refetchTrucks } = useQuery({
-        queryKey: ['positionTrucks', 'all'], // Cache key for all trucks
-        queryFn: () => yardApi.getPositionTrucks({ searchText: '' }), // Empty search returns all
-        enabled: isOpen,
-        select: (res) => res.data || []
+    // 1. Fetch Trucks (Server-side search)
+    const { data: allTrucksResponse, isLoading: isLoadingTrucks, isError: isTrucksError, refetch: refetchTrucks } = useQuery({
+        queryKey: ['positionTrucks', debouncedSearch], // Dynamic key triggers refetch on search
+        queryFn: () => yardApi.getPositionTrucks({ searchText: debouncedSearch }),
+        enabled: isOpen && step === 'truck_list',
     });
+
+    const allTrucks = useMemo(() => allTrucksResponse?.data || [], [allTrucksResponse]);
 
     // 2. Fetch Truck Details (When a truck is selected)
     const { mutate: fetchTruckDetails, isPending: isLoadingDetails } = useMutation({
@@ -77,85 +89,59 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
     const removeCfsContainer = useStore((state) => state.removeCfsContainer);
     const setGhostContainer = useStore((state) => state.setGhostContainer);
 
-    const { mutate: submitPosition, isPending: isSubmitting } = useMutation({
-        mutationFn: yardApi.submitContainerPosition,
-        onSuccess: (res) => {
+    const { mutate: submitPositionBatch, isPending: isSubmitting } = useMutation({
+        mutationFn: yardApi.submitContainerPositionBatch,
+        onSuccess: (res: any) => {
             if (res.response_code === 200) {
-                showToast('success', 'Container Positioned Successfully');
+                showToast('success', 'Containers Positioned Successfully');
 
-                // Get container data (either from truck flow or CFS mode)
-                const containerId = isCfsMode
-                    ? cfsContainer?.containerNbr
-                    : selectedTruck?.containerNbr;
-                const containerType = isCfsMode
-                    ? cfsContainer?.containerType || '20'
-                    : selectedTruck?.containerType || '20';
+                const shipments = selectedTruck?.shipments || [];
 
-                // Add container to 3D scene using marking positions for O(1) lookup
-                if (containerId && selectedPosition) {
-                    // Extract marking key and level: "TRM-A-1-D-1" -> "TRM-A-1-D" + 1
-                    const lastDashIndex = selectedPosition.lastIndexOf('-');
-                    const markingKey = selectedPosition.substring(0, lastDashIndex).toUpperCase();
-                    const level = parseInt(selectedPosition.substring(lastDashIndex + 1), 10) || 1;
+                Object.entries(draftPositions).forEach(([idxStr, pos]) => {
+                    const idx = parseInt(idxStr, 10);
+                    const containerId = isCfsMode ? cfsContainer?.containerNbr : shipments[idx]?.containerNbr;
+                    const containerType = isCfsMode ? cfsContainer?.containerType || '20' : shipments[idx]?.containerType || '20';
 
-                    // Get marking position from store for O(1) lookup
-                    const markingPositions = useStore.getState().markingPositions;
-                    const markingPos = markingPositions[markingKey];
+                    if (containerId && pos) {
+                        const lastDashIndex = pos.lastIndexOf('-');
+                        const markingKey = pos.substring(0, lastDashIndex).toUpperCase();
+                        const level = parseInt(pos.substring(lastDashIndex + 1), 10) || 1;
+                        const markingPositions = useStore.getState().markingPositions;
+                        const markingPos = markingPositions[markingKey];
 
-                    if (markingPos) {
-                        // Calculate Y position based on level and container type
-                        const is20ft = !containerType || containerType.startsWith('2');
-                        const containerHeight = is20ft ? 2.591 : 2.896;
-                        const levelGap = 0.02;
-                        const y = markingPos.y + containerHeight / 2 + (level - 1) * (containerHeight + levelGap);
+                        if (markingPos) {
+                            const is20ft = !containerType || containerType.startsWith('2');
+                            const containerHeight = is20ft ? 2.591 : 2.896;
+                            const levelGap = 0.02;
+                            const y = markingPos.y + containerHeight / 2 + (level - 1) * (containerHeight + levelGap);
 
-                        // Derive values from markingKey: "TRM-A-1-D" -> terminal, block, lot, row
-                        const keyParts = markingKey.split('-');
-                        const terminal = keyParts[0] || '';
-                        const block = keyParts[1] || '';
-                        const lot = parseInt(keyParts[2], 10) || 1;
-                        const rowLabel = keyParts[3] || 'A';
-                        const blockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
+                            const keyParts = markingKey.split('-');
+                            const terminal = keyParts[0] || '';
+                            const block = keyParts[1] || '';
+                            const lot = parseInt(keyParts[2], 10) || 1;
+                            const rowLabel = keyParts[3] || 'A';
+                            const blockId = `${terminal.toLowerCase()}_block_${block.toLowerCase()}`;
 
-                        const newContainer = {
-                            id: containerId,
-                            x: markingPos.x,
-                            y,
-                            z: markingPos.z,
-                            terminal,
-                            block,
-                            blockId,
-                            lot,
-                            row: rowLabel,
-                            level,
-                            type: containerType,
-                            status: 'active'
-                        };
-
-                        // Add to 3D scene
-                        setEntitiesBatch([newContainer]);
-                        console.log('Container added to scene:', newContainer);
-                    } else {
-                        console.warn('Marking position not found for container placement:', markingKey);
+                            const newContainer = {
+                                id: containerId, x: markingPos.x, y, z: markingPos.z,
+                                terminal, block, blockId, lot, row: rowLabel, level,
+                                type: containerType, status: 'active'
+                            };
+                            setEntitiesBatch([newContainer]);
+                        }
                     }
-                } else {
-                    console.warn('Could not add container to scene:', {
-                        containerId,
-                        selectedPosition
-                    });
-                }
+                });
 
-                // Clear ghost container
                 setGhostContainer(null);
 
-                // Mode-specific cleanup
-                if (isCfsMode && cfsContainer?.containerNbr) {
-                    // Remove container from CFS list
+                if (isCfsMode && cfsContainer && cfsContainer.containerNbr) {
                     removeCfsContainer(cfsContainer.containerNbr);
-                    console.log('Removed from CFS list:', cfsContainer.containerNbr);
+                    
+                    // Invalidate invalid containers list and specific container details
+                    queryClient.invalidateQueries({ queryKey: ['invalidContainers'] });
+                    queryClient.invalidateQueries({ queryKey: ['container-details', cfsContainer.containerNbr] });
                 } else {
-                    // Remove the positioned truck from local cache (instant feedback, no refetch)
-                    queryClient.setQueryData(['positionTrucks', 'all'], (oldData: any) => {
+                    queryClient.setQueryData(['positionTrucks', debouncedSearch], (oldData: any) => {
                         if (!oldData?.data) return oldData;
                         return {
                             ...oldData,
@@ -166,7 +152,7 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
 
                 setStep('success');
             } else {
-                showToast('error', res.response_message || 'Failed to position container');
+                showToast('error', res.response_message || 'Failed to position containers');
             }
         },
         onError: (err: any) => showToast('error', err.message || 'Submission failed')
@@ -185,9 +171,12 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
     // Reset when panel closes
     useEffect(() => {
         if (!isOpen) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSearchText('');
             setSelectedTruck(null);
-            setSelectedPosition('');
+            setDraftPositions({});
+            setSelectionOrder([]);
+            setActiveContainerIndex(0);
             setStep(isCfsMode ? 'details' : 'truck_list');
             setFocusPosition(null); // Reset camera to main view
             setGhostContainer(null); // Clear ghost container
@@ -203,22 +192,81 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
         fetchTruckDetails({ truckNbr: truck });
     };
 
-    const handlePlace = () => {
-        // For CFS mode, use cfsContainer data; otherwise use selectedTruck
+    const handlePositionDraft = (newPos: string) => {
+        setDraftPositions(prev => {
+            const currentDraft = prev[activeContainerIndex] || '';
+            if (currentDraft === newPos) return prev;
+
+            const newDrafts = { ...prev };
+            let newOrder = [...selectionOrder];
+            const currentIndexInOrder = newOrder.indexOf(activeContainerIndex);
+
+            if (newPos) {
+                if (currentIndexInOrder === -1) {
+                    newOrder.push(activeContainerIndex);
+                } else {
+                    // Check if the change actually invalidates the selection
+                    // If the new position starts with the old position OR the old position starts with the new one,
+                    // it's a progressive refinement or a back-trace, not necessarily a "change" of the root selection.
+                    // However, to be safe and match the requirement "Only changing Container A triggers reset",
+                    // we should only reset if the USER explicitly changed a dropdown to a DIFFERENT value,
+                    // not just selecting the next dropdown in the cascade.
+                    
+                    // We check if newPos is NOT just an extension of currentDraft
+                    // For example: "TRM-A" -> "TRM-A-1" should NOT reset dependents.
+                    // But "TRM-A" -> "TRM-B" SHOULD reset dependents.
+                    const isExtension = newPos.startsWith(currentDraft) && currentDraft !== '';
+                    const isReduction = currentDraft.startsWith(newPos) && newPos !== '';
+                    
+                    if (!isExtension && !isReduction && currentDraft !== newPos) {
+                        const dependentIndices = newOrder.slice(currentIndexInOrder + 1);
+                        if (dependentIndices.length > 0) {
+                            dependentIndices.forEach(idx => delete newDrafts[idx]);
+                            newOrder = newOrder.slice(0, currentIndexInOrder + 1);
+                        }
+                    }
+                }
+                newDrafts[activeContainerIndex] = newPos;
+            } else {
+                if (currentIndexInOrder !== -1) {
+                    const indicesToWipe = newOrder.slice(currentIndexInOrder);
+                    indicesToWipe.forEach(idx => delete newDrafts[idx]);
+                    newOrder = newOrder.slice(0, currentIndexInOrder);
+                } else {
+                    delete newDrafts[activeContainerIndex];
+                }
+            }
+
+            setSelectionOrder(newOrder);
+            return newDrafts;
+        });
+    };
+
+    const handleSubmitAll = () => {
         if (isCfsMode && cfsContainer) {
-            if (!selectedPosition) return;
-            submitPosition({
+            const pos = draftPositions[0];
+            if (!pos) return;
+            submitPositionBatch([{
                 shipment_nbr: cfsContainer.shipmentNbr,
                 container_nbr: cfsContainer.containerNbr,
-                position: selectedPosition
-            });
+                position: pos,
+                truck_nbr: 'STORE_AS_IT_IS' // fallback for CFS
+            }]);
         } else {
-            if (!selectedTruck || !selectedPosition) return;
-            submitPosition({
-                shipment_nbr: selectedTruck.shipmentNbr,
-                container_nbr: selectedTruck.containerNbr,
-                position: selectedPosition
-            });
+            if (!selectedTruck) return;
+            const shipments = selectedTruck.shipments || [];
+
+            const allComplete = shipments.length > 0 && Object.keys(draftPositions).length === shipments.length && Object.values(draftPositions).every(pos => typeof pos === 'string' && pos.split('-').length === 5);
+            if (!allComplete) return;
+
+            const payload = shipments.map((shipment, idx) => ({
+                shipment_nbr: shipment.shipmentNbr,
+                container_nbr: shipment.containerNbr,
+                position: draftPositions[idx]!,
+                truck_nbr: selectedTruck.truckNbr
+            }));
+
+            submitPositionBatch(payload);
         }
     };
 
@@ -239,10 +287,10 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
         borderBottom: '1px solid rgba(75, 104, 108, 0.1)'
     };
 
-    // Handle Done button - return to truck list or close panel for CFS mode
     const handleDone = () => {
         setSelectedTruck(null);
-        setSelectedPosition('');
+        setDraftPositions({});
+        setSelectionOrder([]);
         setFocusPosition(null); // Reset camera
 
         if (isCfsMode) {
@@ -273,14 +321,17 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
         }
 
         // Details Footer: Confirm Button
-        // Only enable if position is FULLY complete (Terminal-Block-Lot-Row-Level)
-        const isPositionComplete = selectedPosition && selectedPosition.split('-').length === 5;
+        // Validate every container is assigned a position
+        const shipmentsCount = isCfsMode ? 1 : (selectedTruck?.shipments?.length || 0);
         const hasRequiredData = isCfsMode ? !!cfsContainer : !!selectedTruck;
-        const isEnabled = hasRequiredData && isPositionComplete && !isSubmitting;
+        const allPositionsSelected = shipmentsCount > 0 && 
+            Object.keys(draftPositions).length === shipmentsCount && 
+            Object.values(draftPositions).every(pos => typeof pos === 'string' && pos.split('-').length === 5);
+        const isEnabled = hasRequiredData && allPositionsSelected && !isSubmitting;
 
         return (
             <button
-                onClick={handlePlace}
+                onClick={handleSubmitAll}
                 disabled={!isEnabled}
                 style={{
                     width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
@@ -293,7 +344,7 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
             >
                 {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : (
                     <>
-                        Submit Position <ArrowRight size={16} />
+                        Submit All Positions <ArrowRight size={16} />
                     </>
                 )}
             </button>
@@ -318,51 +369,50 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
     // Render list view
     const renderTruckListView = () => (
         <>
-            {/* Search Bar */}
-            {!isLoadingTrucks && (
-                <div style={{ marginBottom: '8px' }}>
-                    <div style={{ position: 'relative' }}>
-                        <Search size={16} style={{
-                            position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)',
-                            color: 'var(--primary-color)', opacity: 0.6
-                        }} />
-                        {searchText && !isLoadingTrucks && (
-                            <button
-                                onClick={() => setSearchText('')}
-                                style={{
-                                    position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
-                                    background: 'rgba(75, 104, 108, 0.1)', border: 'none', borderRadius: '50%',
-                                    width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    cursor: 'pointer', padding: 0
-                                }}
-                            >
-                                <X size={12} style={{ color: 'var(--text-color)' }} />
-                            </button>
-                        )}
-                        <input
-                            type="text"
-                            placeholder="Search trucks..."
-                            value={searchText}
-                            onChange={(e) => setSearchText(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                            maxLength={10}
-                            style={{
-                                width: '100%', boxSizing: 'border-box', padding: '12px 40px 12px 42px',
-                                border: '1px solid rgba(75, 104, 108, 0.15)', borderRadius: '10px',
-                                background: 'rgba(75, 104, 108, 0.04)', fontSize: '14px', fontWeight: 500,
-                                color: 'var(--text-color)', outline: 'none', transition: 'all 0.2s'
-                            }}
-                            onFocus={(e) => {
-                                e.currentTarget.style.borderColor = 'var(--primary-color)';
-                                e.currentTarget.style.background = 'rgba(75, 104, 108, 0.06)';
-                            }}
-                            onBlur={(e) => {
-                                e.currentTarget.style.borderColor = 'rgba(75, 104, 108, 0.15)';
-                                e.currentTarget.style.background = 'rgba(75, 104, 108, 0.04)';
-                            }}
-                        />
-                    </div>
+            {/* Search Bar - Always Visible */}
+            <div style={{ marginBottom: '8px' }}>
+                <div style={{ position: 'relative' }}>
+                    <Search size={16} style={{
+                        position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)',
+                        color: 'var(--primary-color)', opacity: 0.6
+                    }} />
+                    {(searchText || isLoadingTrucks) && (
+                        <div style={{
+                            position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                            display: 'flex', alignItems: 'center', gap: '8px'
+                        }}>
+                            {isLoadingTrucks ? (
+                                <Loader2 size={14} className="animate-spin" style={{ color: 'var(--primary-color)' }} />
+                            ) : (
+                                <button
+                                    onClick={() => setSearchText('')}
+                                    style={{
+                                        background: 'rgba(75, 104, 108, 0.1)', border: 'none', borderRadius: '50%',
+                                        width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        cursor: 'pointer', padding: 0
+                                    }}
+                                >
+                                    <X size={12} style={{ color: 'var(--text-color)' }} />
+                                </button>
+                            )}
+                        </div>
+                    )}
+                    <input
+                        type="text"
+                        placeholder={searchText.length > 0 ? `${searchText}` : "Search trucks..."}
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                        maxLength={10}
+                        style={{
+                            width: '100%', boxSizing: 'border-box', padding: '12px 40px 12px 42px',
+                            border: '1px solid rgba(75, 104, 108, 0.15)', borderRadius: '10px',
+                            background: 'rgba(75, 104, 108, 0.04)', fontSize: '14px', fontWeight: 500,
+                            color: 'var(--text-color)', outline: 'none', transition: 'all 0.2s',
+                            borderColor: isLoadingTrucks ? 'var(--primary-color)' : 'rgba(75, 104, 108, 0.15)'
+                        }}
+                    />
                 </div>
-            )}
+            </div>
 
             {/* Truck List */}
             <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
@@ -430,12 +480,90 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
         </>
     );
 
+    // Render tabs for multi-container trucks
+    const renderTabs = () => {
+        const shipments = selectedTruck?.shipments || [];
+        if (shipments.length <= 1) return null;
+
+        return (
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                {shipments.map((shipment, index) => {
+                    const isCompleted = draftPositions[index] !== undefined && draftPositions[index].split('-').length === 5;
+                    const isActive = activeContainerIndex === index;
+
+                    return (
+                        <button
+                            key={index}
+                            onClick={() => !isSubmitting && setActiveContainerIndex(index)}
+                            style={{
+                                flex: 1,
+                                padding: '12px 10px',
+                                borderRadius: '10px',
+                                background: isActive ? 'var(--primary-color)' : 'rgba(75, 104, 108, 0.08)',
+                                color: isActive ? '#fff' : 'var(--primary-color)',
+                                border: `1px solid ${isActive ? 'var(--primary-color)' : 'rgba(75, 104, 108, 0.15)'}`,
+                                fontWeight: 600,
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                opacity: (isSubmitting && !isActive) ? 0.6 : 1
+                            }}
+                        >
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, gap: '2px' }}>
+                                <span style={{ textTransform: 'uppercase', lineHeight: 1 }}>
+                                    {shipment.containerNbr || `Container ${index + 1}`}
+                                </span>
+                                {draftPositions[index] && (
+                                    <span style={{ 
+                                        fontSize: '10px', 
+                                        opacity: isActive ? 0.9 : 0.6, 
+                                        fontWeight: 500, 
+                                        fontFamily: 'monospace',
+                                        letterSpacing: '0.5px'
+                                    }}>
+                                        {draftPositions[index]}
+                                    </span>
+                                )}
+                            </div>
+                            {isCompleted && <CheckCircle size={14} color={isActive ? '#fff' : '#22c55e'} style={{ zIndex: 1 }} />}
+
+                            {isActive && (
+                                <div style={{
+                                    position: 'absolute',
+                                    bottom: 0,
+                                    left: '10%',
+                                    right: '10%',
+                                    height: '3px',
+                                    background: 'var(--secondary-gradient)',
+                                    borderRadius: '3px 3px 0 0'
+                                }} />
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+        );
+    };
+
     // Render details view
     const renderDetailsView = () => {
+        const shipments = selectedTruck?.shipments || [];
+        const currentShipment = shipments[activeContainerIndex];
+
         // Determine container type for position selectors
         const effectiveContainerType = isCfsMode
             ? cfsContainer?.containerType || '20GP'
-            : selectedTruck?.containerType || '20GP';
+            : currentShipment?.containerType || '20GP';
+
+        const effectiveContainerNbr = isCfsMode
+            ? cfsContainer?.containerNbr
+            : currentShipment?.containerNbr;
 
         return (
             <>
@@ -448,6 +576,9 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
                         />
                     </div>
                 )}
+
+                {/* Multi-container Tabs */}
+                {!isCfsMode && renderTabs()}
 
                 {/* CFS Mode - Simplified Direct Position Selection */}
                 {isCfsMode && cfsContainer && !isSubmitting && (
@@ -477,19 +608,21 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
                             <div style={{
                                 fontSize: '24px',
                                 fontWeight: 800,
-                                color: selectedPosition ? 'var(--primary-color)' : 'rgba(0,0,0,0.2)',
+                                color: draftPositions[activeContainerIndex] ? 'var(--primary-color)' : 'rgba(0,0,0,0.2)',
                                 fontFamily: 'monospace',
                                 letterSpacing: '2px',
                                 minHeight: '32px'
                             }}>
-                                {selectedPosition || 'Select Position'}
+                                {draftPositions[activeContainerIndex] || 'Select Position'}
                             </div>
                         </div>
 
-                        {/* Position Selectors */}
                         <PositionSelectors
+                            key={activeContainerIndex}
                             containerType={effectiveContainerType}
-                            onPositionChange={setSelectedPosition}
+                            onPositionChange={handlePositionDraft}
+                            busyPositions={Object.entries(draftPositions).find(([idx, pos]) => idx !== activeContainerIndex.toString() && typeof pos === 'string' && pos.split('-').length === 5)?.[1] || ''}
+                            initialPosition={draftPositions[activeContainerIndex]}
                         />
                     </>
                 )}
@@ -524,7 +657,7 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
 
                             <div style={detailRowStyle}>
                                 <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Driver Name</span>
-                                <span style={{ color: 'var(--text-color)', fontSize: '13px', fontWeight: 600 }}>{selectedTruck.driverNbr || 'N/A'}</span>
+                                <span style={{ color: 'var(--text-color)', fontSize: '13px', fontWeight: 600 }}>{selectedTruck.driverName || 'N/A'}</span>
                             </div>
                             <div style={detailRowStyle}>
                                 <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Driver Iqama</span>
@@ -538,16 +671,16 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
                                     padding: '2px 8px', background: 'rgba(34, 197, 94, 0.1)',
                                     borderRadius: '4px', fontSize: '12px', fontWeight: 600, color: '#22c55e'
                                 }}>
-                                    {selectedTruck.shipmentName}
+                                    {currentShipment?.shipmentName || 'N/A'}
                                 </span>
                             </div>
                             <div style={detailRowStyle}>
                                 <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Shipment No</span>
-                                <span style={{ color: 'var(--text-color)', fontSize: '13px', fontWeight: 600 }}>{selectedTruck.shipmentNbr || 'N/A'}</span>
+                                <span style={{ color: 'var(--text-color)', fontSize: '13px', fontWeight: 600 }}>{currentShipment?.shipmentNbr || 'N/A'}</span>
                             </div>
                             <div style={detailRowStyle}>
                                 <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Container</span>
-                                <span style={{ color: 'var(--text-color)', fontSize: '13px', fontWeight: 600 }}>{selectedTruck.containerNbr || 'N/A'}</span>
+                                <span style={{ color: 'var(--text-color)', fontSize: '13px', fontWeight: 600 }}>{effectiveContainerNbr || 'N/A'}</span>
                             </div>
                             <div style={{ ...detailRowStyle, borderBottom: 'none' }}>
                                 <span style={{ color: 'var(--text-color)', fontSize: '13px', opacity: 0.7 }}>Container Type</span>
@@ -555,7 +688,7 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
                                     padding: '2px 8px', background: 'rgba(75, 104, 108, 0.1)',
                                     borderRadius: '4px', fontSize: '12px', fontWeight: 600, color: 'var(--primary-color)'
                                 }}>
-                                    {selectedTruck.containerType || 'N/A'}
+                                    {effectiveContainerType || 'N/A'}
                                 </span>
                             </div>
                         </div>
@@ -585,19 +718,21 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
                             <div style={{
                                 fontSize: '24px',
                                 fontWeight: 800,
-                                color: selectedPosition ? 'var(--primary-color)' : 'rgba(0,0,0,0.2)',
+                                color: draftPositions[activeContainerIndex] ? 'var(--primary-color)' : 'rgba(0,0,0,0.2)',
                                 fontFamily: 'monospace',
                                 letterSpacing: '2px',
                                 minHeight: '32px'
                             }}>
-                                {selectedPosition || 'Select Position'}
+                                {draftPositions[activeContainerIndex] || 'Select Position'}
                             </div>
                         </div>
 
-                        {/* Position Selectors */}
                         <PositionSelectors
+                            key={activeContainerIndex}
                             containerType={effectiveContainerType}
-                            onPositionChange={setSelectedPosition}
+                            onPositionChange={handlePositionDraft}
+                            busyPositions={Object.entries(draftPositions).find(([idx, pos]) => idx !== activeContainerIndex.toString() && typeof pos === 'string' && pos.split('-').length === 5)?.[1] || ''}
+                            initialPosition={draftPositions[activeContainerIndex]}
                         />
                     </>
                 )}
@@ -607,7 +742,7 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
                     <div style={{ height: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <PremiumStateView
                             type="loading"
-                            graphic={<ContainerLoader message="POSITIONING CONTAINER" subMessage="Please wait..." />}
+                            graphic={<TruckLoader message="POSITIONING CONTAINER" subMessage="Please wait..." height="150px" />}
                         />
                     </div>
                 )}
@@ -621,7 +756,7 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
             onClick={() => {
                 setStep('truck_list');
                 setSelectedTruck(null);
-                setSelectedPosition('');
+                setDraftPositions({});
             }}
             style={{
                 background: 'rgba(255, 255, 255, 0.1)',
@@ -650,9 +785,7 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
     ) : null;
 
     // Determine panel title
-    const panelTitle = isCfsMode && cfsContainer
-        ? cfsContainer.containerNbr
-        : (selectedTruck ? selectedTruck.containerNbr : `CONTAINER${allTrucks.length > 0 ? ` (${allTrucks.length})` : ''}`);
+    const panelTitle = 'Container Position';
 
     return (
         <PanelLayout
@@ -706,9 +839,22 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
                         <CheckCircle size={32} color="#22c55e" />
                     </div>
                     <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--primary-color)', marginBottom: '8px' }}>Positioning Successful</h3>
-                    <p style={{ color: 'var(--text-color)', opacity: 0.7, fontSize: '14px', lineHeight: 1.6 }}>
-                        Container <strong style={{ color: 'var(--primary-color)' }}>{selectedTruck?.containerNbr}</strong> has been positioned at <strong style={{ color: 'var(--primary-color)' }}>{selectedPosition}</strong>
-                    </p>
+
+                    {Object.keys(draftPositions).length > 1 ? (
+                        <div style={{ margin: '20px 0', textAlign: 'left', background: 'rgba(75, 104, 108, 0.05)', borderRadius: '12px', padding: '16px' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-color)', opacity: 0.5, marginBottom: '12px', textTransform: 'uppercase' }}>Positioned Containers</div>
+                            {Object.entries(draftPositions).map(([idx, pos]) => (
+                                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: parseInt(idx) === Object.keys(draftPositions).length - 1 ? 'none' : '1px solid rgba(75, 104, 108, 0.1)' }}>
+                                    <span style={{ fontWeight: 600, color: 'var(--primary-color)' }}>{isCfsMode ? cfsContainer?.containerNbr : selectedTruck?.shipments?.[parseInt(idx)]?.containerNbr}</span>
+                                    <span style={{ fontFamily: 'monospace', color: 'var(--primary-color)' }}>{pos}</span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p style={{ color: 'var(--text-color)', opacity: 0.7, fontSize: '14px', lineHeight: 1.6 }}>
+                            Container <strong style={{ color: 'var(--primary-color)' }}>{isCfsMode ? cfsContainer?.containerNbr : selectedTruck?.shipments?.[0]?.containerNbr}</strong> has been positioned at <strong style={{ color: 'var(--primary-color)' }}>{draftPositions[0]}</strong>
+                        </p>
+                    )}
                 </div>
             )}
         </PanelLayout>
@@ -716,12 +862,12 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
 }
 
 // Helper Component for Cascading Dropdowns
-function PositionSelectors({ containerType, onPositionChange }: { containerType: string, onPositionChange: (pos: string) => void }) {
-    const [terminal, setTerminal] = useState('');
-    const [block, setBlock] = useState('');
-    const [lot, setLot] = useState('');
-    const [row, setRow] = useState('');
-    const [level, setLevel] = useState('');
+function PositionSelectors({ containerType, onPositionChange, busyPositions, initialPosition }: { containerType: string, onPositionChange: (pos: string) => void, busyPositions?: string, initialPosition?: string }) {
+    const [terminal, setTerminal] = useState(() => initialPosition ? initialPosition.split('-')[0] || '' : '');
+    const [block, setBlock] = useState(() => initialPosition ? initialPosition.split('-')[1] || '' : '');
+    const [lot, setLot] = useState(() => initialPosition ? initialPosition.split('-')[2] || '' : '');
+    const [row, setRow] = useState(() => initialPosition ? initialPosition.split('-')[3] || '' : '');
+    const [level, setLevel] = useState(() => initialPosition ? initialPosition.split('-')[4] || '' : '');
 
     // Track which dropdown is open
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -735,40 +881,39 @@ function PositionSelectors({ containerType, onPositionChange }: { containerType:
 
     // Query Available Options with loading states
     const { data: termData, isLoading: isLoadingTerminals } = useQuery({
-        queryKey: ['posInit', containerType],
-        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'I', containerType }),
+        queryKey: ['posInit', containerType, busyPositions],
+        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'I', containerType, busyPositions }),
         select: res => res.data
     });
 
     const { data: blockData, isLoading: isLoadingBlocks } = useQuery({
-        queryKey: ['posBlock', terminal],
-        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'T', containerType, terminal }),
+        queryKey: ['posBlock', terminal, busyPositions],
+        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'T', containerType, terminal, busyPositions }),
         enabled: !!terminal,
         select: res => res.data
     });
 
     const { data: lotData, isLoading: isLoadingLots } = useQuery({
-        queryKey: ['posLot', block],
-        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'B', containerType, terminal, block }),
+        queryKey: ['posLot', block, busyPositions],
+        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'B', containerType, terminal, block, busyPositions }),
         enabled: !!block,
         select: res => res.data
     });
 
     const { data: rowData, isLoading: isLoadingRows } = useQuery({
-        queryKey: ['posRow', lot],
-        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'L', containerType, terminal, block, lot }),
+        queryKey: ['posRow', lot, busyPositions],
+        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'L', containerType, terminal, block, lot, busyPositions }),
         enabled: !!lot,
         select: res => res.data
     });
 
     const { data: levelData, isLoading: isLoadingLevel } = useQuery({
-        queryKey: ['posLevel', row],
-        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'R', containerType, terminal, block, lot, row }),
+        queryKey: ['posLevel', row, busyPositions],
+        queryFn: () => yardApi.getAvailablePositionLov({ flag: 'R', containerType, terminal, block, lot, row, busyPositions }),
         enabled: !!row,
         select: res => res.data
     });
 
-    // Build progressive position string
     const buildPositionString = () => {
         const parts: string[] = [];
         if (terminal) parts.push(terminal);
@@ -779,12 +924,20 @@ function PositionSelectors({ containerType, onPositionChange }: { containerType:
         return parts.join('-');
     };
 
+    // Track last emitted position to avoid redundant parent updates
+    const lastEmittedRef = useRef(initialPosition || '');
+
     // Check if position is complete
     const isComplete = !!(terminal && block && lot && row && level);
 
     // Auto-update parent with progressive position
     useEffect(() => {
-        onPositionChange(buildPositionString());
+        const pos = buildPositionString();
+        // If it matches initialPosition during first mount, skip update to avoid reset logic side effects
+        if (pos === lastEmittedRef.current) return;
+        
+        lastEmittedRef.current = pos;
+        onPositionChange(pos);
     }, [terminal, block, lot, row, level]);
 
     // Handle camera focus when position is complete
@@ -911,13 +1064,13 @@ function PositionSelectors({ containerType, onPositionChange }: { containerType:
                     <Dropdown
                         label="Level"
                         value={level}
-                        options={levelData?.level ? [levelData.level.toString()] : []}
-                        onChange={setLevel}
+                        options={[]}
+                        onChange={() => { }}
                         disabled={!row}
+                        readOnly={true}
                         isLoading={isLoadingLevel && !!row}
-                        isOpen={openDropdown === 'level'}
-                        onToggle={(open) => setOpenDropdown(open ? 'level' : null)}
                         flex={1}
+                        hideChevron={true}
                     />
                 </div>
             </div>
@@ -931,13 +1084,15 @@ interface DropdownProps {
     options: string[];
     onChange: (v: string) => void;
     disabled?: boolean;
+    readOnly?: boolean;
     isLoading?: boolean;
     isOpen?: boolean;
     onToggle?: (open: boolean) => void;
     flex?: number;
+    hideChevron?: boolean;
 }
 
-function Dropdown({ label, value, options, onChange, disabled, isLoading, isOpen, onToggle, flex }: DropdownProps) {
+function Dropdown({ label, value, options, onChange, disabled, readOnly, isLoading, isOpen, onToggle, flex, hideChevron }: DropdownProps) {
     const dropdownListRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll to reveal dropdown when opened
@@ -957,13 +1112,13 @@ function Dropdown({ label, value, options, onChange, disabled, isLoading, isOpen
     return (
         <div style={{ flex: flex || 'none', position: 'relative' }}>
             <div
-                onClick={() => !disabled && !isLoading && onToggle?.(!isOpen)}
+                onClick={() => !disabled && !readOnly && !isLoading && onToggle?.(!isOpen)}
                 style={{
                     padding: '10px 12px',
                     background: disabled ? '#f1f5f9' : 'white',
                     borderRadius: '8px',
                     border: '1px solid #cbd5e1',
-                    cursor: disabled || isLoading ? 'not-allowed' : 'pointer',
+                    cursor: disabled || isLoading ? 'not-allowed' : (readOnly ? 'default' : 'pointer'),
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
@@ -991,14 +1146,16 @@ function Dropdown({ label, value, options, onChange, disabled, isLoading, isOpen
                         {value || label}
                     </span>
                 )}
-                <ChevronDown
-                    size={14}
-                    color="#94a3b8"
-                    style={{
-                        transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                        transition: 'transform 0.2s'
-                    }}
-                />
+                {!hideChevron && (
+                    <ChevronDown
+                        size={14}
+                        color="#94a3b8"
+                        style={{
+                            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s'
+                        }}
+                    />
+                )}
             </div>
             {isOpen && !isLoading && (
                 <div

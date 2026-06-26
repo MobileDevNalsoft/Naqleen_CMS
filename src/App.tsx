@@ -38,6 +38,7 @@ import ToastContainer from './components/ui/feedback/common/Toast';
 import { EffectsWrapper } from './components/scene/effects/EffectsWrapper';
 import { Lighting } from './components/scene/core/Lighting';
 import ViewNavigationPanel from './features/yard-planning/components/ViewNavigationPanel';
+import { CopilotWidget } from './features/copilot/components/CopilotWidget';
 
 import { useScreenAccess } from './hooks/useScreenAccess';
 import LoginScreen from './features/auth/components/LoginScreen';
@@ -541,6 +542,9 @@ const App = () => {
           onComplete={() => setShowLoadingScreen(false)}
         />
       )}
+
+      {/* Naqleen AI Copilot Chat Toggle (Testing Phase) - Comment out to disable */}
+      <CopilotWidget />
     </div>
   );
 }

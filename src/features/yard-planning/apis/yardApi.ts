@@ -7,7 +7,7 @@ import type {
     PositionTruckDetailsResponse,
     AvailablePositionRequest,
     AvailablePositionResponse,
-    SubmitContainerPositionRequest,
+    SubmitContainerPositionBatchRequest,
     SubmitContainerPositionResponse,
     RestackContainerRequest,
     RestackContainerResponse,
@@ -47,12 +47,15 @@ export const yardApi = {
                 responseMessage: raw.response_message,
                 data: {
                     truckNbr: raw.data.truck_nbr,
-                    driverNbr: raw.data.driver_nbr,
-                    driverIqama: raw.data.driver_iqama,
-                    shipmentName: raw.data.shipment_name,
-                    containerNbr: raw.data.container_nbr,
-                    containerType: raw.data.container_type,
-                    shipmentNbr: raw.data.shipment_nbr
+                    driverName: raw.data.driver_name || raw.data.driver_nbr || '',
+                    driverIqama: raw.data.driver_iqama || '',
+                    shipments: (raw.data.containers || []).map((s: any) => ({
+                        shipmentNbr: s.shipment_nbr,
+                        shipmentName: s.shipment_name,
+                        containerNbr: s.container_nbr,
+                        containerType: s.container_type,
+                        customerName: s.customer_name
+                    }))
                 }
             };
         }
@@ -74,12 +77,13 @@ export const yardApi = {
         if (request.row) params.row_no = request.row;
         if (request.lot) params.lot = request.lot;
         if (request.containerNbr) params.container_nbr = request.containerNbr;
+        if (request.busyPositions) params.position_used = request.busyPositions;
 
         const response = await mobileApiClient.get(API_CONFIG.ENDPOINTS.GET_AVAILABLE_POSITION_LOV, { params });
         return response.data;
     },
 
-    submitContainerPosition: async (request: SubmitContainerPositionRequest): Promise<SubmitContainerPositionResponse> => {
+    submitContainerPositionBatch: async (request: SubmitContainerPositionBatchRequest): Promise<SubmitContainerPositionResponse> => {
         const response = await mobileApiClient.post(API_CONFIG.ENDPOINTS.SUBMIT_CONTAINER_POSITION, request);
         return response.data;
     },

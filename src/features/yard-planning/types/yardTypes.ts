@@ -13,14 +13,18 @@ export interface PositionTruckDetailsRequest {
     truckNbr: string;
 }
 
-export interface PositionTruckDetails {
-    truckNbr: string;
-    driverNbr: string;
-    driverIqama: string;
+export interface PositionShipment {
+    shipmentNbr: string;
     shipmentName: string;
     containerNbr: string;
     containerType: string;
-    shipmentNbr: string;
+}
+
+export interface PositionTruckDetails {
+    truckNbr: string;
+    driverName: string;
+    driverIqama: string;
+    shipments: PositionShipment[];
 }
 
 export interface PositionTruckDetailsResponse {
@@ -37,6 +41,7 @@ export interface AvailablePositionRequest {
     row?: string;
     lot?: string;
     containerNbr?: string; // Container number for restack validation
+    busyPositions?: string; // Comma-separated list of previously drafted positions to exclude
 }
 
 export interface AvailablePositionData {
@@ -53,11 +58,14 @@ export interface AvailablePositionResponse {
     data?: AvailablePositionData;
 }
 
-export interface SubmitContainerPositionRequest {
+export interface SubmitContainerPositionRequestItem {
     shipment_nbr: string;
     container_nbr: string;
     position: string;
+    truck_nbr: string;
 }
+
+export type SubmitContainerPositionBatchRequest = SubmitContainerPositionRequestItem[];
 
 export interface SubmitContainerPositionResponse {
     response_code: number;
