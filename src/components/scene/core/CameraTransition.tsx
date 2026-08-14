@@ -28,12 +28,9 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
 
     // Target positions — Dammam is much smaller so use closer defaults
     const isDammamLayout = layout?.id === 'naqleen-dammam';
-    const standardPos = isDammamLayout
-        ? new THREE.Vector3(0, 120, 200)   // Closer for Dammam
-        : new THREE.Vector3(0, 250, 500);  // Wide for Jeddah
-    const topViewPos = isDammamLayout
-        ? new THREE.Vector3(0, 200, 1)     // Closer top for Dammam
-        : new THREE.Vector3(0, 465, 1);    // Wide top for Jeddah
+    // Target positions matching production bundle
+    const standardPos = new THREE.Vector3(-120, 180, 260); // Isometric 3/4 main view
+    const topViewPos = new THREE.Vector3(0, 450, 0.1);     // Top-down bird's eye view
     const center = new THREE.Vector3(0, 0, 0);
     const startPos = new THREE.Vector3(0, 500, 10);
 
@@ -191,9 +188,18 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
 
                 // Type-specific adjustments
                 if (entity.type === 'cfs_area') {
-                    // CFS: Offset right to frame object on left
-                    cameraOffset = new THREE.Vector3(0, 80, 30);
-                    viewShiftOffset = new THREE.Vector3(15, 0, 0);
+                    const dims = entity.dimensions || {};
+                    const w = dims.width || 60;
+                    const h = dims.height || 30;
+                    const maxDim = Math.max(w, h);
+                    if (maxDim > 90) {
+                        const zoomDistance = maxDim * 1.05;
+                        cameraOffset = new THREE.Vector3(0, zoomDistance, zoomDistance * 0.18);
+                        viewShiftOffset = new THREE.Vector3(Math.min(w * 0.17, 28), 0, 0);
+                    } else {
+                        cameraOffset = new THREE.Vector3(0, 80, 30);
+                        viewShiftOffset = new THREE.Vector3(15, 0, 0);
+                    }
                 } else if (entity.type === 'warehouse') {
                     // Warehouse: Front-on view, slightly further back
                     cameraOffset = new THREE.Vector3(0, 60, 100);

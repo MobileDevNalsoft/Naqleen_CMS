@@ -8,6 +8,7 @@ import ContainerDetailsPanel from './features/yard-planning/components/Container
 import BlockDetailsPanel from './features/yard-planning/components/BlockDetailsPanel';
 import CFSDetailsPanel from './features/yard-planning/components/CFSContainersPanel';
 import InvalidContainersPanel from './features/yard-planning/components/InvalidContainersPanel';
+import LeasedContainersPanel from './features/yard-planning/components/LeasedContainersPanel';
 import CustomerDetailsPanel from './features/yard-planning/components/CustomerDetailsPanel';
 import ModernHeader from './components/layout/ModernHeader';
 import HoverInfoPanel from './components/layout/HoverInfoPanel';
@@ -511,6 +512,7 @@ const App = () => {
             <CustomerDetailsPanel />
             <CFSDetailsPanel />
             <InvalidContainersPanel />
+            <LeasedContainersPanel />
             <PositionContainerPanel isOpen={activePanel === 'position'} onClose={closePanel} />
             <PositionContainerPanel
               isOpen={activePanel === 'cfsPosition'}
@@ -541,6 +543,8 @@ const App = () => {
           onComplete={() => setShowLoadingScreen(false)}
         />
       )}
+
+
     </div>
   );
 }

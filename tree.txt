@@ -1,0 +1,299 @@
+﻿Folder PATH listing for volume New Volume
+Volume serial number is 5EA1-4ACB
+D:\APPS\NAQLEEN-REACT\NAQLEEN-CMS\SRC
+|   App.css
+|   App.tsx
+|   index.css
+|   main.tsx
+|   
++---api
+|       apiClient.ts
+|       apiConfig.ts
+|       apiTypes.ts
+|       index.ts
+|       
++---components
+|   +---layout
+|   |   |   HoverInfoPanel.tsx
+|   |   |   ModernHeader.tsx
+|   |   |   
+|   |   \---header
+|   |           HeaderIcdSelector.tsx
+|   |           HeaderLogo.tsx
+|   |           HeaderNavigation.tsx
+|   |           HeaderNotifications.tsx
+|   |           HeaderProfile.tsx
+|   |           HeaderSearch.tsx
+|   |           
+|   +---scene
+|   |   +---core
+|   |   |       CameraBounds.tsx
+|   |   |       CameraTransition.tsx
+|   |   |       Environment.tsx
+|   |   |       KeyboardNavigation.tsx
+|   |   |       Lighting.tsx
+|   |   |       
+|   |   +---effects
+|   |   |       EffectsWrapper.tsx
+|   |   |       RestackConnectionLine.tsx
+|   |   |       
+|   |   +---infrastructure
+|   |   |   |   CabinOffice.tsx
+|   |   |   |   CFSArea.tsx
+|   |   |   |   Fence.tsx
+|   |   |   |   Fencing.tsx
+|   |   |   |   Gates.tsx
+|   |   |   |   IcdMarkings.tsx
+|   |   |   |   RestingRoom.tsx
+|   |   |   |   TerminalOffice.tsx
+|   |   |   |   Warehouse.tsx
+|   |   |   |   
+|   |   |   +---apis
+|   |   |   |       layoutApi.ts
+|   |   |   |       
+|   |   |   +---dynamic
+|   |   |   |   |   DynamicLayoutEngine.tsx
+|   |   |   |   |   Registry.ts
+|   |   |   |   |   
+|   |   |   |   \---components
+|   |   |   |           GenericZone.tsx
+|   |   |   |           InfrastructureWrappers.tsx
+|   |   |   |           
+|   |   |   +---types
+|   |   |   |       IcdSchema.ts
+|   |   |   |       IcdSchema.zod.ts
+|   |   |   |       
+|   |   |   \---utils
+|   |   |           icdValidator.ts
+|   |   |           layoutUtils.ts
+|   |   |           
+|   |   +---interactions
+|   |   |       EventHandler.tsx
+|   |   |       
+|   |   +---objects
+|   |   |       Containers.tsx
+|   |   |       GhostContainer.tsx
+|   |   |       Truck.tsx
+|   |   |       
+|   |   \---surroundings
+|   |           CityModel.tsx
+|   |           CityTraffic.tsx
+|   |           DammamCityModel.tsx
+|   |           
+|   \---ui
+|       +---feedback
+|       |   |   PremiumStateView.tsx
+|       |   |   
+|       |   +---cfs
+|       |   |       CFSTaskLoader.tsx
+|       |   |       
+|       |   +---common
+|       |   |       NoDataFound.tsx
+|       |   |       Toast.tsx
+|       |   |       
+|       |   +---containers
+|       |   |       ContainerEmptyState.tsx
+|       |   |       ContainerErrorState.tsx
+|       |   |       ContainerLoader.tsx
+|       |   |       
+|       |   +---dashboard
+|       |   |   +---drilldowns
+|       |   |   |       DrilldownEmpty.tsx
+|       |   |   |       DrilldownError.tsx
+|       |   |   |       DrilldownLoader.tsx
+|       |   |   |       
+|       |   |   +---metrics
+|       |   |   |       MetricEmptyState.tsx
+|       |   |   |       MetricErrorState.tsx
+|       |   |   |       MetricLoader.tsx
+|       |   |   |       
+|       |   |   \---trends
+|       |   |           TrendEmptyState.tsx
+|       |   |           TrendErrorState.tsx
+|       |   |           TrendLoader.tsx
+|       |   |           
+|       |   +---generic
+|       |   |       GenericEmptyState.tsx
+|       |   |       GenericErrorState.tsx
+|       |   |       
+|       |   +---plug
+|       |   |       PlugEmptyState.tsx
+|       |   |       PlugErrorState.tsx
+|       |   |       PlugLoader.tsx
+|       |   |       
+|       |   +---scene
+|       |   |       SceneLoader.tsx
+|       |   |       
+|       |   \---trucks
+|       |           TruckLoader.tsx
+|       |           
+|       \---inputs
+|               Dropdown.tsx
+|               
++---features
+|   +---auth
+|   |   +---apis
+|   |   |       authApi.ts
+|   |   |       
+|   |   +---components
+|   |   |       InactivityManager.tsx
+|   |   |       LoginScreen.tsx
+|   |   |       SubscriptionExpiredScreen.tsx
+|   |   |       
+|   |   +---store
+|   |   |       authStore.ts
+|   |   |       
+|   |   \---types
+|   |           authTypes.ts
+|   |           
+|   +---dashboard
+|   |   |   Dashboard.module.css
+|   |   |   Dashboard.tsx
+|   |   |   
+|   |   +---apis
+|   |   |       dashboardApi.ts
+|   |   |       
+|   |   +---components
+|   |   |   +---fleet-intelligence
+|   |   |   |   |   MetricCard.tsx
+|   |   |   |   |   
+|   |   |   |   +---drilldowns
+|   |   |   |   |       DashboardDrilldownModal.tsx
+|   |   |   |   |       
+|   |   |   |   +---metrics
+|   |   |   |   |   +---content
+|   |   |   |   |   |       DriverUtilizationContent.tsx
+|   |   |   |   |   |       FleetEfficiencyContent.tsx
+|   |   |   |   |   |       TruckUtilizationContent.tsx
+|   |   |   |   |   |       
+|   |   |   |   |   \---shared
+|   |   |   |   |           DateFilterDropdown.tsx
+|   |   |   |   |           DateRangeModal.tsx
+|   |   |   |   |           DateRangePicker.tsx
+|   |   |   |   |           
+|   |   |   |   \---trends
+|   |   |   |       +---content
+|   |   |   |       |       DriversTrendContent.tsx
+|   |   |   |       |       TrucksTrendContent.tsx
+|   |   |   |       |       
+|   |   |   |       \---shared
+|   |   |   |               TrendsFilter.tsx
+|   |   |   |               
+|   |   |   \---terminal-intelligence
+|   |   |       |   TerminalTrendsSection.tsx
+|   |   |       |   
+|   |   |       +---charts
+|   |   |       |       ContainersByCustomerChart.tsx
+|   |   |       |       ContainersByTypeChart.tsx
+|   |   |       |       TerminalTransactionsChart.tsx
+|   |   |       |       
+|   |   |       +---css
+|   |   |       |       OperationalMetricChip.module.css
+|   |   |       |       OperationalMetricsRow.module.css
+|   |   |       |       TerminalPieChart.module.css
+|   |   |       |       
+|   |   |       \---metrics
+|   |   |               OperationalMetricChip.tsx
+|   |   |               OperationalMetricsRow.tsx
+|   |   |               
+|   |   \---types
+|   |           dashboardTypes.ts
+|   |           
+|   +---inventory
+|   |   \---components
+|   |           CustomerInventoryPanel.tsx
+|   |           
+|   +---operations
+|   |   +---apis
+|   |   |       gateApi.ts
+|   |   |       
+|   |   +---components
+|   |   |       CFSTaskAssignmentPanel.tsx
+|   |   |       DestuffingPanel.tsx
+|   |   |       GateInPanel.tsx
+|   |   |       GateOutPanel.tsx
+|   |   |       PlugInOutPanel.tsx
+|   |   |       StuffingPanel.tsx
+|   |   |       TemperatureScale.tsx
+|   |   |       
+|   |   +---icons
+|   |   |       PlugIcon.tsx
+|   |   |       
+|   |   \---types
+|   |           gateTypes.ts
+|   |           taskAssignmentTypes.ts
+|   |           
+|   +---settings
+|   |   +---apis
+|   |   |       adminApi.ts
+|   |   |       
+|   |   +---components
+|   |   |       RoleManagement.tsx
+|   |   |       SettingsPanel.tsx
+|   |   |       UserEditExpanded.tsx
+|   |   |       UserManagement.tsx
+|   |   |       
+|   |   +---store
+|   |   |       adminStore.ts
+|   |   |       
+|   |   +---types
+|   |   |       adminTypes.ts
+|   |   |       
+|   |   \---utils
+|   |           dateUtils.ts
+|   |           
+|   +---shared
+|   |   \---components
+|   |           PanelLayout.tsx
+|   |           QuickActionsButton.tsx
+|   |           
+|   \---yard-planning
+|       +---apis
+|       |       bookingApi.ts
+|       |       containerApi.ts
+|       |       invalidContainersApi.ts
+|       |       inventoryApi.ts
+|       |       releaseContainerApi.ts
+|       |       yardApi.ts
+|       |       
+|       +---components
+|       |       BlockDetailsPanel.tsx
+|       |       CFSContainersPanel.tsx
+|       |       ContainerDetailsPanel.tsx
+|       |       CustomerDetailsPanel.tsx
+|       |       CustomerInventoryPanel.tsx
+|       |       InvalidContainersPanel.tsx
+|       |       PositionContainerPanel.tsx
+|       |       ReleaseContainerPanel.tsx
+|       |       ReserveContainersPanelNew.tsx
+|       |       RestackContainersPanel.tsx
+|       |       ViewCard.tsx
+|       |       ViewNavigationPanel.css
+|       |       ViewNavigationPanel.tsx
+|       |       
+|       \---types
+|               bookingTypes.ts
+|               containerTypes.ts
+|               inventoryTypes.ts
+|               releaseContainerTypes.ts
+|               yardTypes.ts
+|               
++---hooks
+|       useAuthSync.ts
+|       useDebounce.ts
+|       useScreenAccess.ts
+|       
++---services
+|       excelImportService.ts
+|       realtime.ts
+|       
++---store
+|       store.ts
+|       uiStore.ts
+|       
++---themes
+|       theme.ts
+|       
+\---utils
+        statusColors.ts
+        

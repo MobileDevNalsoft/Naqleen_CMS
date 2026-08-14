@@ -6,9 +6,9 @@ import { showToast } from '../../../components/ui/feedback/common/Toast';
 import { toPng } from 'html-to-image';
 import Barcode from 'react-barcode';
 import TruckLoader from '../../../components/ui/feedback/trucks/TruckLoader';
-import type { GateCustomer, GateCustomerShipments, GateDocument, GateTruckDetails } from '../types/gateTypes';
+import type { GateCustomer, GateCustomerShipments, GateDocument, GateTruckDetails, GateLclShipment } from '../types/gateTypes';
 import { yardApi } from '../../yard-planning/apis/yardApi';
-import { useGateInTrucksQuery, useCustomerBookingsQuery, useBookingShipmentsQuery, useSubmitGateInMutation, getGateInTruckDetails } from '../apis/gateApi';
+import { useGateInTrucksQuery, useCustomerBookingsQuery, useBookingShipmentsQuery, useSubmitGateInMutation, getGateInTruckDetails, useLclActiveShipmentsQuery, getShipmentDetails } from '../apis/gateApi';
 import { theme } from '../../../themes/theme';
 
 interface GateInPanelProps {
@@ -19,6 +19,15 @@ interface GateInPanelProps {
 export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
     // Search state
     const [searchText, setSearchText] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+
+    // Debounce search effect
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchText);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchText]);
 
     // Truck details state
     const [truckDetails, setTruckDetails] = useState<GateTruckDetails | null>(null);
@@ -27,11 +36,13 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
     // Customer/Booking/Shipment selection state
     const [selectedCustomer, setSelectedCustomer] = useState<GateCustomer | null>(null);
     const [selectedBooking, setSelectedBooking] = useState<string | null>(null);
-    const [selectedShipment, setSelectedShipment] = useState<GateCustomerShipments | null>(null);
+    const [selectedShipment, setSelectedShipment] = useState<GateCustomerShipments | GateLclShipment | null>(null);
+    const [selectedLclOption, setSelectedLclOption] = useState<string | null>(null);
     const [bookingOrderType, setBookingOrderType] = useState<string | null>(null);
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
     const [showBookingDropdown, setShowBookingDropdown] = useState(false);
     const [showShipmentDropdown, setShowShipmentDropdown] = useState(false);
+    const [showLclOptionDropdown, setShowLclOptionDropdown] = useState(false);
 
     // Dropdown search states
     const [customerSearchText, setCustomerSearchText] = useState('');
@@ -42,6 +53,7 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
     const customerDropdownRef = useRef<HTMLDivElement>(null);
     const bookingDropdownRef = useRef<HTMLDivElement>(null);
     const shipmentDropdownRef = useRef<HTMLDivElement>(null);
+    const lclOptionDropdownRef = useRef<HTMLDivElement>(null);
 
     // Document upload state
     const [documents, setDocuments] = useState<GateDocument[]>([]);
@@ -99,9 +111,9 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
     // Gate In Steps: 'truck_list' | 'details' | 'success'
     const [step, setStep] = useState<'truck_list' | 'details' | 'success'>('truck_list');
 
-    // API hooks - fetch all trucks ONCE on mount with empty search
+    // API hooks - fetch trucks based on search
     const { data: allTrucks = [], isLoading: isLoadingTrucks, refetch: refetchTrucks } = useGateInTrucksQuery(
-        '', // Always fetch all trucks with empty search
+        debouncedSearch.trim(), // Use debounced search for server-side filtering
         isOpen // Enabled when panel is open
     );
 
@@ -112,20 +124,30 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
         return allTrucks.filter(truck => truck.toUpperCase().includes(search));
     }, [allTrucks, searchText]);
 
+    const isLclFlow = truckDetails?.orderType === 'LCL';
+    const lclOptionsList = truckDetails?.lclOptions || [];
+
     const { data: bookings = [], isLoading: isLoadingBookings } = useCustomerBookingsQuery(
         selectedCustomer?.customerNbr || '',
         '',
-        !!selectedCustomer
+        !!selectedCustomer && (!isLclFlow || !!selectedLclOption)
     );
 
     const { data: bookingShipmentsData, isLoading: isLoadingShipments } = useBookingShipmentsQuery(
         selectedBooking || '',
         0,
         '',
-        !!selectedBooking
+        !!selectedBooking && !isLclFlow
     );
 
-    const shipments = bookingShipmentsData?.shipments || [];
+    const { data: lclShipmentsData = [], isLoading: isLoadingLclShipments } = useLclActiveShipmentsQuery(
+        selectedCustomer?.customerNbr || '',
+        selectedBooking || '',
+        selectedLclOption || '',
+        !!selectedCustomer && !!selectedBooking && !!selectedLclOption && isLclFlow
+    );
+
+    const shipments = isLclFlow ? lclShipmentsData : (bookingShipmentsData?.shipments || []);
 
     // Update order type when booking shipments are fetched
     useEffect(() => {
@@ -150,9 +172,12 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
         [truckDetails, isInboundContainer]
     );
 
+    // LCL option is required if it's LCL flow
+    const isLclOptionRequired = isLclFlow;
+
     const isBookingSelectionRequired = useMemo(() =>
-        isCustomerSelectionRequired && selectedCustomer !== null,
-        [isCustomerSelectionRequired, selectedCustomer]
+        isCustomerSelectionRequired && selectedCustomer !== null && (!isLclFlow || selectedLclOption !== null),
+        [isCustomerSelectionRequired, selectedCustomer, isLclFlow, selectedLclOption]
     );
 
     // Shipment selection is required only if NOT CRO/LRO
@@ -170,12 +195,18 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
     const canSubmit = useMemo(() => {
         if (!truckDetails) return false;
         if (isCustomerSelectionRequired && !selectedCustomer) return false;
+        if (isLclOptionRequired && !selectedLclOption) return false;
         if (isBookingSelectionRequired && !selectedBooking) return false;
         if (isShipmentSelectionRequired && !selectedShipment) return false;
-        if (!isCroOrLro && !isValidContainerNumber) return false;
-        if (!isCroOrLro && containerValidationStatus !== 'valid') return false;
+        // Container number checks
+        const hasApiContainer = !!truckDetails.containerNumber;
+        if (!isCroOrLro && !hasApiContainer) {
+            if (!isValidContainerNumber) return false;
+            if (containerValidationStatus !== 'valid') return false;
+        }
+
         return true;
-    }, [truckDetails, isCustomerSelectionRequired, selectedCustomer, isBookingSelectionRequired, selectedBooking, isShipmentSelectionRequired, selectedShipment, isCroOrLro, isValidContainerNumber]);
+    }, [truckDetails, isCustomerSelectionRequired, selectedCustomer, isBookingSelectionRequired, selectedBooking, isShipmentSelectionRequired, selectedShipment, isCroOrLro, isValidContainerNumber, isLclOptionRequired, selectedLclOption, containerValidationStatus]);
 
     // Filtered lists for searchable dropdowns
     const filteredCustomers = useMemo(() => {
@@ -253,6 +284,7 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                 setTruckDetails(details);
                 // Reset selections
                 setSelectedCustomer(null);
+                setSelectedLclOption(null);
                 setSelectedBooking(null);
                 setSelectedShipment(null);
                 setBookingOrderType(null);
@@ -274,20 +306,31 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
         setStep('truck_list');
         setTruckDetails(null);
         setSelectedCustomer(null);
+        setSelectedLclOption(null);
         setSelectedBooking(null);
         setSelectedShipment(null);
         setBookingOrderType(null);
+        setContainerNumber('');
         setDocuments([]);
     };
 
     // Handle customer selection
     const handleSelectCustomer = (customer: GateCustomer) => {
         setSelectedCustomer(customer);
+        setSelectedLclOption(null);
         setSelectedBooking(null);
         setSelectedShipment(null);
         setBookingOrderType(null);
         setShowCustomerDropdown(false);
         setCustomerSearchText('');
+    };
+
+    // Handle LCL option selection
+    const handleSelectLclOption = (option: string) => {
+        setSelectedLclOption(option);
+        setSelectedBooking(null);
+        setSelectedShipment(null);
+        setShowLclOptionDropdown(false);
     };
 
     // Handle booking selection
@@ -300,12 +343,45 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
     };
 
     // Handle shipment selection
-    const handleSelectShipment = (shipment: GateCustomerShipments) => {
+    const handleSelectShipment = async (shipment: GateCustomerShipments | GateLclShipment) => {
         setSelectedShipment(shipment);
-        // Prefill container number if available in shipment, otherwise clear it
-        setContainerNumber(shipment.containerNbr || '');
         setShowShipmentDropdown(false);
         setShipmentSearchText('');
+
+        if (isLclFlow) {
+            const lclShip = shipment as GateLclShipment;
+            // Fully flattened merge
+            setTruckDetails(prev => prev ? {
+                ...prev,
+                shipmentNumber: lclShip.shipmentNbr,
+                shipmentName: lclShip.shipmentName || prev.shipmentName,
+                containerNumber: lclShip.containerNbr || prev.containerNumber,
+                containerType: lclShip.containerType || prev.containerType,
+                customerName: lclShip.customerName || prev.customerName,
+                orderNumber: lclShip.orderNbr || prev.orderNumber,
+                truckNumber: lclShip.truckNbr || prev.truckNumber,
+                driverName: lclShip.driverName || prev.driverName,
+                driverIqama: lclShip.driverIqama || prev.driverIqama
+            } : null);
+        } else {
+            setIsLoadingDetails(true);
+            try {
+                const details = await getShipmentDetails(shipment.shipmentNbr);
+                if (details) {
+                    setTruckDetails(prev => prev ? {
+                        ...prev,
+                        shipmentNumber: details.shipment_nbr || prev.shipmentNumber,
+                        shipmentName: details.shipment_name || prev.shipmentName,
+                        containerNumber: details.container_nbr || prev.containerNumber,
+                        containerType: details.container_type || prev.containerType,
+                        orderNumber: details.otm_order_nbr || details.order_nbr || prev.orderNumber,
+                        customerName: details.customer_name || prev.customerName,
+                    } : null);
+                }
+            } finally {
+                setIsLoadingDetails(false);
+            }
+        }
     };
 
     // Handle Done button on success screen - return to truck list and refresh
@@ -313,6 +389,7 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
         // Reset all state
         setTruckDetails(null);
         setSelectedCustomer(null);
+        setSelectedLclOption(null);
         setSelectedBooking(null);
         setSelectedShipment(null);
         setBookingOrderType(null);
@@ -419,7 +496,7 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                     customer_nbr: selectedCustomer?.customerNbr || '',
                     customer_name: selectedCustomer?.customerName || '',
                     booking_id: selectedBooking || '',
-                    order_type: bookingOrderType || ''
+                    order_type: truckDetails?.orderType || bookingOrderType || ''
                 });
             } else {
                 // Standard payload
@@ -430,7 +507,7 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                     truck_type: truckDetails.truckType || '3PL',
                     container_nbr: containerNumber, // Use validated state value
                     documents: documents,
-                    order_type: bookingOrderType || ''
+                    order_type: truckDetails?.orderType || bookingOrderType || ''
                 });
             }
 
@@ -602,26 +679,34 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
     // Render truck list view
     const renderTruckListView = () => (
         <>
-            {/* Compact Search Bar */}
-            {!isLoadingTrucks && (
-                <div style={{ marginBottom: '16px' }}>
-                    <div style={{ position: 'relative' }}>
-                        <Search size={16} style={{
-                            position: 'absolute',
-                            left: '14px',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            color: theme.colors.primary,
-                            opacity: 0.6
-                        }} />
+            {/* Compact Search Bar - Always Visible */}
+            <div style={{ marginBottom: '16px' }}>
+                <div style={{ position: 'relative' }}>
+                    <Search size={16} style={{
+                        position: 'absolute',
+                        left: '14px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: theme.colors.primary,
+                        opacity: 0.6
+                    }} />
+                    
+                    <div style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                    }}>
+                        {isLoadingTrucks && (
+                            <Loader2 size={16} className="animate-spin" style={{ color: theme.colors.primary, opacity: 0.5 }} />
+                        )}
                         {searchText && !isLoadingTrucks && (
                             <button
                                 onClick={() => setSearchText('')}
                                 style={{
-                                    position: 'absolute',
-                                    right: '10px',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
                                     background: `${theme.colors.primary}1a`,
                                     border: 'none',
                                     borderRadius: '50%',
@@ -634,42 +719,43 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                                     padding: 0
                                 }}
                             >
-                                <X size={12} style={{ color: 'var(--text-color)' }} />
+                                <X size={12} style={{ color: theme.colors.text.primary }} />
                             </button>
                         )}
-                        <input
-                            type="text"
-                            placeholder="Search trucks..."
-                            value={searchText}
-                            onChange={(e) => setSearchText(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                            maxLength={10}
-                            style={{
-                                width: '100%',
-                                boxSizing: 'border-box',
-                                padding: '12px 40px 12px 42px',
-                                border: `1px solid ${theme.colors.primary}26`,
-                                borderRadius: '10px',
-                                background: `${theme.colors.primary}0a`,
-                                fontSize: '14px',
-                                fontWeight: 500,
-                                color: theme.colors.text.primary,
-                                outline: 'none',
-                                transition: 'all 0.2s'
-                            }}
-                            onFocus={(e) => {
-                                e.currentTarget.style.borderColor = theme.colors.primary;
-                                e.currentTarget.style.background = `${theme.colors.primary}0f`;
-                                e.currentTarget.style.boxShadow = `0 0 0 3px ${theme.colors.primary}14`;
-                            }}
-                            onBlur={(e) => {
-                                e.currentTarget.style.borderColor = `${theme.colors.primary}26`;
-                                e.currentTarget.style.background = `${theme.colors.primary}0a`;
-                                e.currentTarget.style.boxShadow = 'none';
-                            }}
-                        />
                     </div>
+
+                    <input
+                        type="text"
+                        placeholder="Search trucks..."
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                        maxLength={10}
+                        style={{
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            padding: '12px 60px 12px 42px',
+                            border: `1px solid ${theme.colors.primary}26`,
+                            borderRadius: '10px',
+                            background: `${theme.colors.primary}0a`,
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            color: theme.colors.text.primary,
+                            outline: 'none',
+                            transition: 'all 0.2s'
+                        }}
+                        onFocus={(e) => {
+                            e.currentTarget.style.borderColor = theme.colors.primary;
+                            e.currentTarget.style.background = `${theme.colors.primary}0f`;
+                            e.currentTarget.style.boxShadow = `0 0 0 3px ${theme.colors.primary}14`;
+                        }}
+                        onBlur={(e) => {
+                            e.currentTarget.style.borderColor = `${theme.colors.primary}26`;
+                            e.currentTarget.style.background = `${theme.colors.primary}0a`;
+                            e.currentTarget.style.boxShadow = 'none';
+                        }}
+                    />
                 </div>
-            )}
+            </div>
 
             {/* Truck List */}
             <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
@@ -703,12 +789,12 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                             style={truckCardStyle}
                             onClick={() => handleSelectTruck(truck)}
                             onMouseEnter={e => {
-                                e.currentTarget.style.background = `${theme.colors.primary}14`;
+                                e.currentTarget.style.backgroundColor = `${theme.colors.primary}14`;
                                 e.currentTarget.style.borderColor = theme.colors.primary;
                                 e.currentTarget.style.transform = 'translateX(4px)';
                             }}
                             onMouseLeave={e => {
-                                e.currentTarget.style.background = theme.colors.background.primary;
+                                e.currentTarget.style.backgroundColor = '#ffffff';
                                 e.currentTarget.style.borderColor = `${theme.colors.primary}26`;
                                 e.currentTarget.style.transform = 'translateX(0)';
                             }}
@@ -800,27 +886,29 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                             <span style={{ color: theme.colors.text.primary, fontSize: '13px', opacity: 0.7 }}>Driver Name</span>
                             <span style={{ color: theme.colors.text.primary, fontSize: '13px', fontWeight: 600 }}>{truckDetails.driverName || 'N/A'}</span>
                         </div>
-                        <div style={{ ...detailRowStyle, borderBottom: truckDetails.shipmentName === 'INBOUND_CONTAINER' ? undefined : 'none' }}>
-                            <span style={{ color: theme.colors.text.primary, fontSize: '13px', opacity: 0.7 }}>Driver Iqama</span>
+                        <div style={{ ...detailRowStyle, borderBottom: (truckDetails.shipmentName === 'INBOUND_CONTAINER' || !!truckDetails.shipmentNumber) ? undefined : 'none' }}>
+                            <span style={{ color: theme.colors.text.primary, fontSize: '13px', opacity: 0.7 }}>Driver Nbr / Iqama</span>
                             <span style={{ color: theme.colors.text.primary, fontSize: '13px', fontWeight: 600 }}>{truckDetails.driverIqama || 'N/A'}</span>
                         </div>
 
-                        {/* Additional details for INBOUND_CONTAINER */}
-                        {truckDetails.shipmentName === 'INBOUND_CONTAINER' && (
+                        {/* Shipment & Container Details */}
+                        {(truckDetails.shipmentName === 'INBOUND_CONTAINER' || !!truckDetails.shipmentNumber) && (
                             <>
-                                <div style={detailRowStyle}>
-                                    <span style={{ color: theme.colors.text.primary, fontSize: '13px', opacity: 0.7 }}>Shipment Type</span>
-                                    <span style={{
-                                        padding: '2px 8px',
-                                        background: 'rgba(34, 197, 94, 0.1)',
-                                        borderRadius: '4px',
-                                        fontSize: '12px',
-                                        fontWeight: 600,
-                                        color: '#22c55e'
-                                    }}>
-                                        {truckDetails.shipmentName}
-                                    </span>
-                                </div>
+                                {truckDetails.shipmentName && (
+                                    <div style={detailRowStyle}>
+                                        <span style={{ color: theme.colors.text.primary, fontSize: '13px', opacity: 0.7 }}>Shipment Type</span>
+                                        <span style={{
+                                            padding: '2px 8px',
+                                            background: 'rgba(34, 197, 94, 0.1)',
+                                            borderRadius: '4px',
+                                            fontSize: '12px',
+                                            fontWeight: 600,
+                                            color: '#22c55e'
+                                        }}>
+                                            {truckDetails.shipmentName}
+                                        </span>
+                                    </div>
+                                )}
                                 <div style={detailRowStyle}>
                                     <span style={{ color: theme.colors.text.primary, fontSize: '13px', opacity: 0.7 }}>Shipment No</span>
                                     <span style={{ color: theme.colors.text.primary, fontSize: '13px', fontWeight: 600 }}>{truckDetails.shipmentNumber || 'N/A'}</span>
@@ -842,10 +930,12 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                                         {truckDetails.containerType || 'N/A'}
                                     </span>
                                 </div>
-                                <div style={detailRowStyle}>
-                                    <span style={{ color: theme.colors.text.primary, fontSize: '13px', opacity: 0.7 }}>Customer</span>
-                                    <span style={{ color: theme.colors.text.primary, fontSize: '13px', fontWeight: 600 }}>{truckDetails.customerName || 'N/A'}</span>
-                                </div>
+                                {truckDetails.customerName && (
+                                    <div style={detailRowStyle}>
+                                        <span style={{ color: theme.colors.text.primary, fontSize: '13px', opacity: 0.7 }}>Customer</span>
+                                        <span style={{ color: theme.colors.text.primary, fontSize: '13px', fontWeight: 600 }}>{truckDetails.customerName}</span>
+                                    </div>
+                                )}
                                 <div style={{ ...detailRowStyle, borderBottom: 'none' }}>
                                     <span style={{ color: theme.colors.text.primary, fontSize: '13px', opacity: 0.7 }}>Order No</span>
                                     <span style={{ color: theme.colors.text.primary, fontSize: '13px', fontWeight: 600 }}>{truckDetails.orderNumber || 'N/A'}</span>
@@ -855,7 +945,7 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                     </div>
 
                     {/* Customer Selection */}
-                    {isCustomerSelectionRequired && truckDetails?.customerList && (
+                    {isCustomerSelectionRequired && !truckDetails?.shipmentNumber && truckDetails?.customerList && (
                         <div style={{ marginBottom: '16px' }}>
                             <label style={labelStyle}>Select Customer *</label>
                             <div style={{ position: 'relative' }}>
@@ -939,9 +1029,70 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                     )
                     }
 
+                    {/* LCL Option Selection */}
+                    {isLclOptionRequired && !truckDetails?.shipmentNumber && selectedCustomer && (
+                        <div style={{ marginBottom: '16px' }}>
+                            <label style={labelStyle}>Select LCL Option *</label>
+                            <div style={{ position: 'relative' }}>
+                                <Package size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: theme.colors.text.secondary }} />
+                                <div
+                                    className="modern-input"
+                                    style={{
+                                        paddingLeft: '48px',
+                                        paddingRight: '48px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center'
+                                    }}
+                                    onClick={() => {
+                                        setShowCustomerDropdown(false);
+                                        setShowBookingDropdown(false);
+                                        setShowShipmentDropdown(false);
+                                        setShowLclOptionDropdown(!showLclOptionDropdown);
+                                    }}
+                                >
+                                    {selectedLclOption || 'Select an option...'}
+                                </div>
+                                <ChevronDown size={18} style={{
+                                    position: 'absolute',
+                                    right: '14px',
+                                    top: '50%',
+                                    transform: `translateY(-50%) rotate(${showLclOptionDropdown ? 180 : 0}deg)`,
+                                    color: theme.colors.text.secondary,
+                                    transition: 'transform 0.2s'
+                                }} />
+
+                                {showLclOptionDropdown && (
+                                    <div ref={lclOptionDropdownRef} style={{ ...dropdownStyle, maxHeight: '200px' }}>
+                                        {lclOptionsList.length === 0 ? (
+                                            <div style={{ padding: '16px', textAlign: 'center', color: theme.colors.text.primary, opacity: 0.6, fontSize: '13px' }}>
+                                                No LCL Options found
+                                            </div>
+                                        ) : (
+                                            lclOptionsList.map((option, index) => (
+                                                <div
+                                                    key={index}
+                                                    style={dropdownItemStyle}
+                                                    onMouseEnter={e => e.currentTarget.style.background = `${theme.colors.primary}0a`}
+                                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                    onClick={() => handleSelectLclOption(option)}
+                                                >
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <Package size={14} style={{ color: theme.colors.primary }} />
+                                                        <span style={{ color: theme.colors.text.primary, fontWeight: 500, fontSize: '14px' }}>{option}</span>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Booking Selection */}
                     {
-                        isBookingSelectionRequired && (
+                        isBookingSelectionRequired && !truckDetails?.shipmentNumber && (
                             <div style={{ marginBottom: '16px' }}>
                                 <label style={labelStyle}>Select Booking *</label>
                                 <div style={{ position: 'relative' }}>
@@ -988,6 +1139,7 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                                                 if (!isLoadingBookings) {
                                                     setShowCustomerDropdown(false);
                                                     setShowShipmentDropdown(false);
+                                                    setShowLclOptionDropdown(false);
                                                     setShowBookingDropdown(!showBookingDropdown);
                                                 }
                                             }}
@@ -1082,12 +1234,12 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
 
                     {/* Shipment Selection */}
                     {
-                        isShipmentSelectionRequired && (
+                        isShipmentSelectionRequired && !truckDetails?.shipmentNumber && (
                             <div style={{ marginBottom: '16px' }}>
                                 <label style={labelStyle}>Select Shipment *</label>
                                 <div style={{ position: 'relative' }}>
                                     <Package size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: theme.colors.text.secondary }} />
-                                    {isLoadingShipments ? (
+                                    {isLoadingShipments || isLoadingLclShipments ? (
                                         <div
                                             className="modern-input"
                                             style={{
@@ -1125,9 +1277,10 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                                                 alignItems: 'center'
                                             }}
                                             onClick={() => {
-                                                if (!isLoadingShipments) {
+                                                if (!isLoadingShipments && !isLoadingLclShipments) {
                                                     setShowCustomerDropdown(false);
                                                     setShowBookingDropdown(false);
+                                                    setShowLclOptionDropdown(false);
                                                     setShowShipmentDropdown(!showShipmentDropdown);
                                                 }
                                             }}
@@ -1231,9 +1384,9 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                         )
                     }
 
-                    {/* Container Number Input - only for non-CRO/LRO and when shipment is selected */}
+                    {/* Container Number Input - only for non-CRO/LRO, when shipment is selected, and container is not populated by API */}
                     {
-                        !isCroOrLro && (selectedShipment || truckDetails?.shipmentNumber) && (
+                        !isCroOrLro && (selectedShipment || truckDetails?.shipmentNumber) && !truckDetails?.containerNumber && (
                             <div style={{ marginBottom: '16px' }}>
                                 <label style={labelStyle}>Container Number *</label>
                                 <div style={{ position: 'relative' }}>

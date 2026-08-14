@@ -32,6 +32,7 @@ export const API_CONFIG = {
         CUSTOMER_BOOKINGS: '/getCustomerBookings',
         GET_BOOKINGS: '/getBookings',
         GET_AVAILABLE_RESERVED: '/getAvailableReservedContainers',
+        GET_LCL_ACTIVE_SHIPMENTS: '/getLclActiveShipments',
         BOOKING_SHIPMENTS: '/getBookingShipments',
         SHIPMENT_DETAILS: '/shipmentDetails',
         SUBMIT_GATE_IN: '/submitGateIn',
@@ -77,6 +78,8 @@ export const API_CONFIG = {
         GET_DASHBOARD_DRILLDOWN: '/getDashboardDrilldown',
         // Invalid Containers endpoint
         GET_INVALID_CONTAINERS: '/getInvalidContainers',
+        // Leased Containers endpoint
+        GET_LEASED_CONTAINERS: '/getLeasedContainers',
         // Subscription Validation
         VALIDATE_SUBSCRIPTION: '/unisub/validateSubscription',
     }

@@ -1027,6 +1027,21 @@
           "rotation": 0
         },
         {
+          "id": "leased_area",
+          "type": "cfs_area",
+          "name": "Leased Area",
+          "position": {
+            "x": -75,
+            "y": 0.3,
+            "z": 65
+          },
+          "dimensions": {
+            "width": 150,
+            "height": 35
+          },
+          "rotation": 0
+        },
+        {
           "id": "warehouse_1",
           "type": "warehouse",
           "name": "Warehouse - 1",

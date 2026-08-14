@@ -31,6 +31,7 @@ export interface ContainerDetailsResponse {
     booking_id: string | null;
     container_stored_time: string | null;
     shipment_name: string | null;
+    position?: string | null;
     plug_in_status?: string | null;
     tracking_events?: TrackingEvent[];
 }
@@ -96,6 +97,21 @@ export interface InvalidContainer {
     container_type: string | null;
     stored_time: string | null;
     customer_name: string | null;
+}
+
+// Leased container from API
+export interface LeasedContainer {
+    container_nbr: string;
+    container_type: string | null;
+    stored_time: string | null;
+    customer_name: string | null;
+}
+
+export interface LeasedContainersResponse {
+    data: LeasedContainer[];
+    total_count: number;
+    offset: number;
+    limit: number;
 }
 
 // Response from getInvalidContainers API with pagination

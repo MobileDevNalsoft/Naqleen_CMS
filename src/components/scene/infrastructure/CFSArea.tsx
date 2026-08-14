@@ -109,7 +109,7 @@ const CFSMarker: React.FC<{
 };
 
 // 40ft Container Grid for CFS Area 1
-const CFSContainerGrid: React.FC<{ width: number; depth: number; containerCount: number }> = ({ width, depth, containerCount }) => {
+const CFSContainerGrid: React.FC<{ width: number; depth: number; containerCount?: number; fillRatio?: number }> = ({ width, depth, containerCount = 0, fillRatio }) => {
     // Texture for "Exact Look"
     const texture = useTexture(`${import.meta.env.BASE_URL}textures/container_side.png`);
     texture.wrapS = THREE.RepeatWrapping;
@@ -137,6 +137,8 @@ const CFSContainerGrid: React.FC<{ width: number; depth: number; containerCount:
         const cols = Math.floor((width - 4) / (contLength + gapX));
         const rows = Math.floor((depth - 4) / (contWidth + gapZ));
 
+        const targetCount = fillRatio != null ? Math.floor(cols * rows * fillRatio) : containerCount;
+
         // Base color is #2D3748. Lighter version is #4A5568.
         const markingColor = '#4A5568';
 
@@ -148,28 +150,27 @@ const CFSContainerGrid: React.FC<{ width: number; depth: number; containerCount:
                 const pz = startZ + r * (contWidth + gapZ);
 
                 // 1. Ground Marking (Lot Lines)
-                // User removed lines, so we only use the filled plane
-                // Position 0.3 matches user's manual adjustment
                 els.push(
                     <group key={`mark-${r}-${c}`} position={[px, 0.28, pz]}>
-                        <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+                        <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow renderOrder={2} frustumCulled={false}>
                             <planeGeometry args={[contLength, contWidth]} />
                             <meshStandardMaterial
                                 color={markingColor}
                                 transparent
                                 opacity={0.5}
-                                roughness={0.9} // Concrete-like roughness
+                                roughness={0.9}
                                 metalness={0.1}
                                 polygonOffset
                                 polygonOffsetFactor={-8}
+                                depthWrite={false}
                             />
                         </mesh>
                     </group>
                 );
 
-                // 2. Container (Use actual containerCount from API)
-                if (placedCount < containerCount) {
-                    const py = 0.3 + contHeight / 2; // Level 1 base (Lifted to 0.3 to sit ON TOP of markings at 0.28)
+                // 2. Container
+                if (placedCount < targetCount) {
+                    const py = 0.3 + contHeight / 2;
                     const colorHex = colors[placedCount % colors.length];
                     const color = new THREE.Color(colorHex);
 
@@ -178,7 +179,7 @@ const CFSContainerGrid: React.FC<{ width: number; depth: number; containerCount:
                             <boxGeometry args={[contLength, contHeight, contWidth]} />
                             <meshStandardMaterial
                                 map={texture}
-                                color={color} // Use object color to multiply texture
+                                color={color}
                                 metalness={0.4}
                                 roughness={0.6}
                             />
@@ -189,7 +190,7 @@ const CFSContainerGrid: React.FC<{ width: number; depth: number; containerCount:
             }
         }
         return els;
-    }, [width, depth, texture, colors, containerCount]);
+    }, [width, depth, texture, colors, containerCount, fillRatio]);
 
     return <>{elements}</>;
 };
@@ -197,8 +198,10 @@ const CFSContainerGrid: React.FC<{ width: number; depth: number; containerCount:
 // Main CFS Area Component
 const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rotation = 0, isDimmed = false, childTrucks = [], entityPositionMap }) => {
     const [x, y, z] = position;
-    const borderHeight = 0.15; // Subtle border height
-    const borderWidth = 0.25; // Border thickness
+    const isLeasedArea = id === 'leased_area';
+    const borderHeight = isLeasedArea ? 0.5 : 0.15;
+    const borderWidth = isLeasedArea ? 0.9 : 0.25;
+    const borderY = isLeasedArea ? 0.2 + borderHeight / 2 : 0.25;
     const groupRef = useRef<THREE.Group>(null);
     const opacityRef = useRef(1);
 
@@ -207,38 +210,32 @@ const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rot
     const cfsContainerCount = cfsContainers.length;
 
     const concreteMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: '#2D3748', // Darker concrete (Slate 800)
+        color: isLeasedArea ? '#123A42' : '#2D3748',
         roughness: 0.95,
         transparent: true
-    }), []);
+    }), [isLeasedArea]);
 
     const borderMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-        color: '#F59E0B', // Amber/yellow for visibility
+        color: isLeasedArea ? '#DC2626' : '#F59E0B',
         roughness: 0.5,
         metalness: 0.3,
-        emissive: '#F59E0B',
-        emissiveIntensity: 0.15,
+        emissive: isLeasedArea ? '#DC2626' : '#F59E0B',
+        emissiveIntensity: isLeasedArea ? 0.25 : 0.15,
         transparent: true
-    }), []);
+    }), [isLeasedArea]);
 
-    // TELIA-STYLE: Animate opacity using group.traverse
-    // PERF FIX: Only traverse when opacity is actually changing
     useFrame((_, delta) => {
         const targetOpacity = isDimmed ? 0 : 1;
 
-        // PERF FIX: Early exit if opacity is already stable
         const isStable = Math.abs(opacityRef.current - targetOpacity) < 0.001;
         if (isStable) {
-            opacityRef.current = targetOpacity; // Snap to exact value
-            return; // Skip expensive traverse
+            opacityRef.current = targetOpacity;
+            return;
         }
 
         const lerpSpeed = delta * 3;
-
-        // Smoothly lerp opacity
         opacityRef.current = THREE.MathUtils.lerp(opacityRef.current, targetOpacity, lerpSpeed);
 
-        // Apply to all materials in the group
         if (groupRef.current) {
             groupRef.current.traverse((child) => {
                 if ((child as THREE.Mesh).isMesh) {
@@ -278,44 +275,45 @@ const CFSArea: React.FC<CFSAreaProps> = ({ id, name, position, width, depth, rot
                 <CFSContainerGrid width={width} depth={depth} containerCount={20} />
             )}
 
-            {/* Subtle Border Lines (perimeter marking) */}
+            {/* Static Containers for Leased Area (leased_area - 90% fill ratio) */}
+            {id === 'leased_area' && (
+                <CFSContainerGrid width={width} depth={depth} fillRatio={0.9} />
+            )}
+
             {/* Subtle Border Lines (perimeter marking) */}
             {/* Front border */}
-            <mesh position={[0, 0.25, depth / 2 - borderWidth / 2]} material={borderMaterial}>
+            <mesh position={[0, borderY, depth / 2 - borderWidth / 2]} material={borderMaterial}>
                 <boxGeometry args={[width, borderHeight, borderWidth]} />
             </mesh>
             {/* Back border */}
-            <mesh position={[0, 0.25, -depth / 2 + borderWidth / 2]} material={borderMaterial}>
+            <mesh position={[0, borderY, -depth / 2 + borderWidth / 2]} material={borderMaterial}>
                 <boxGeometry args={[width, borderHeight, borderWidth]} />
             </mesh>
             {/* Left border */}
-            <mesh position={[-width / 2 + borderWidth / 2, 0.25, 0]} material={borderMaterial}>
+            <mesh position={[-width / 2 + borderWidth / 2, borderY, 0]} material={borderMaterial}>
                 <boxGeometry args={[borderWidth, borderHeight, depth]} />
             </mesh>
             {/* Right border */}
-            <mesh position={[width / 2 - borderWidth / 2, 0.25, 0]} material={borderMaterial}>
+            <mesh position={[width / 2 - borderWidth / 2, borderY, 0]} material={borderMaterial}>
                 <boxGeometry args={[borderWidth, borderHeight, depth]} />
             </mesh>
 
             {/* Floating Marker */}
             <CFSMarker
                 position={[0, 2, 0]}
-                areaName={id === 'invalid_containers' ? 'Invalid Containers' : name}
+                areaName={id === 'invalid_containers' ? 'Invalid Containers' : id === 'leased_area' ? 'Leased Area' : name}
                 areaId={id}
                 onClick={handleClick}
                 onPointerOver={() => setHoveredMarker(id)}
                 onPointerOut={() => setHoveredMarker(null)}
                 isOtherMarkerHovered={hoveredMarker !== null && hoveredMarker !== id}
-                // Enable marker for cfs_area, invalid_containers and cfs_area_1
-                disabled={id !== 'cfs_area_1' && id !== 'invalid_containers' && id !== 'cfs_area'}
+                disabled={id !== 'cfs_area_1' && id !== 'invalid_containers' && id !== 'cfs_area' && id !== 'leased_area'}
             />
             {id === 'cfs_area' ? (
                 <CFSContainerGrid width={width} depth={depth} containerCount={cfsContainerCount} />
             ) : (
-                // Only render trucks for other areas
                 childTrucks.map((truck) => {
                     const truckPos = entityPositionMap?.get(truck.id);
-                    // Truck position is relative to CFS, so need to convert to local coords
                     const localX = (truckPos?.x ?? truck.position.x) - position[0];
                     const localZ = (truckPos?.z ?? truck.position.z) - position[2];
 
