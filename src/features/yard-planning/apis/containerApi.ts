@@ -105,13 +105,20 @@ export async function getContainers(): Promise<GetContainersResponse> {
         });
     });
 
+    // A container whose position string doesn't resolve to a slot is dropped below
+    // (return null, filtered at the end of the map). Silently, which makes a padded
+    // lot -- "TRD-C-01-A" vs the registered "TRD-C-1-A" -- indistinguishable from a
+    // failed request or an empty yard. Collect the misses and report them once per
+    // processed payload; the hash cache above means this doesn't fire on every poll.
+    const unresolved: { container: string; position: string; markingKey: string }[] = [];
+
     // Build container positions using marking positions
     const positions = yardContainers.map(({ container, position }) => {
         // Position format: "TRS-A-2-D-1" = markingKey + level
         // Extract level (last segment) and marking key (everything before last dash)
         const lastDashIndex = position.lastIndexOf('-');
         if (lastDashIndex === -1) {
-            // console.warn(`Invalid position format: ${position}`);
+            unresolved.push({ container: container.container_nbr, position, markingKey: '(no level segment)' });
             return null;
         }
 
@@ -120,7 +127,7 @@ export async function getContainers(): Promise<GetContainersResponse> {
 
         const markingPos = markingPositions[markingKey];
         if (!markingPos) {
-            // console.warn(`Marking position not found for container ${container.container_nbr} (${markingKey})`);
+            unresolved.push({ container: container.container_nbr, position, markingKey });
             return null;
         }
 
@@ -159,6 +166,42 @@ export async function getContainers(): Promise<GetContainersResponse> {
             customerName: container.customer_name
         } as ContainerPosition;
     }).filter((c): c is ContainerPosition => c !== null);
+
+    if (import.meta.env.DEV && unresolved.length > 0) {
+        const knownKeys = Object.keys(markingPositions);
+        // The slot registry is filled by SlotMarkings once the 3D scene mounts, so an
+        // empty one means we simply ran too early -- the 5s poll re-processes because
+        // markingPositionsCount is part of the hash. A populated registry with misses
+        // is a genuine format mismatch between the ORDS position string and the layout.
+        console.warn(
+            `[getContainers] ${unresolved.length}/${yardContainers.length} yard container(s) dropped: ` +
+            `position string matched no slot. ${knownKeys.length} slot keys registered` +
+            `${knownKeys.length === 0 ? ' -- 3D scene has not mounted yet, expect recovery on the next poll' : ''}.`,
+            // Capped: an empty registry drops every container, and the whole yard in one
+            // console line is noise. The count above is the real signal.
+            unresolved.slice(0, 20).map(miss => {
+                // Offer the registered keys for the same terminal+block, e.g. "TRD-C",
+                // so a padding or label mismatch is visible side by side.
+                const prefix = miss.markingKey.split('-').slice(0, 2).join('-');
+                const near = knownKeys.filter(k => k.startsWith(`${prefix}-`)).slice(0, 8);
+                return near.length > 0 ? { ...miss, registeredForBlock: near } : miss;
+            })
+        );
+    }
+
+    if (import.meta.env.DEV) {
+        // The fetch count above says nothing about where containers ended up: the
+        // position === 'CFS' branch bypasses the slot lookup entirely, so a yard
+        // container mislabelled as CFS is neither rendered nor reported as dropped.
+        console.log(
+            `[getContainers] resolved ${positions.length} yard + ${cfsContainers.length} CFS ` +
+            `from ${yardContainers.length} yard row(s), ${unresolved.length} unresolved`,
+            {
+                yard: positions.map(p => `${p.id} -> ${p.terminal}-${p.block}-${p.lot}-${p.row}-${p.level} @ (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)})`),
+                cfs: cfsContainers.map(c => c.id)
+            }
+        );
+    }
 
     const result = { positions, cfsContainers, customerByContainer };
 

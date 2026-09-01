@@ -120,8 +120,22 @@ const mapApiResponseToInventoryRecords = (apiData: CustomerInventoryData[]): Inv
 
 // --- POST Payload Interfaces ---
 
-// Function to create new inventory 
-export const createInventory = async (data: Omit<InventoryRecord, 'id'>): Promise<any> => {
+/**
+ * Create one inventory record.
+ *
+ * `flag` is the duplicate policy, and the two values are NOT check-then-commit
+ * -- both write:
+ *   CHECK  : insert, skipping rows that already exist, and report which were
+ *            skipped as response_code 500 + data[]
+ *   INSERT : insert unconditionally, no duplicate test
+ * The panel posts CHECK first and re-posts INSERT only after the operator
+ * confirms the duplicate. Until now no flag was sent at all, so both steps of
+ * that flow posted the identical body.
+ */
+export const createInventory = async (
+    data: Omit<InventoryRecord, 'id'>,
+    flag: 'CHECK' | 'INSERT' = 'CHECK'
+): Promise<any> => {
     const url = API_CONFIG.ENDPOINTS.CREATE_INVENTORY;
 
     // Map UI data to API Payload (Nested)
@@ -144,18 +158,35 @@ export const createInventory = async (data: Omit<InventoryRecord, 'id'>): Promis
         customer_nbr: data.customerNumber || '', // Use passed customer number
         container_nbr: data.containerNumber,
         shipment_nbr: data.otmShipmentNumber,
-        shipment_name: data.otmShipmentNumber, // Using shipment number as name if not available
+        // The OPERATION, from the lookup -- STUFFING / LOADING_LCL deduct stock,
+        // DESTUFFING / OFFLOADING_LCL / STORE_AS_IT_IS add to it.
+        //
+        // This used to be `data.otmShipmentNumber` with the note "using shipment
+        // number as name if not available", so every payload carried
+        // "shipment_name":"SH2026...". The lookup does return the real name; the
+        // CMS simply was not capturing it. The backend resolves the direction
+        // from the shipment row regardless, so this field is corroborating
+        // information rather than the thing the decision rests on.
+        shipment_name: data.shipmentName || '',
         cargo_description: itemsPayload[0]?.item_description || '', // Use first item desc as cargo desc
         items: itemsPayload
     };
 
-    // User requested direct payload
-    const payload = containerPayload;
+    const payload = { ...containerPayload, flag };
 
     console.log("createInventory Payload:", JSON.stringify(payload, null, 2));
 
     try {
         const response = await mobileApiClient.post(url, payload);
+
+        // ORDS answers 200 and puts the outcome in the body, so a duplicate --
+        // response_code 500 -- arrived here as a resolved promise and the panel
+        // reported "Inventory created successfully!" for a row it had skipped.
+        // Throwing the body is what makes the panel's existing catch, which
+        // reads error.response_code and error.response_message, actually run.
+        if (response.data && response.data.response_code !== 200) {
+            throw response.data;
+        }
         return response.data;
     } catch (error: any) {
         console.error("Error creating inventory:", error);
@@ -181,7 +212,12 @@ export const createBulkInventory = async (importRows: InventoryImportRow[]): Pro
                 customer_nbr: row.customer_nbr || '',
                 container_nbr: row.container_nbr,
                 shipment_nbr: row.shipment_nbr,
-                shipment_name: row.shipment_nbr,
+                // Excel rows carry no operation, so this is left empty rather
+                // than echoing the shipment number as it used to. The backend
+                // resolves the direction from the shipment row itself, which is
+                // why the bulk import needs no new column to move stock the
+                // right way.
+                shipment_name: '',
                 cargo_description: row.cargo_description || row.item_description,
                 items: []
             });

@@ -10,13 +10,12 @@ import {
     CabinOfficeWrapper
 } from './components/InfrastructureWrappers';
 
-// Silent component for entities handled by other systems (like IcdMarkings)
-const NullComponent = () => null;
-
 // Mapping of JSON 'type' to React Component
-// Note: Block types (container_block_*) are NOT registered here.
-// They are rendered by IcdMarkings (SlotMarkings + BlockLabels) which handles
-// slot grids, labels, and selection highlighting via instance colors.
+// Note: Block types are NOT registered here -- 'container_block' (Dammam) and
+// 'container_block_a'..'_e' (Jeddah) alike. They are rendered by IcdMarkings
+// (SlotMarkings + BlockLabels), which handles slot grids, labels, and selection
+// highlighting via instance colors. DynamicLayoutEngine skips any type containing
+// 'block' before it reaches this map, so no placeholder entries are needed.
 export const ComponentRegistry: Record<string, React.FC<any>> = {
     // Zones (Flat/Textured)
     'road': GenericZone,
@@ -41,9 +40,6 @@ export const ComponentRegistry: Record<string, React.FC<any>> = {
     'terminal_office': TerminalOfficeWrapper,
     'terminal_dispatch_office': TerminalDispatchOfficeWrapper,
     'cabin_office': CabinOfficeWrapper,
-
-    // Ignored Types (Handled separately but registered to silence warnings)
-    'container_block_a': NullComponent,
 
     // Fallback/Generic
     'zone': GenericZone

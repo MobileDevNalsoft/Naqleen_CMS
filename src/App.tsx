@@ -93,9 +93,24 @@ const App = () => {
     setIsLayoutSwitching(true);
     resetForLayoutSwitch();
 
-    // Cancel any in-flight containers request, then clear old data
-    queryClient.cancelQueries({ queryKey: ['containers'] });
-    queryClient.removeQueries({ queryKey: ['containers'] });
+    // Drop the ENTIRE cache, not just ['containers'].
+    //
+    // Every request carries req_location_id, injected by the interceptor in
+    // src/api/apiClient.ts from authStore.currentLocation -- but not one query
+    // key in this app contains the location. ['customers'], ['bookings', ...],
+    // ['gate-in-trucks', searchText], ['invalidContainers', searchText],
+    // ['leasedContainers', ...], ['releaseContainerTrucks', ...],
+    // ['positionTrucks', ...], ['container-details', id] and the rest are keyed
+    // on content alone, so Jeddah and Dammam collide on the same key and React
+    // Query serves the previous site's rows as a cache hit. Clearing only
+    // ['containers'] left every other panel showing the terminal you just left.
+    //
+    // The alternative -- appending currentLocation.id to ~25 query keys -- is
+    // equally correct, but any query added later silently reintroduces the bug.
+    // Nothing fetched under one site is valid under another, so dropping the
+    // whole cache states that invariant once, in one place.
+    queryClient.cancelQueries();
+    queryClient.removeQueries();
 
     setLocation(newLoc);
 
@@ -135,10 +150,6 @@ const App = () => {
     setSceneReady(true);
   }, []);
 
-  const handleNavChange = (nav: string) => {
-    setActiveNav(nav);
-  };
-
   // Force enable controls when returning to 3D View (Fix for freeze issue)
   useEffect(() => {
     if (activeNav === '3D View' && controlsRef.current) {
@@ -162,6 +173,20 @@ const App = () => {
   const selectedBlock = useStore((state) => state.selectedBlock);
   const setSelectId = useStore((state) => state.setSelectId);
   const setSelectedBlock = useStore((state) => state.setSelectedBlock);
+  const setSelectedCustomer = useStore((state) => state.setSelectedCustomer);
+
+  // Switching sections must dismiss anything left open in the 3D view.
+  // The action panel layer is fixed at the root (outside the sliding viewport),
+  // so an open panel would otherwise stay floating on top of the Dashboard.
+  const handleNavChange = useCallback((nav: string) => {
+    if (nav !== useUIStore.getState().activeNav) {
+      closePanel();
+      setSelectId(null);
+      setSelectedBlock(null);
+      setSelectedCustomer(null);
+    }
+    setActiveNav(nav);
+  }, [closePanel, setSelectId, setSelectedBlock, setSelectedCustomer, setActiveNav]);
 
   // REMOVED: Post-Sync Control Reset
   // This was causing a "fake" interaction start event because controls.update()
@@ -490,7 +515,25 @@ const App = () => {
           }}
         >
 
-          <Dashboard />
+          {/*
+            Keyed on the location so the whole dashboard subtree REMOUNTS when
+            the site changes.
+
+            The dashboards do not use React Query -- they fetch with plain
+            useEffect + useState, and their dependency arrays are
+            [date, startDate, endDate]. The location is not in them, and this
+            section stays mounted permanently (it is hidden with visibility, not
+            unmounted), so switching terminal never re-ran a single fetch: the
+            cards kept showing the previous site's numbers indefinitely.
+
+            A key change is one line and covers every current and future
+            dashboard component; adding currentLocation.id to each dependency
+            array would be ~8 files today and one forgotten array away from
+            regressing. The tradeoff is that local UI state resets on switch, so
+            a chosen date range returns to its default -- consistent with
+            resetForLayoutSwitch() above, which already clears state here.
+          */}
+          <Dashboard key={currentLocation?.id ?? 'no-location'} />
         </section>
       </div>
 

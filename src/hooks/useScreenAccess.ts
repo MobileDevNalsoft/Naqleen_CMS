@@ -47,8 +47,14 @@ export function useScreenAccess() {
     const hasDashboard = hasPathStartsWith('/dashboards');
 
     // Specific Dashboard Access
-    const hasFleetDashboard = hasPath('/dashboards/fleet');
-    const hasTerminalDashboard = hasPath('/dashboards/terminal');
+    let hasFleetDashboard = hasPath('/dashboards/fleet');
+    let hasTerminalDashboard = hasPath('/dashboards/terminal');
+
+    // Fallback: If user has general dashboard access but no specific paths, show both
+    if (hasDashboard && !hasFleetDashboard && !hasTerminalDashboard) {
+        hasFleetDashboard = true;
+        hasTerminalDashboard = true;
+    }
 
     const hasAccessControl = hasPath('/access-control');
     const hasManageRole = hasPath('/manage-role');

@@ -1006,22 +1006,15 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                                     />
                                                 </div>
                                             </div>
-                                            <div>
-                                                <label style={labelStyle}>Contact Person</label>
-                                                <input type="text" style={inputStyle} value={contact} onChange={e => setContact(e.target.value)} />
-                                            </div>
-                                            <div>
-                                                <label style={labelStyle}>Email Address</label>
-                                                <input type="email" style={inputStyle} value={email} onChange={e => setEmail(e.target.value)} />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Column 2: Container & Summary */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                                        <div style={{ background: 'var(--card-bg)', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                                            <div style={sectionTitleStyle}>
-                                                <Package size={16} color="var(--primary-color)" /> Container Details
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                                <div>
+                                                    <label style={labelStyle}>Contact Person</label>
+                                                    <input type="text" style={inputStyle} value={contact} onChange={e => setContact(e.target.value)} />
+                                                </div>
+                                                <div>
+                                                    <label style={labelStyle}>Email Address</label>
+                                                    <input type="email" style={inputStyle} value={email} onChange={e => setEmail(e.target.value)} />
+                                                </div>
                                             </div>
                                             <div>
                                                 <label style={labelStyle}>Container Number</label>
@@ -1040,6 +1033,10 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
                                                 />
                                             </div>
                                         </div>
+                                    </div>
+
+                                    {/* Column 2: Items & Summary */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
                                         {/* Items Summary Card */}
                                         <div style={{ background: 'var(--card-bg)', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', flex: 1, display: 'flex', flexDirection: 'column' }}>

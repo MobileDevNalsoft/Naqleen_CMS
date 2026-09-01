@@ -168,8 +168,15 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
         try {
             const data = await fetchShipmentLookup(selectedId, query);
 
-            // "data" is [{ shipment_nbr: string, container_nbr?: string }]
-            const options = data.map(s => ({ label: s.shipment_nbr, value: s.shipment_nbr }));
+            // Show the operation beside the shipment number. It decides whether
+            // this entry ADDS to the customer's stock (DESTUFFING,
+            // OFFLOADING_LCL, STORE_AS_IT_IS) or REMOVES from it (STUFFING,
+            // LOADING_LCL), so the operator should not have to know the
+            // shipment number by heart to tell which way it goes.
+            const options = data.map(s => ({
+                label: s.shipment_name ? `${s.shipment_nbr} — ${s.shipment_name}` : s.shipment_nbr,
+                value: s.shipment_nbr
+            }));
             setShipmentOptions(options);
             setShipmentsData(data);
         } catch (error) {
@@ -285,12 +292,14 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
             customerNumber: selectedCustomerId,
             containerNumber,
             otmShipmentNumber,
+            // The operation, carried from the lookup row the operator picked.
+            shipmentName: shipmentsData.find(s => s.shipment_nbr === otmShipmentNumber)?.shipment_name || '',
             items
         };
 
         try {
             // Step 1: Check/Create with flag='CHECK'
-            await createInventory(newRecord);
+            await createInventory(newRecord, 'CHECK');
 
             // Step 2: If 200, it's done (as per user instruction)
             // Assuming response contains status or we check for success some other way.
@@ -324,7 +333,7 @@ export default function CustomerInventoryPanel({ isOpen, onClose }: CustomerInve
         setIsSubmitting(true);
         try {
             // Step 4: Force Insert with flag='INSERT'
-            await createInventory(pendingRecord);
+            await createInventory(pendingRecord, 'INSERT');
             showNotification("Inventory forcibly created!", 'success');
             resetForm();
             setShowConfirmModal(false);

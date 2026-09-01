@@ -246,11 +246,20 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
         if (isCfsMode && cfsContainer) {
             const pos = draftPositions[0];
             if (!pos) return;
+            // No truck_nbr. A CFS container is already in the yard and arrived
+            // on no truck, and the backend guards both of its truck steps with
+            // IF l_truck_nbr IS NOT NULL, so omitting it is the supported path.
+            //
+            // This previously sent the literal 'STORE_AS_IT_IS' as a "fallback",
+            // which is a SHIPMENT NAME, not a truck number. Being non-null it
+            // satisfied that guard, so the backend then looked for a vehicle
+            // master row with truck_nbr = 'STORE_AS_IT_IS' in a GATE IN state,
+            // found none, and refused every CFS positioning with
+            // "Truck STORE_AS_IT_IS is not in a valid Gate In state".
             submitPositionBatch([{
                 shipment_nbr: cfsContainer.shipmentNbr,
                 container_nbr: cfsContainer.containerNbr,
-                position: pos,
-                truck_nbr: 'STORE_AS_IT_IS' // fallback for CFS
+                position: pos
             }]);
         } else {
             if (!selectedTruck) return;
@@ -621,7 +630,10 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
                             key={activeContainerIndex}
                             containerType={effectiveContainerType}
                             onPositionChange={handlePositionDraft}
-                            busyPositions={Object.entries(draftPositions).find(([idx, pos]) => idx !== activeContainerIndex.toString() && typeof pos === 'string' && pos.split('-').length === 5)?.[1] || ''}
+                            busyPositions={Object.entries(draftPositions)
+                                .filter(([idx, pos]) => idx !== activeContainerIndex.toString() && typeof pos === 'string' && pos.split('-').length === 5)
+                                .map(([, pos]) => pos as string)
+                                .join(',')}
                             initialPosition={draftPositions[activeContainerIndex]}
                         />
                     </>
@@ -731,7 +743,10 @@ export default function PositionContainerPanel({ isOpen, onClose, mode = 'truck_
                             key={activeContainerIndex}
                             containerType={effectiveContainerType}
                             onPositionChange={handlePositionDraft}
-                            busyPositions={Object.entries(draftPositions).find(([idx, pos]) => idx !== activeContainerIndex.toString() && typeof pos === 'string' && pos.split('-').length === 5)?.[1] || ''}
+                            busyPositions={Object.entries(draftPositions)
+                                .filter(([idx, pos]) => idx !== activeContainerIndex.toString() && typeof pos === 'string' && pos.split('-').length === 5)
+                                .map(([, pos]) => pos as string)
+                                .join(',')}
                             initialPosition={draftPositions[activeContainerIndex]}
                         />
                     </>

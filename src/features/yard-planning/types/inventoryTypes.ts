@@ -55,6 +55,12 @@ export interface InventoryRecord {
     customerNumber?: string; // Added for manual entry
     containerNumber: string;
     otmShipmentNumber: string;
+    /**
+     * The operation on the selected shipment, carried through from the lookup.
+     * STUFFING and LOADING_LCL deduct stock; DESTUFFING, OFFLOADING_LCL and
+     * STORE_AS_IT_IS add to it.
+     */
+    shipmentName?: string;
     contactPerson?: string;
     email?: string;
     items: InventoryItem[];
@@ -122,6 +128,16 @@ export interface CustomerLookupData {
 export interface ShipmentLookupData {
     shipment_nbr: string;
     container_nbr?: string;
+    /**
+     * The OPERATION -- DESTUFFING, STORE_AS_IT_IS, OFFLOADING_LCL, STUFFING or
+     * LOADING_LCL -- not a label for the shipment. It decides which way stock
+     * moves: the first three add to customer stock, the last two deduct from it.
+     *
+     * /customerInventoryShipments has always returned this; the CMS just never
+     * captured it, and sent the shipment NUMBER in the shipment_name field
+     * instead.
+     */
+    shipment_name?: string;
 }
 
 // --- CFS History Types ---

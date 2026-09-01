@@ -27,10 +27,14 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
     const lastSelectionChangeTime = useRef<number>(0);
 
     // Target positions — Dammam is much smaller so use closer defaults
+    // Target positions matching production bundle exactly
     const isDammamLayout = layout?.id === 'naqleen-dammam';
-    // Target positions matching production bundle
-    const standardPos = new THREE.Vector3(-120, 180, 260); // Isometric 3/4 main view
-    const topViewPos = new THREE.Vector3(0, 450, 0.1);     // Top-down bird's eye view
+    const standardPos = isDammamLayout
+        ? new THREE.Vector3(0, 120, 200)   // Dammam overview angle
+        : new THREE.Vector3(0, 250, 500);  // Jeddah / default overview angle
+    const topViewPos = isDammamLayout
+        ? new THREE.Vector3(0, 200, 1)     // Dammam top-down angle
+        : new THREE.Vector3(0, 465, 1);    // Jeddah / default top-down angle
     const center = new THREE.Vector3(0, 0, 0);
     const startPos = new THREE.Vector3(0, 500, 10);
 
@@ -135,7 +139,7 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
             const camOffsetZ = 20;
 
             // Target LookAt: Base Pos + Standard Lift
-            const totalLift = 12;
+            const totalLift = 15;
             const shiftX = 8;
 
             const targetLookAt = new THREE.Vector3(
@@ -188,7 +192,7 @@ export function CameraTransition({ isLoading, controlsRef }: CameraTransitionPro
 
                 // Type-specific adjustments
                 if (entity.type === 'cfs_area') {
-                    const dims = entity.dimensions || {};
+                    const dims: any = entity.dimensions || {};
                     const w = dims.width || 60;
                     const h = dims.height || 30;
                     const maxDim = Math.max(w, h);

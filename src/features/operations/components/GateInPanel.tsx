@@ -8,6 +8,7 @@ import Barcode from 'react-barcode';
 import TruckLoader from '../../../components/ui/feedback/trucks/TruckLoader';
 import type { GateCustomer, GateCustomerShipments, GateDocument, GateTruckDetails, GateLclShipment } from '../types/gateTypes';
 import { yardApi } from '../../yard-planning/apis/yardApi';
+import naqleenLogo from '../../../assets/images/naqleen_logo.png';
 import { useGateInTrucksQuery, useCustomerBookingsQuery, useBookingShipmentsQuery, useSubmitGateInMutation, getGateInTruckDetails, useLclActiveShipmentsQuery, getShipmentDetails } from '../apis/gateApi';
 import { theme } from '../../../themes/theme';
 
@@ -32,6 +33,18 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
     // Truck details state
     const [truckDetails, setTruckDetails] = useState<GateTruckDetails | null>(null);
     const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+    // Dual shipment. A truck can be attached to up to two shipments, one
+    // container each, and gate in is submitted once PER SHIPMENT -- the backend
+    // accumulates them in VM.GATE_IN_SHIPMENTS and holds the truck at
+    // 'NAQLEEN.INSPECTED' until every one is in. Submitting only the first
+    // therefore leaves the truck permanently in the gate-in list.
+    //
+    // completedShipments is seeded from the server's per-shipment
+    // gate_in_completed, so an operator who gated in one shipment and closed
+    // the app reopens on the one still outstanding.
+    const [activeShipmentIndex, setActiveShipmentIndex] = useState(0);
+    const [completedShipments, setCompletedShipments] = useState<Record<number, boolean>>({});
 
     // Customer/Booking/Shipment selection state
     const [selectedCustomer, setSelectedCustomer] = useState<GateCustomer | null>(null);
@@ -130,6 +143,9 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
     const { data: bookings = [], isLoading: isLoadingBookings } = useCustomerBookingsQuery(
         selectedCustomer?.customerNbr || '',
         '',
+        // The chosen LCL operation IS the shipment_name the bookings are filtered
+        // by. Empty on the standard flow, which selects the non-LCL booking set.
+        isLclFlow ? (selectedLclOption || '') : '',
         !!selectedCustomer && (!isLclFlow || !!selectedLclOption)
     );
 
@@ -157,6 +173,64 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
     }, [bookingShipmentsData]);
 
     const submitMutation = useSubmitGateInMutation();
+
+    // --- Dual shipment derived state ---
+
+    const truckShipments = truckDetails?.shipments ?? [];
+    const isMultiShipment = truckShipments.length > 1;
+    const allShipmentsDone = truckShipments.length > 0
+        && truckShipments.every((_, i) => completedShipments[i]);
+
+    /**
+     * Point the flat top-level fields at one shipment.
+     *
+     * The server mirrors shipments[0] onto them and this panel reads them
+     * everywhere, so swapping the projection is what makes a tab switch work
+     * without touching the rest of the layout.
+     *
+     * containerNbr is assigned rather than defaulted: a shipment that arrives
+     * without a container number must leave the field EMPTY so the operator is
+     * prompted for one, not inherit the previous tab's container.
+     */
+    const projectShipment = (details: GateTruckDetails, index: number): GateTruckDetails => {
+        const s = details.shipments?.[index];
+        if (!s) return details;
+        return {
+            ...details,
+            shipmentNumber: s.shipmentNbr,
+            shipmentName: s.shipmentName || details.shipmentName,
+            containerNumber: s.containerNbr,
+            containerType: s.containerType || details.containerType,
+            customerName: s.customerName || details.customerName,
+            orderNumber: s.orderNumber || details.orderNumber
+        };
+    };
+
+    /** Container number and documents belong to one shipment, never to the truck. */
+    const resetPerShipmentState = () => {
+        setContainerNumber('');
+        setContainerValidationStatus('idle');
+        setDocuments([]);
+    };
+
+    const handleSelectShipmentTab = (index: number) => {
+        if (index === activeShipmentIndex) return;
+        setActiveShipmentIndex(index);
+        setTruckDetails(prev => (prev ? projectShipment(prev, index) : prev));
+        resetPerShipmentState();
+    };
+
+    /**
+     * Same projection, on the success screen -- the driver gets ONE SLIP PER
+     * CONTAINER, as the mobile app does, so both have to be reachable after the
+     * last submit. No per-shipment reset here: container number and documents
+     * are spent by this point, and clearing them would only churn state.
+     */
+    const handleSelectSlipShipment = (index: number) => {
+        if (index === activeShipmentIndex) return;
+        setActiveShipmentIndex(index);
+        setTruckDetails(prev => (prev ? projectShipment(prev, index) : prev));
+    };
 
     // Check if CRO or LRO order type (skip shipment selection)
     const isCroOrLro = useMemo(() => {
@@ -194,6 +268,11 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
 
     const canSubmit = useMemo(() => {
         if (!truckDetails) return false;
+        // The active shipment is already in. Resubmitting it is harmless -- the
+        // backend's comma-bounded membership test refuses to double-count -- but
+        // it also does not advance the truck, so the operator would be pressing
+        // a button that cannot finish the job.
+        if (completedShipments[activeShipmentIndex]) return false;
         if (isCustomerSelectionRequired && !selectedCustomer) return false;
         if (isLclOptionRequired && !selectedLclOption) return false;
         if (isBookingSelectionRequired && !selectedBooking) return false;
@@ -206,7 +285,7 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
         }
 
         return true;
-    }, [truckDetails, isCustomerSelectionRequired, selectedCustomer, isBookingSelectionRequired, selectedBooking, isShipmentSelectionRequired, selectedShipment, isCroOrLro, isValidContainerNumber, isLclOptionRequired, selectedLclOption, containerValidationStatus]);
+    }, [truckDetails, isCustomerSelectionRequired, selectedCustomer, isBookingSelectionRequired, selectedBooking, isShipmentSelectionRequired, selectedShipment, isCroOrLro, isValidContainerNumber, isLclOptionRequired, selectedLclOption, containerValidationStatus, completedShipments, activeShipmentIndex]);
 
     // Filtered lists for searchable dropdowns
     const filteredCustomers = useMemo(() => {
@@ -238,6 +317,8 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
         if (!isOpen) {
             setSearchText('');
             setTruckDetails(null);
+            setActiveShipmentIndex(0);
+            setCompletedShipments({});
             setSelectedCustomer(null);
             setSelectedBooking(null);
             setSelectedShipment(null);
@@ -281,7 +362,32 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
         try {
             const details = await getGateInTruckDetails(truckNumber);
             if (details) {
-                setTruckDetails(details);
+                // Open on the first shipment still outstanding, so a truck being
+                // resumed lands on the work that is left rather than on the one
+                // already done. Everything done (or nothing to do) opens on the
+                // first tab.
+                const list = details.shipments ?? [];
+                const alreadyDone: Record<number, boolean> = {};
+                list.forEach((s, i) => {
+                    if (s.gateInCompleted) alreadyDone[i] = true;
+                });
+                const firstPending = list.findIndex(s => !s.gateInCompleted);
+                const startIndex = firstPending === -1 ? 0 : firstPending;
+
+                setCompletedShipments(alreadyDone);
+                setActiveShipmentIndex(startIndex);
+                setTruckDetails(list.length ? projectShipment(details, startIndex) : details);
+
+                if (list.length > 1) {
+                    const pending = details.pendingCount ?? list.filter(s => !s.gateInCompleted).length;
+                    if (pending < list.length) {
+                        showToast(
+                            'info',
+                            `Truck carries ${list.length} shipments, ${pending} still to gate in.`
+                        );
+                    }
+                }
+
                 // Reset selections
                 setSelectedCustomer(null);
                 setSelectedLclOption(null);
@@ -305,6 +411,8 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
     const handleBackToList = () => {
         setStep('truck_list');
         setTruckDetails(null);
+        setActiveShipmentIndex(0);
+        setCompletedShipments({});
         setSelectedCustomer(null);
         setSelectedLclOption(null);
         setSelectedBooking(null);
@@ -388,6 +496,8 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
     const handleDone = () => {
         // Reset all state
         setTruckDetails(null);
+        setActiveShipmentIndex(0);
+        setCompletedShipments({});
         setSelectedCustomer(null);
         setSelectedLclOption(null);
         setSelectedBooking(null);
@@ -420,7 +530,16 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
 
             // Create download link
             const link = document.createElement('a');
-            link.download = `gate_in_slip_${truckDetails.truckNumber}_${new Date().toISOString().split('T')[0]}.png`;
+            // Container number is in the filename because a two-container truck
+            // produces two slips; without it the second download overwrites the
+            // first, which both name after the truck and the date.
+            const slipContainer = truckDetails.containerNumber || truckDetails.shipmentNumber || '';
+            link.download = [
+                'gate_in_slip',
+                truckDetails.truckNumber,
+                slipContainer,
+                new Date().toISOString().split('T')[0]
+            ].filter(Boolean).join('_') + '.png';
             link.href = dataUrl;
             link.click();
 
@@ -511,8 +630,31 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                 });
             }
 
-            showToast('success', 'Gate In submitted successfully');
-            setStep('success');
+            // One shipment is in. The truck is NOT finished until every shipment
+            // on it is -- the backend deliberately holds the status at
+            // 'NAQLEEN.INSPECTED' until then, which is what allows this resume
+            // and what makes stopping here leave the truck stuck in the list.
+            const nextCompleted = { ...completedShipments, [activeShipmentIndex]: true };
+            setCompletedShipments(nextCompleted);
+
+            const nextPending = truckShipments.findIndex((_, i) => !nextCompleted[i]);
+
+            if (nextPending === -1) {
+                // Single shipment, CRO/LRO (no shipments array), or the last of
+                // two -- the truck is done.
+                showToast('success', 'Gate In submitted successfully');
+                setStep('success');
+            } else {
+                const remaining = truckShipments.length - Object.keys(nextCompleted).length;
+                showToast(
+                    'success',
+                    `Shipment ${truckShipments[activeShipmentIndex]?.shipmentNbr || ''} gated in. `
+                    + `${remaining} remaining on this truck.`
+                );
+                setActiveShipmentIndex(nextPending);
+                setTruckDetails(prev => (prev ? projectShipment(prev, nextPending) : prev));
+                resetPerShipmentState();
+            }
         } catch (error) {
             console.error('Error submitting gate in:', error);
             showToast('error', 'Failed to submit Gate In');
@@ -636,6 +778,24 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
 
         // Details step
         const isEnabled = canSubmit && !submitMutation.isPending;
+
+        // Name the button after what it actually does. On a two-shipment truck
+        // the first press gates in one container and leaves the truck in the
+        // yard's INSPECTED state -- calling that "Confirm Gate In" reads as
+        // "the truck is done", which is the misunderstanding that leaves the
+        // second container behind.
+        const activeDone = !!completedShipments[activeShipmentIndex];
+        const remainingAfterThis = isMultiShipment
+            ? truckShipments.length - Object.keys(completedShipments).length - 1
+            : 0;
+        const submitLabel = activeDone
+            ? 'Already Gated In'
+            : isMultiShipment && remainingAfterThis > 0
+                ? `Gate In This Container (${remainingAfterThis} more after this)`
+                : isMultiShipment
+                    ? 'Gate In Last Container'
+                    : 'Confirm Gate In';
+
         return (
             <button
                 onClick={handleSubmitGateIn}
@@ -671,7 +831,7 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                 }}
             >
                 {submitMutation.isPending && <Loader2 size={16} className="animate-spin" />}
-                Confirm Gate In
+                {submitLabel}
             </button>
         );
     };
@@ -843,6 +1003,90 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                         subMessage={submitMutation.isPending ? "Verifying and submitting data..." : "Fetching truck information..."}
                         height="200px"
                     />
+                </div>
+            )}
+
+            {/* Tab per shipment, for a truck carrying two containers. Matches
+                the Gate Out panel, which already works this way. A completed
+                tab stays selectable so its details can be reviewed; its submit
+                button is disabled below. */}
+            {isMultiShipment && !isLoadingDetails && !submitMutation.isPending && (
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                    {truckShipments.map((shipment, index) => {
+                        const isActive = activeShipmentIndex === index;
+                        const isDone = !!completedShipments[index];
+                        return (
+                            <button
+                                key={shipment.shipmentNbr || index}
+                                onClick={() => handleSelectShipmentTab(index)}
+                                style={{
+                                    flex: 1,
+                                    padding: '12px 10px',
+                                    borderRadius: '10px',
+                                    background: isActive ? theme.colors.primary : `${theme.colors.primary}12`,
+                                    color: isActive ? '#fff' : theme.colors.primary,
+                                    border: `1px solid ${isActive ? theme.colors.primary : `${theme.colors.primary}26`}`,
+                                    fontWeight: 600,
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    position: 'relative',
+                                    overflow: 'hidden'
+                                }}
+                            >
+                                <span style={{ zIndex: 1 }}>
+                                    {shipment.containerNbr || shipment.shipmentNbr || `Shipment ${index + 1}`}
+                                </span>
+                                {isDone && (
+                                    <CheckCircle
+                                        size={14}
+                                        color={isActive ? '#fff' : theme.colors.success}
+                                        style={{ zIndex: 1 }}
+                                    />
+                                )}
+                                {isActive && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        bottom: 0,
+                                        left: '10%',
+                                        right: '10%',
+                                        height: '3px',
+                                        background: theme.gradients.secondary,
+                                        borderRadius: '3px 3px 0 0'
+                                    }} />
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Every shipment on this truck is already in, yet the truck is still
+                being offered for gate in. That means the backend's expected-count
+                and its GATE_IN_SHIPMENTS list disagree, so the status never
+                flipped. There is no client-side action that fixes it -- say so
+                rather than leaving a disabled button with no explanation. */}
+            {allShipmentsDone && !isLoadingDetails && !submitMutation.isPending && (
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px',
+                    padding: '12px 14px',
+                    marginBottom: '16px',
+                    borderRadius: '10px',
+                    background: `${theme.colors.success}14`,
+                    border: `1px solid ${theme.colors.success}40`
+                }}>
+                    <CheckCircle size={16} color={theme.colors.success} style={{ flexShrink: 0, marginTop: '1px' }} />
+                    <span style={{ fontSize: '12.5px', lineHeight: 1.5, color: theme.colors.text.primary }}>
+                        Every shipment on this truck has already been gated in. If it is still
+                        showing in the list, the truck's status did not advance &mdash; report it
+                        rather than submitting again.
+                    </span>
                 </div>
             )}
 
@@ -1615,6 +1859,38 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
         return (
             <div style={{ height: '100%', overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
                 <div style={{ padding: '25px', width: '100%', maxWidth: '390px' }}>
+
+                    {/* One slip per container. Both shipments are gated in by the
+                        time this screen appears, so the tabs select which slip to
+                        view and download rather than which to submit. */}
+                    {isMultiShipment && (
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                            {truckShipments.map((shipment, index) => {
+                                const isActive = activeShipmentIndex === index;
+                                return (
+                                    <button
+                                        key={shipment.shipmentNbr || index}
+                                        onClick={() => handleSelectSlipShipment(index)}
+                                        style={{
+                                            flex: 1,
+                                            padding: '10px',
+                                            borderRadius: '10px',
+                                            background: isActive ? theme.colors.primary : `${theme.colors.primary}12`,
+                                            color: isActive ? '#fff' : theme.colors.primary,
+                                            border: `1px solid ${isActive ? theme.colors.primary : `${theme.colors.primary}26`}`,
+                                            fontWeight: 600,
+                                            fontSize: '12px',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        {shipment.containerNbr || shipment.shipmentNbr || `Slip ${index + 1}`}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+
                     <div ref={slipRef} className="driver-slip-ticket animate-fade-in" style={{
                         background: theme.colors.background.primary,
                         borderRadius: '18px',
@@ -1679,27 +1955,49 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                         {/* Decorative Divider */}
                         <div style={{ height: '6px', background: 'linear-gradient(to right, #FAD5A5, #E8C89A, #D4AB79)' }} />
 
-                        {/* Ticket Body */}
+                        {/* Ticket Body.
+
+                            Content and order follow the mobile app's driver slip
+                            (_DriverSlipTicket in gate_in_screen.dart) so the two
+                            hand the driver the same document: logo + customer,
+                            container with its equipment type, Gate/Shipment,
+                            truck barcode, then a Remarks box to write in.
+
+                            The mobile slip has no "Request Type" row, so the one
+                            that used to sit above Container is gone. It showed
+                            shipmentName (INBOUND_CONTAINER); restore it here if
+                            the yard wants it on both. */}
                         <div style={{ padding: '20px', background: theme.colors.background.primary, borderRadius: '0 0 18px 18px' }}>
 
-                            {/* Request Type Row */}
+                            {/* Company logo left, customer right */}
                             <div style={{
-                                background: 'rgba(250, 213, 165, 0.1)',
-                                border: '1px solid rgba(250, 213, 165, 0.3)',
-                                borderRadius: '8px',
-                                padding: '10px 14px',
                                 display: 'flex',
-                                justifyContent: 'space-between',
                                 alignItems: 'center',
-                                marginBottom: '8px'
+                                justifyContent: 'space-between',
+                                gap: '12px',
+                                marginBottom: '16px'
                             }}>
-                                <span style={{ fontSize: '12px', color: theme.colors.text.secondary, fontWeight: 600 }}>Request Type</span>
-                                <span style={{ fontSize: '13px', color: theme.colors.text.primary, fontWeight: 700 }}>
-                                    {truckDetails.shipmentName || '-'}
-                                </span>
+                                <img
+                                    src={naqleenLogo}
+                                    alt="Naqleen"
+                                    style={{ height: '38px', maxWidth: '140px', objectFit: 'contain' }}
+                                />
+                                {truckDetails.customerName && (
+                                    <span style={{
+                                        fontSize: '14px',
+                                        fontWeight: 700,
+                                        color: theme.colors.text.primary,
+                                        textAlign: 'right',
+                                        lineHeight: 1.3
+                                    }}>
+                                        {truckDetails.customerName}
+                                    </span>
+                                )}
                             </div>
 
-                            {/* Container Row */}
+                            {/* Container Row. The equipment type rides with the
+                                container number in parentheses, as on mobile --
+                                one line, not a separate row. */}
                             <div style={{
                                 background: 'rgba(250, 213, 165, 0.1)',
                                 border: '1px solid rgba(250, 213, 165, 0.3)',
@@ -1713,6 +2011,7 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                                 <span style={{ fontSize: '12px', color: theme.colors.text.secondary, fontWeight: 600 }}>Container</span>
                                 <span style={{ fontSize: '13px', color: theme.colors.text.primary, fontWeight: 700 }}>
                                     {truckDetails.containerNumber || '-'}
+                                    {truckDetails.containerType ? ` (${truckDetails.containerType})` : ''}
                                 </span>
                             </div>
 
@@ -1746,6 +2045,26 @@ export default function GateInPanel({ isOpen, onClose }: GateInPanelProps) {
                                     margin={0}
                                     displayValue={true}
                                 />
+                            </div>
+
+                            {/* Remarks. Deliberately empty -- it is space for the
+                                gate officer to write on the printed slip, which
+                                is why it has a fixed height and no input. */}
+                            <div style={{
+                                marginTop: '16px',
+                                padding: '12px',
+                                borderRadius: '8px',
+                                border: `1px solid ${theme.colors.border}`,
+                                background: 'transparent'
+                            }}>
+                                <div style={{
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    color: theme.colors.text.secondary
+                                }}>
+                                    Remarks:
+                                </div>
+                                <div style={{ height: '25px' }} />
                             </div>
                         </div>
                     </div>

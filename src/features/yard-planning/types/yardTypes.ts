@@ -62,7 +62,15 @@ export interface SubmitContainerPositionRequestItem {
     shipment_nbr: string;
     container_nbr: string;
     position: string;
-    truck_nbr: string;
+    /**
+     * Omitted for CFS-area positioning: the container is already in the yard
+     * and arrived on no truck. XX_OTM_SUBMIT_CONTAINER_POSITION guards both of
+     * its truck steps with `IF l_truck_nbr IS NOT NULL` -- the gate-in-state
+     * lock and the vehicle-master status update -- so no truck is a supported
+     * path, not a degraded one. Sending a placeholder instead makes that guard
+     * pass and then fails the lookup with a 403.
+     */
+    truck_nbr?: string;
 }
 
 export type SubmitContainerPositionBatchRequest = SubmitContainerPositionRequestItem[];

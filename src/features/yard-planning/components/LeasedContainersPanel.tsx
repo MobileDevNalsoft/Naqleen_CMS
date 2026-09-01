@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { X, ArrowLeft, FileText, Ship, Loader2, MapPin, Search } from 'lucide-react';
+import { X, ArrowLeft, FileText, Ship, Loader2, Search } from 'lucide-react';
 import { useStore } from '../../../store/store';
 import { useUIStore } from '../../../store/uiStore';
 import { useQuery } from '@tanstack/react-query';

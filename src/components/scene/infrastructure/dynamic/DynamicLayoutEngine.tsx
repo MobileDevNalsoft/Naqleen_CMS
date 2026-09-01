@@ -111,6 +111,14 @@ const DynamicLayoutEngine: React.FC = () => {
     return (
         <group>
             {topLevelEntities.map((entity: DynamicEntity) => {
+                // Block entities belong to IcdMarkings (SlotMarkings + BlockLabels), which draws
+                // their slot grid, row/lot labels and selection dimming. Skipped here with the
+                // same predicate getAllDynamicBlocks() uses, so the two never disagree.
+                // Silencing them one type at a time in the Registry didn't scale: only
+                // 'container_block_a' was ever listed, so 'container_block_b'..'_e' (Jeddah)
+                // and 'container_block' (Dammam) warned on every single render.
+                if (entity.type.includes('block')) return null;
+
                 const Component = ComponentRegistry[entity.type];
                 if (!Component) {
                     console.warn(`DynamicLayoutEngine: Unknown entity type '${entity.type}' for id '${entity.id}'`);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import PanelLayout from '../../shared/components/PanelLayout';
-import { Truck, User, Loader2, CheckCircle, AlertTriangle, Search, X, ArrowLeft, Download, ChevronDown, FileText, Upload } from 'lucide-react';
+import { Truck, User, Loader2, CheckCircle, AlertTriangle, Search, X, ArrowLeft, Download, ChevronDown, FileText } from 'lucide-react';
 import PremiumStateView from '../../../components/ui/feedback/PremiumStateView';
 import { showToast } from '../../../components/ui/feedback/common/Toast';
 import TruckLoader from '../../../components/ui/feedback/trucks/TruckLoader';

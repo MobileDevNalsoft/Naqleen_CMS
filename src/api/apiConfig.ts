@@ -1,6 +1,23 @@
+const ORDS_ROOT = import.meta.env.VITE_API_BASE_URL || '';
+
+// The merge collapses otm-web and otm-mobile into one ORDS module, naqleen_otm
+// on /naqleen-otm/. Both clients therefore resolve to the same base path now.
+//
+// Kept env-overridable, per client. 08_retire_legacy.sql has NOT been run, so
+// the legacy modules keep serving -- which makes a rollback a config change
+// rather than a rebuild, and lets one surface be pinned back independently if
+// only it regresses. The two override vars are documented, commented out, in
+// .env.
+//
+// Both constant NAMES are kept even though they resolve to the same place:
+// ~60 call sites import webApiClient or mobileApiClient by name, and
+// collapsing them is mechanical work that does not belong in a cutover you
+// might need to reverse quickly.
+const MERGED_MODULE = '/ords/xxotm/naqleen-otm';
+
 export const API_CONFIG = {
-    WEB_BASE_URL: (import.meta.env.VITE_API_BASE_URL || '') + '/ords/xxotm/otm-web',
-    MOBILE_BASE_URL: (import.meta.env.VITE_API_BASE_URL || '') + '/ords/xxotm/otm-mobile',
+    WEB_BASE_URL: ORDS_ROOT + (import.meta.env.VITE_ORDS_WEB_MODULE || MERGED_MODULE),
+    MOBILE_BASE_URL: ORDS_ROOT + (import.meta.env.VITE_ORDS_MOBILE_MODULE || MERGED_MODULE),
     TIMEOUT: 30000,
     HEADERS: {
         'Content-Type': 'application/json',

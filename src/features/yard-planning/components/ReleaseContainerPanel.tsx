@@ -454,7 +454,6 @@ export default function ReleaseContainerPanel({ isOpen, onClose }: ReleaseContai
                         alignItems: 'center', justifyContent: 'center', paddingBottom: '40px', boxSizing: 'border-box'
                     }}>
                         <TruckLoader message="LOADING TRUCKS" subMessage="Fetching available trucks..." height="150px" />
-                        <TruckLoader message="LOADING TRUCKS" subMessage="Fetching available trucks..." height="150px" />
                     </div>
                 ) : isTrucksError ? (
                     <PremiumStateView

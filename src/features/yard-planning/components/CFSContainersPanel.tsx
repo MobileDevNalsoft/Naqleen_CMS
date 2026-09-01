@@ -232,8 +232,11 @@ const CFSDetailsPanel = () => {
     const activePanel = useUIStore(state => state.activePanel);
     const openPanel = useUIStore(state => state.openPanel);
 
-    // Identify if the selected block is CFS Area 1 (invalid_containers is handled by InvalidContainersPanel)
-    const isCFSArea = selectedBlock === 'cfs_area_1';
+    // The CFS zone is named per site: 'cfs_area_1' in Jeddah, 'cfs_area' in Dammam.
+    // Its siblings are deliberately excluded -- 'invalid_containers' belongs to
+    // InvalidContainersPanel and 'leased_area' to LeasedContainersPanel, so a
+    // startsWith('cfs_') test would hijack neither, but an id list states it plainly.
+    const isCFSArea = selectedBlock === 'cfs_area_1' || selectedBlock === 'cfs_area';
 
     // Find CFS Area details from layout
     const cfsArea = React.useMemo(() => {

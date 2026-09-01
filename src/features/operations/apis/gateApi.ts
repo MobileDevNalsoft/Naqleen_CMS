@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { API_CONFIG, mobileApiClient, type ApiResponse } from '../../../api';
-import type { GateTruckDetails, TruckDetailsApiResponse, GateCustomerShipments, BookingShipmentsResponse, GateInRequest, GateOutRequest, GateLclShipment } from '../types/gateTypes';
+import type { GateTruckDetails, GateShipment, TruckDetailsApiResponse, GateCustomerShipments, BookingShipmentsResponse, GateInRequest, GateOutRequest, GateLclShipment } from '../types/gateTypes';
 
 /**
  * Fetch truck suggestions for Gate In
@@ -35,6 +35,41 @@ export async function getGateInTruckDetails(truckNbr: string): Promise<GateTruck
 
         if (response.data.response_code === 200 && response.data.data) {
             const raw = response.data.data;
+
+            // A truck can carry up to two shipments, one container each. The
+            // server returns them in data.shipments[] and mirrors the FIRST one
+            // onto the flat top-level fields for older clients.
+            //
+            // Falling back to synthesising a single entry from those flat
+            // fields keeps this working against a server build that predates
+            // the array -- and, more routinely, against the LCL and CRO/LRO
+            // branches, which return a customer list and no shipments[] at all.
+            const shipments: GateShipment[] = raw.shipments?.length
+                ? raw.shipments.map(s => ({
+                    shipmentNbr: s.shipment_nbr || '',
+                    shipmentName: s.shipment_name || '',
+                    containerNbr: s.container_nbr || '',
+                    containerType: s.container_type || '',
+                    customerName: s.customer_name || '',
+                    customerNbr: s.customer_nbr || '',
+                    loadStatus: s.load_status || 'UNLOADED',
+                    orderNumber: s.otm_order_nbr || '',
+                    gateInCompleted: s.gate_in_completed === true
+                }))
+                : raw.shipment_nbr
+                    ? [{
+                        shipmentNbr: raw.shipment_nbr,
+                        shipmentName: raw.shipment_name || '',
+                        containerNbr: raw.container_nbr || '',
+                        containerType: raw.container_type || '',
+                        customerName: raw.customer_name || '',
+                        customerNbr: '',
+                        loadStatus: 'UNLOADED',
+                        orderNumber: raw.otm_order_nbr || raw.order_nbr || '',
+                        gateInCompleted: false
+                    }]
+                    : [];
+
             return {
                 truckNumber: raw.truck_nbr || '',
                 driverName: raw.driver_name || '',
@@ -51,7 +86,13 @@ export async function getGateInTruckDetails(truckNbr: string): Promise<GateTruck
                     customerNbr: c.customer_nbr,
                     customerName: c.customer_name
                 })),
-                lclOptions: raw.lcl_options || []
+                lclOptions: raw.lcl_options || [],
+                shipments,
+                // Trust the server's count when it sends one; derive it
+                // otherwise so the caller never has to special-case an
+                // older response.
+                pendingCount: raw.pending_count ?? shipments.filter(s => !s.gateInCompleted).length,
+                flow: raw.flow
             };
         }
 
@@ -105,12 +146,26 @@ export async function getCustomerShipments(
  */
 export async function getCustomerBookings(
     customerNbr: string,
-    searchText: string = ''
+    searchText: string = '',
+    shipmentName: string = ''
 ): Promise<string[]> {
     try {
+        // shipmentName is the LCL operation the operator picked -- LOADING_LCL
+        // or OFFLOADING_LCL.
+        //
+        // The two states are NOT filter/no-filter. XX_OTM_GET_CUSTOMER_BOOKINGS
+        // branches on it:
+        //   supplied -> st.shipment_name = upper(p_shipment_name)
+        //   null     -> st.shipment_name in ('STORE_AS_IT_IS','CRO','LRO',
+        //                                    'RELEASE_CFS','CFS')
+        // so omitting it on an LCL flow does not widen the list, it returns the
+        // NON-LCL set -- bookings the operator cannot use for this operation.
+        //
+        // Always sent, matching the mobile app, which passes '' on the standard
+        // path. Oracle reads an empty string as NULL, which is the second branch.
         const response = await mobileApiClient.get<ApiResponse<string[]>>(
             API_CONFIG.ENDPOINTS.CUSTOMER_BOOKINGS,
-            { params: { customerNbr, searchText } }
+            { params: { customerNbr, searchText, shipmentName } }
         );
 
         if (response.data.response_code === 200 && response.data.data) {
@@ -376,11 +431,16 @@ export function useCustomerShipmentsQuery(
 export function useCustomerBookingsQuery(
     customerNbr: string,
     searchText: string = '',
+    shipmentName: string = '',
     enabled: boolean = true
 ) {
     return useQuery({
-        queryKey: ['customer-bookings', customerNbr, searchText],
-        queryFn: () => getCustomerBookings(customerNbr, searchText),
+        // shipmentName is part of the key, not just the request. LOADING_LCL and
+        // OFFLOADING_LCL return different booking sets for the same customer, so
+        // sharing a key would serve one operation's bookings for the other -- and
+        // switching the LCL option would appear to change nothing.
+        queryKey: ['customer-bookings', customerNbr, searchText, shipmentName],
+        queryFn: () => getCustomerBookings(customerNbr, searchText, shipmentName),
         enabled: enabled && !!customerNbr,
         staleTime: 30000
     });
